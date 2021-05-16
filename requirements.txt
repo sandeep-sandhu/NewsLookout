@@ -1,0 +1,12 @@
+beautifulsoup4
+cchardet
+configparser
+importlib
+importlib-metadata
+lxml
+newspaper3k
+nltk
+pandas
+requests
+tld
+urllib3
