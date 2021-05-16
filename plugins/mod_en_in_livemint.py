@@ -57,8 +57,7 @@ class mod_en_in_livemint(basePlugin):
     validURLStringsToCheck = ['www.livemint.com']
 
     # never fetch URLs containing these strings:
-    invalidURLSubStrings = [
-                            'https://www.livemint.com/politics/news/',
+    invalidURLSubStrings = ['https://www.livemint.com/politics/news/',
                             'https://www.livemint.com/sports/',
                             'https://www.livemint.com/videos/',
                             'https://www.livemint.com/food/',
@@ -66,49 +65,120 @@ class mod_en_in_livemint(basePlugin):
                             'https://www.livemint.com/food/cook/',
                             'https://www.livemint.com/how-to-lounge/',
                             'https://www.livemint.com/relationships/',
-                            'https://lifestyle.livemint.com/fashion/',
-                            'https://lifestyle.livemint.com/smart-living/',
-                            'https://lifestyle.livemint.com/food/discover/',
+                            'livemint.com/fashion/',
+                            'livemint.com/smart-living/',
+                            'livemint.com/food/discover/',
                             'https://www.livemint.com/static/code-of-ethics',
                             'https://www.livemint.com/static/disclaimer',
                             'https://www.livemint.com/static/subscriber-tnc',
                             '/termsofuse.html',
                             '/contactus.html',
                             '/aboutus.html',
-                            'mintiphone.page.link'
+                            'mintiphone.page.link',
+                            'mailto:',
+                            'api.whatsapp.com'
                             ]
+
+    nonContentStrings = ['/sitemapweb.html', '/Search/Link/Author/']
 
     # this list of URLs will be visited to get links for articles,
     # but their content will not be scraped to pick up news content
     nonContentURLs = [mainURL,
                       'https://www.livemint.com/mostpopular',
+                      'https://www.livemint.com/wsj',
                       'https://www.livemint.com/companies/news',
                       'https://www.livemint.com/budget/news',
+                      'https://www.livemint.com/notifications',
                       'https://www.livemint.com/auto-news',
                       'https://www.livemint.com/mint-lounge',
+                      'https://www.livemint.com/topic/mint-insight',
                       'https://www.livemint.com/mutual-fund/mf-news',
                       'https://www.livemint.com/mint-lounge/business-of-life',
                       'https://www.livemint.com/brand-stories',
+                      'https://www.livemint.com/topic/brand-masters',
                       'https://www.livemint.com/politics',
                       'https://www.livemint.com/news/opinion',
                       'https://www.livemint.com/opinion/',
                       'https://www.livemint.com/topic/mint-views-',
                       'https://www.livemint.com/news/talking-point',
-                      'https://www.livemint.com/brand-post'
+                      'https://www.livemint.com/brand-post',
+                      'https://www.livemint.com/technology/gadgets',
+                      'https://www.livemint.com/technology',
+                      'https://www.livemint.com/market/commodities',
+                      'https://www.livemint.com/market/ipo',
+                      'https://www.livemint.com/money/ask-mint-money',
+                      'https://www.livemint.com/mint-lounge/features',
+                      'https://www.livemint.com/opinion/online-views',
+                      'https://www.livemint.com/opinion/blogs',
+                      'https://www.livemint.com/topic/long-story-short',
+                      'https://www.livemint.com/topic/money-with-monika',
+                      'https://www.livemint.com/Markets/Cryptocurrency',
+                      'https://www.livemint.com/Search/Link/Author/Ayushman-Baruah',
+                      'https://www.livemint.com/apps',
+                      'https://www.livemint.com/budget',
+                      'https://www.livemint.com/budget/expectations',
+                      'https://www.livemint.com/budget/opinion',
+                      'https://www.livemint.com/companies/company-results',
+                      'https://www.livemint.com/companies/news',
+                      'https://www.livemint.com/companies/people',
+                      'https://www.livemint.com/companies/start-ups',
+                      'https://www.livemint.com/education',
+                      'https://www.livemint.com/ifsc-code',
+                      'https://www.livemint.com/industry/agriculture',
+                      'https://www.livemint.com/industry/banking',
+                      'https://www.livemint.com/industry/energy',
+                      'https://www.livemint.com/industry/infotech',
+                      'https://www.livemint.com/industry/infrastructure',
+                      'https://www.livemint.com/industry/manufacturing',
+                      'https://www.livemint.com/industry/retail',
+                      'https://www.livemint.com/market/live-blog',
+                      'https://www.livemint.com/market/mark-to-market',
+                      'https://www.livemint.com/market/market-stats',
+                      'https://www.livemint.com/market/stock-market-news',
+                      'https://www.livemint.com/markets/mark-to-market',
+                      'https://www.livemint.com/topic/long-story',
+                      'https://www.livemint.com/topic/coronavirus',
+                      'https://www.livemint.com/mint-lounge',
+                      'https://www.livemint.com/mint-lounge/business-of-life',
+                      'https://www.livemint.com/money',
+                      'https://www.livemint.com/money/personal-finance',
+                      'https://www.livemint.com/mostpopular',
+                      'https://www.livemint.com/msitesearch',
+                      'https://www.livemint.com/mutual-fund',
+                      'https://www.livemint.com/myreads',
+                      'https://www.livemint.com/newsletters',
+                      'https://www.livemint.com/opinion/columns',
+                      'https://www.livemint.com/politics',
+                      'https://www.livemint.com/technology/apps',
+                      'https://www.livemint.com/technology/gadgets',
+                      'https://www.livemint.com/technology/tech-reviews',
+                      'https://www.livemint.com/topic/5g-tech',
+                      'https://www.livemint.com/topic/annual-banking-conclave',
+                      'https://www.livemint.com/topic/business-of-entertainment',
+                      'https://www.livemint.com/topic/digital-gurus',
+                      'https://www.livemint.com/topic/foldable-smartphones',
+                      'https://www.livemint.com/topic/long-reads',
+                      'https://www.livemint.com/topic/market-analysis',
+                      'https://www.livemint.com/topic/mint-50-top-mutual-funds',
+                      'https://www.livemint.com/topic/mint-explainer',
+                      'https://www.livemint.com/topic/mint-insight',
+                      'https://www.livemint.com/topic/mint-views-',
+                      'https://www.livemint.com/topic/plain-facts',
+                      'https://www.livemint.com/topic/primer',
+                      'https://www.livemint.com/topic/start-up-diaries',
+                      'https://www.livemint.com/topic/why-not-mint-money'
+                      'https://www.livemint.com/topic',
+                      'https://www.livemint.com/topic/coronavirus',
+                      'https://www.livemint.com/topic/long-story'
                       ]
 
     # write regexps in three groups ()()() so that the third group
     # gives a unique identifier such as a long integer at the end of a URL
-    # this third group will be selected as the unique identifier:
-    # urlUniqueRegexps = []
+    urlUniqueRegexps = [r'(https\/\/)(www\.livemint\.com\/.+\-)([0-9]{5,})(\.html)']
 
     # write the following regexps dict with each key as regexp to match the required date text,
     # group 2 of this regular expression should match the date string
-    # in this dict, put the key will be the date format expression
-    # to be used for datetime.strptime() function, refer to:
-    # https://docs.python.org/3/library/datetime.html#datetime.datetime.strptime
-    # For examples, see this dictionary's key-value pairs defined in the basePlugin class
-    # articleDateRegexps = {}
+    articleDateRegexps = dict()
 
     invalidTextStrings = []
 
@@ -121,33 +191,36 @@ class mod_en_in_livemint(basePlugin):
     # members used by functions of the class:
     authorMatchPatterns = []
     urlMatchPatterns = []
+
+    # fix this:
+    # https://www.livemint.com/health/wellness/why-cannabis-customers-are-everyone-s-dream-demographic-111618299950296.html
     dateMatchPatterns = dict()
     listOfURLS = []
 
-    # --- Methods to be implemented ---
+    def __init__(self):
+        """ Initialize the object
+        Use base class's lists and dicts in searching for unique url and published date strings
+        """
+        self.articleDateRegexps.update(basePlugin.articleDateRegexps)
+        self.urlUniqueRegexps = self.urlUniqueRegexps + super().urlUniqueRegexps
+        super().__init__()
 
-    # *** MANDATORY to implement ***
     def extractIndustries(self, uRLtoFetch, htmlText):
         """ Extract the industry of the articles from its URL or contents
         """
         industries = []
-
         return(industries)
 
-    # *** MANDATORY to implement ***
     def extractAuthors(self, htmlText):
         """ extract the author from the html content
         """
         authors = []
-
         return(authors)
 
-    # *** MANDATORY to implement ***
     def extractArticleBody(self, htmlContent):
         """ extract the text body of the article
         """
         body_text = ""
-
         return(body_text)
 
 # # end of file ##

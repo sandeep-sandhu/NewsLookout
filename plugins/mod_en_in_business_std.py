@@ -9,23 +9,33 @@
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
 
+ Notice:
+ This software is intended for demonstration and educational purposes only. This software is
+ experimental and a work in progress. Under no circumstances should these files be used in
+ relation to any critical system(s). Use of these files is at your own risk.
 
- DISCLAIMER: This software is intended for demonstration and educational purposes only.
  Before using it for web scraping any website, always consult that website's terms of use.
  Do not use this software to fetch any data from any website that has forbidden use of web
  scraping or similar mechanisms, or violates its terms of use in any other way. The author is
- not responsible for such kind of inappropriate use of this software.
+ not liable for such kind of inappropriate use of this software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+ FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.
+
 """
 
 ##########
 
 # import standard python libraries:
 import logging
+import re
 
 # import web retrieval and text processing python libraries:
 # from bs4 import BeautifulSoup
-# import lxml
-# import cchardet
 
 # import this project's python libraries:
 from base_plugin import basePlugin
@@ -63,30 +73,72 @@ class mod_en_in_business_std(basePlugin):
     # fetch only URLs containing the following substrings:
     validURLStringsToCheck = ['www.business-standard.com/article/']
 
-    nonContentURLs = [
-                      mainURL
-                      ]
+    nonContentStrings = ['/article/opinion/']
+
+    nonContentURLs = all_rss_feeds + [
+        mainURL,
+        'https://books.business-standard.com',
+        'https://bsmedia.business-standard.com',
+        'https://epaper.business-standard.com',
+        'https://hindi.business-standard.com',
+        'https://s.business-standard.com',
+        'https://smartinvestor.business-standard.com',
+        'https://www.business-standard.com/android',
+        'https://www.business-standard.com/author',
+        'https://www.business-standard.com/b2b-connect',
+        'https://www.business-standard.com/budget',
+        'https://www.business-standard.com/companies',
+        'https://www.business-standard.com/cookie-policy',
+        'https://www.business-standard.com/coronavirus',
+        'https://www.business-standard.com/disclaimer',
+        'https://www.business-standard.com/education',
+        'https://www.business-standard.com/finance',
+        'https://www.business-standard.com/general-news',
+        'https://www.business-standard.com/international',
+        'https://www.business-standard.com/ipad',
+        'https://www.business-standard.com/iphone',
+        'https://www.business-standard.com/latest-news',
+        'https://www.business-standard.com/management',
+        'https://www.business-standard.com/markets',
+        'https://www.business-standard.com/markets-ipos',
+        'https://www.business-standard.com/markets-news',
+        'https://www.business-standard.com/multimedia',
+        'https://www.business-standard.com/opinion',
+        'https://www.business-standard.com/pf',
+        'https://www.business-standard.com/pf-features',
+        'https://www.business-standard.com/pf-news',
+        'https://www.business-standard.com/pf-news-loans',
+        'https://www.business-standard.com/pf-news-tax',
+        'https://www.business-standard.com/podcast',
+        'https://www.business-standard.com/politics',
+        'https://www.business-standard.com/poll',
+        'https://www.business-standard.com/portfolio',
+        'https://www.business-standard.com/specials',
+        'https://www.business-standard.com/sports',
+        'https://www.business-standard.com/technology',
+        'https://www.business-standard.com/todays-paper',
+        'https://www.business-standard.com/wap'
+        ]
 
     # never fetch URLs containing these strings:
-    invalidURLSubStrings = []
+    invalidURLSubStrings = ['hindi.business-standard.com', '/sports']
 
-    urlUniqueRegexps = [r'(^http.+\/\/)(www.business\-standard.com\/.+\-)([0-9]{5,})']
+    urlUniqueRegexps = [r'(^http.+\/\/)(www.business\-standard.com\/.+\-)([0-9]{5,})',
+                        r'(^http.+\/\/)(www.business\-standard.com\/article.+\-)([0-9]{5,})(_1.html)',
+                        r'(^http.+\/\/)(www.business\-standard.com\/article.+article_id=)([0-9]{5,})(_*[0-9]*)']
 
-    # write the following regexps dict with each key as regexp to match the required date text,
-    # group 2 of this regular expression should match the date string
-    # in this dict, put the key will be the date format expression
-    # to be used for datetime.strptime() function, refer to:
-    # https://docs.python.org/3/library/datetime.html#datetime.datetime.strptime
     articleDateRegexps = {
         # "datePublished": "2021-02-25T22:59:00+05:30"
         r"(\"datePublished\": \")(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\+05:30\")":
         "%Y-%m-%dT%H:%M:%S",
-
         # content = "Fri, 26 Feb 2021 02:33:38 +0530">
         r"(content = \")([a-zA-Z]{3}, [0-9]{1,2} [a-zA-Z]{3} 20[0-9]{2} [0-9]{1,2}:[0-9]{2}:[0-9]{2} \+0530)(\">)":
-        "%a, %d %b %Y %H:%M:%S %z"}
+        "%a, %d %b %Y %H:%M:%S %z",
+        r'(<strong>)([a-zA-Z]{3} [0-9]{1,2}, 20[0-9]{2})(<\/strong>)': '%b %d, %Y'
+        }
 
-    invalidTextStrings = ['Support quality journalism and subscribe to Business Standard']
+    invalidTextStrings = ['Support quality journalism and subscribe to Business Standard',
+                          ]
 
     allowedDomains = ['www.business-standard.com']
 
@@ -94,36 +146,43 @@ class mod_en_in_business_std(basePlugin):
 
     authorRegexps = []
 
-    # members used by functions of the class:
     authorMatchPatterns = []
     urlMatchPatterns = []
     dateMatchPatterns = dict()
     listOfURLS = []
 
-    # --- Methods to be implemented ---
+    def __init__(self):
+        # use base class's lists and dicts in searching for unique url and published date strings
+        self.articleDateRegexps.update(basePlugin.articleDateRegexps)
+        self.urlUniqueRegexps = self.urlUniqueRegexps + super().urlUniqueRegexps
+        super().__init__()
 
-    # *** MANDATORY to implement ***
     def extractIndustries(self, uRLtoFetch, htmlText):
         """ Extract the industry of the articles from its URL or contents
         """
         industries = []
-
+        if type(htmlText) == bytes:
+            htmlText = htmlText.decode('UTF-8')
         return(industries)
 
-    # *** MANDATORY to implement ***
     def extractAuthors(self, htmlText):
         """ extract the author from the html content
         """
         authors = []
-
+        if type(htmlText) == bytes:
+            htmlText = htmlText.decode('UTF-8')
+        authorPattern = re.compile(r'(<meta name="author" content=")([a-zA-Z0-9 _\-]+)(">)')
+        matchRes = authorPattern.search(htmlText)
+        if matchRes is not None:
+            authors.append(matchRes.group(2))
         return(authors)
 
-    # *** MANDATORY to implement ***
     def extractArticleBody(self, htmlContent):
         """ extract the text body of the article
         """
         body_text = ""
-
+        if type(htmlContent) == bytes:
+            htmlContent = htmlContent.decode('UTF-8')
         return(body_text)
 
 # # end of file ##

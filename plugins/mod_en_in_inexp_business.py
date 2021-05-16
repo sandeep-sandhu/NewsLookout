@@ -48,7 +48,7 @@ class mod_en_in_inexp_business(basePlugin):
 
     mainURL = 'https://www.newindianexpress.com/business/'
 
-    all_rss_feeds = ["https://www.newindianexpress.com/Nation/rssfeed/?id = 170&getXmlFeed = true"]
+    all_rss_feeds = ["https://www.newindianexpress.com/Nation/rssfeed/?id=170&getXmlFeed=true"]
 
     # fetch only URLs containing the following substrings:
     validURLStringsToCheck = ['https://www.newindianexpress.com/nation/',
@@ -56,6 +56,8 @@ class mod_en_in_inexp_business(basePlugin):
                               'https://www.newindianexpress.com/opinions/',
                               'https://www.newindianexpress.com/world/',
                               'https://indianexpress.com/']
+
+    nonContentStrings = ['https://www.newindianexpress.com/opinions/']
 
     # get URL links from these URLs but done fetch content from them:
     nonContentURLs = ['https://www.newindianexpress.com/opinions/editorials',
@@ -77,7 +79,7 @@ class mod_en_in_inexp_business(basePlugin):
 
     invalidTextStrings = []
 
-    articleDateRegexps = {}
+    articleDateRegexps = dict()
     authorRegexps = []
     dateMatchPatterns = dict()
     urlMatchPatterns = []
@@ -89,7 +91,11 @@ class mod_en_in_inexp_business(basePlugin):
     urlMatchPatterns = []
 
     def __init__(self):
-        """ Initialize the object """
+        """ Initialize the object
+        Use base class's lists and dicts in searching for unique url and published date strings
+        """
+        self.articleDateRegexps.update(basePlugin.articleDateRegexps)
+        self.urlUniqueRegexps = super().urlUniqueRegexps + self.urlUniqueRegexps
         super().__init__()
 
     def extractUniqueIDFromURL(self, uRLtoFetch):
