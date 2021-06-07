@@ -4,7 +4,7 @@
 """
  File name: scraper_utils.py
  Application: The NewsLookout Web Scraping Application
- Date: 2021-01-14
+ Date: 2021-06-01
  Purpose: Helper class with utility functions supporting the web scraper
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
@@ -16,6 +16,10 @@
     saveObjToJSON()
     checkAndSanitizeConfigString()
     checkAndSanitizeConfigInt()
+    deDupeList(listWithDuplicates)
+    spaceGapAfterDot(matchobj)
+    fixSentenceGaps(inputText)
+    filterRepeatedchars()
     cutStrFromTag()
     cutStrBetweenTags()
     checkAndParseDate()
@@ -56,7 +60,8 @@ import os
 import importlib
 import importlib.resources
 from datetime import date, datetime, timedelta
-
+from collections import OrderedDict
+import re
 import json
 import base64
 import zlib
@@ -66,7 +71,6 @@ import logging
 import nltk
 from tld import get_tld
 
-from data_structs import NewsArticle, URLListHelper
 
 # setup logging
 logger = logging.getLogger(__name__)
@@ -192,6 +196,46 @@ def checkAndSanitizeConfigInt(configObj, sectionName, configParamName, default=N
     return(configParamValue)
 
 
+def deDupeList(listWithDuplicates):
+    """ Dedupe a given List by converting into a dict
+    , and then re-converting to a list back again.
+    """
+    dedupedList = listWithDuplicates
+    if type(listWithDuplicates).__name__ == 'list':
+        dedupedList = list(
+             OrderedDict.fromkeys(
+                 listWithDuplicates
+                )
+            )
+    return(dedupedList)
+
+
+def spaceGapAfterDot(matchobj):
+    """ Function called by fixSentenceGaps() when searching for sentence split checking regex to clean text """
+    if matchobj is not None:
+        if matchobj.group(0) == '-':
+            return(' ')
+        else:
+            return(matchobj.group(1) + matchobj.group(2) + " " + matchobj.group(3))
+    else:
+        logger.error('Error extracting match data: empty object passed to function spaceGapAfterDot()')
+
+
+def fixSentenceGaps(inputText):
+    """ Searches for sentence split position and puts a space after the fullstop of a previous sentence. """
+    return(re.sub(r'( [a-zA-Z]{2,})(\.)([A-Za-z]{2,} )', spaceGapAfterDot, inputText))
+
+
+def filterRepeatedchars(baseText, charList):
+    """ """
+    cleanText = baseText
+    for singleChar in charList:
+        doubleChars = singleChar + singleChar
+        while cleanText.find(doubleChars) > -1:
+            cleanText = cleanText.replace(doubleChars, singleChar)
+    return(cleanText)
+
+
 def cutStrFromTag(sourceStr, startTagStr):
     """ Cut part of the source String starting from substring from Tag till its end """
     resultStr = ""
@@ -276,11 +320,9 @@ def loadPlugins(configData):
     enabledPluginNames = removeStartTrailQuotes(configData['enabledPlugins']).split(',')
     pluginList = []
     for listItem in enabledPluginNames:
-        pluginList.append(removeStartTrailQuotes(
-             NewsArticle.cleanDirtyText(listItem)
-             ))
+        pluginList.append(removeStartTrailQuotes(listItem.strip()))
     # de-dupe list:
-    enabledPluginNames = URLListHelper.deDupeList(pluginList)
+    enabledPluginNames = deDupeList(pluginList)
     modulesPackageName = os.path.basename(plugins_dir)
     for pluginFileName in importlib.resources.contents(modulesPackageName):
         # get full path:
@@ -380,23 +422,26 @@ def sameURLWithoutQueryParams(url1, url2):
 
 
 def extractLinks(url, docRoot):
-    """ Extract all Links from beautifulSoup document """
+    """ Extract all Links from beautifulSoup document object of HTML content
+    """
     allLinks = []
-    section = docRoot.find_all("a")
-    rootTLDObj = get_tld(url, as_object=True)
-
-    if len(section) > 0:
-        for tag in section:
-            if tag.name == "a" and "href" in tag.attrs.keys():
-                linkValue = tag['href']
-                if linkValue.startswith('/'):
-                    allLinks.append(
-                                    rootTLDObj.parsed_url.scheme
-                                    + '://'
-                                    + rootTLDObj.parsed_url.netloc
-                                    + linkValue)
-                elif linkValue.startswith("javascript:") is False and linkValue.startswith('mailto:') is False:
-                    allLinks.append(linkValue)
+    try:
+        section = docRoot.find_all("a")
+        rootTLDObj = get_tld(url, as_object=True)
+        if section is not None and len(section) > 0:
+            for tag in section:
+                if tag.name == "a" and "href" in tag.attrs.keys():
+                    linkValue = tag['href']
+                    if linkValue.startswith('/'):
+                        allLinks.append(
+                                        rootTLDObj.parsed_url.scheme
+                                        + '://'
+                                        + rootTLDObj.parsed_url.netloc
+                                        + linkValue)
+                    elif linkValue.startswith("javascript:") is False and linkValue.startswith('mailto:') is False:
+                        allLinks.append(linkValue)
+    except Exception as e:
+        logger.error("Error extracting all Links from html document: %s", e)
     return(allLinks)
 
 

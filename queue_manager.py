@@ -4,7 +4,7 @@
 """
  File name: queue_manager.py
  Application: The NewsLookout Web Scraping Application
- Date: 2021-01-14
+ Date: 2021-06-01
  Purpose: Manage worker threads and the job queues of all the scraper plugins for the application
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
@@ -50,7 +50,7 @@ import queue
 
 # import this project's python libraries:
 from data_structs import Types, URLListHelper
-from worker import worker, histDBWorker
+from worker import worker, histDBWorker, aggQueueConsumer
 from network import NetworkFetcher
 from scraper_utils import loadPlugins
 
@@ -85,6 +85,7 @@ class queueManager:
         # { "plugin1name": [queue of URLS for plugin1] }
         self.URL_frontier = dict()
         self.newsAggQueue = queue.PriorityQueue()
+        self.aggQueueWorker = None
 
     def config(self, configData):
         """ Read and apply the configuration data passed by the main application
@@ -92,16 +93,16 @@ class queueManager:
         self.configData = configData
         self.allowedDomainsList = []
         self.histDBWorker = None
-        self.fetchCycleTime = 60
+        self.fetchCycleTime = 120
         try:
             logger.debug("Configuring the queue manager")
             self.available_cores = multiprocessing.cpu_count()
             self.runDate = configData['rundate']
-            self.fetchCycleTime = (int(self.configData['retry_wait_rand_max_sec'])
-                                   + int(self.configData['retry_wait_sec'])
-                                   + int(self.configData['connect_timeout'])
-                                   + int(self.configData['fetch_timeout'])
-                                   ) * int(self.configData['retry_count'])
+            self.fetchCycleTime = (int(self.configData['retry_wait_rand_max_sec']) +
+                                   int(self.configData['retry_wait_sec']) +
+                                   int(self.configData['connect_timeout']) +
+                                   int(self.configData['fetch_timeout'])
+                                   )
         except Exception as e:
             logger.error("Exception when configuring the queue manager: %s", e)
         # Initialize object that reads and writes completed URLs saved in file
@@ -137,11 +138,11 @@ class queueManager:
                                          name=0,
                                          daemon=False)
         # intialize the common queue consumer worker:
-        self.histDBWorker = histDBWorker(self.mods,
-                                         self.workCompletedURLs,
-                                         self.fetchCycleTime,
-                                         name=0,
-                                         daemon=False)
+        self.aggQueueWorker = aggQueueConsumer(self.mods,
+                                               self.workCompletedURLs,
+                                               self.fetchCycleTime,
+                                               name=0,
+                                               daemon=False)
 
     def initURLSourcingWorkers(self):
         """ Initialize all worker threads to identify URLs
@@ -202,44 +203,53 @@ class queueManager:
     def runAllJobs(self):
         """ Process Queue to run all web source (URL) identification jobs
         """
-        # To begin with, initialise the URL sourcing workers
+        # To begin with, initialize the URL identifying workers
         self.initURLSourcingWorkers()
-        # Next, initialise the URL content fetching workers
+        # Next, initialize the URL content-fetching workers
         self.initContentFetchWorkers()
+        # start all sourcing workers and fetching workers for each URL in URL frontier:
         self.startAllModules()
-        # start sourcing workers and fetching workers for each URL in URL frontier:
-        self.runDataProcessingJobs()
 
     def startAllModules(self):
         """ Start All Modules
         """
-        logger.debug("Starting all worker threads.")
-        # loop through urlSrcWorkers, and start their threads:
-        for keyitem in self.urlSrcWorkers.keys():
-            self.urlSrcWorkers[keyitem].start()
+        try:
+            logger.debug("Starting all worker threads.")
+            # loop through urlSrcWorkers, and start their threads:
+            for keyitem in self.urlSrcWorkers.keys():
+                self.urlSrcWorkers[keyitem].start()
 
-        logger.debug("Waiting for %s seconds to start content fetching worker threads.", min(self.fetchCycleTime, 60))
-        time.sleep(min(self.fetchCycleTime, 60))
+            logger.debug("Waiting for %s seconds to start content fetching worker threads.", min(self.fetchCycleTime, 60))
+            time.sleep(min(self.fetchCycleTime, 60))
 
-        # loop through workers, and start their threads:
-        for keyitem in self.contentFetchWorkers.keys():
-            self.contentFetchWorkers[keyitem].start()
+            # loop through workers, and start their threads:
+            for keyitem in self.contentFetchWorkers.keys():
+                self.contentFetchWorkers[keyitem].start()
 
-        # start worker to pick up items from common queue and put these into each plugins queue:
-        # TODO:
-        logger.debug("Waiting for %s seconds to start worker thread that saves history.", min(self.fetchCycleTime, 120))
-        time.sleep(min(self.fetchCycleTime, 120))
-        # start saving URLs to history
-        self.histDBWorker.start()
+            # start worker to pick up items from common queue and put these into each plugins queue:
+            logger.debug("Waiting for %s seconds to start worker thread that saves history.", min(self.fetchCycleTime, 120))
+            time.sleep(min(self.fetchCycleTime, 60))
 
-        # wait for urlSrcWorkers to finish
-        for keyitem in self.urlSrcWorkers.keys():
-            self.urlSrcWorkers[keyitem].join()
-        # wait for all threads to finish
-        for keyitem in self.contentFetchWorkers.keys():
-            self.contentFetchWorkers[keyitem].join()
-            logger.debug("Completed fetching content for plugin: %s", self.contentFetchWorkers[keyitem].pluginName)
-        logger.info('Completed fetching data on all worker threads')
+            # start saving URLs to history
+            self.histDBWorker.start()
+            # TODO: start aggregator queue consumer:
+            # self.aggQueueWorker.start()
+
+            # wait for urlSrcWorkers to finish
+            for keyitem in self.urlSrcWorkers.keys():
+                self.urlSrcWorkers[keyitem].join()
+
+            # wait for all threads to finish
+            for keyitem in self.contentFetchWorkers.keys():
+                self.contentFetchWorkers[keyitem].join()
+                logger.debug("Completed fetching content for plugin: %s", self.contentFetchWorkers[keyitem].pluginName)
+
+            logger.info('Completed fetching data on all worker threads')
+
+            # In the end, run the data processing plugins:
+            self.runDataProcessingJobs()
+        except KeyboardInterrupt:
+            print("Recognized keyboard interrupt, stopping the program now...")
 
     def finishAllTasks(self):
         """ Finish All Tasks
@@ -256,23 +266,19 @@ class queueManager:
         """
         # not running the data processing plugin in parallel due to heavy nature of the job
         # self.initDataProcWorkers()
-
         # perform any data processing required on fetched data:
         self.processDataSynchronously()
 
     def processDataSynchronously(self):
         """ Process Data on Workers:
-        loop through data plugins and execute these in serial order """
-
+        loop through data plugins and execute these in serial order
+        """
         # fetch and  read data that was processed by each plugin:
         for pluginName in self.mods.keys():
-
             thisPlugin = self.mods[pluginName]
-
             if thisPlugin.pluginType == Types.MODULE_DATA_PROCESSOR:
-
                 thisPlugin.processData()
-
                 logger.debug('Collecting processed data from plugin: %s', pluginName)
+
 
 # # end of file ##

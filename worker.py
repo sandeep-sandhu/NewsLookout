@@ -4,7 +4,7 @@
 """
  File name: worker.py
  Application: The NewsLookout Web Scraping Application
- Date: 2021-01-14
+ Date: 2021-06-01
  Purpose: This object encapsulates the worker thread that
   runs all multi-threading functionality to run the
   web scraper plugins loaded by the application.
@@ -21,7 +21,6 @@
 
     histDBWorker
         run
-
 
  Notice:
  This software is intended for demonstration and educational purposes only. This software is
@@ -50,6 +49,7 @@ import threading
 import time
 from datetime import datetime
 import queue
+from tqdm import tqdm
 
 # import this project's modules
 from data_structs import Types
@@ -91,47 +91,13 @@ class worker(threading.Thread):
         Run Tasks to gather the listing of URLs
         """
         pluginName = type(self.pluginObj).__name__
-        additionalLinks = []
-        moreAdditionalLinks = []
         try:
-            logger.debug("Started URL gathering for plugin: %s", pluginName)
+            logger.info("Started collecting URLs for plugin: %s", pluginName)
             # fetch URL list using each plugin's function:
-            self.pluginObj.getURLsListForDate(self.runDate)
-            # Remove URLs already retrieved earlier: removeAlreadyFetchedURLs(self, sqlCon, newURLsList, pluginName)
-            self.pluginObj.listOfURLS = self.completedURLs.removeAlreadyFetchedURLs(
-                    self.pluginObj.listOfURLS,
-                    pluginName)
-            if self.pluginObj.pluginType in [Types.MODULE_NEWS_CONTENT,
-                                             Types.MODULE_DATA_CONTENT,
-                                             Types.MODULE_NEWS_API
-                                             ]:
-                self.pluginObj.addURLsListToQueue(self.pluginObj.listOfURLS)
-                # fetch links one level deeper from the contents of the URL list !!!!!
-                additionalLinks = self.pluginObj.extractLinksFromURLList(self.runDate,
-                                                                         self.pluginObj.listOfURLS
-                                                                         )
-                additionalLinks = self.completedURLs.removeAlreadyFetchedURLs(additionalLinks,
-                                                                              pluginName)
-                self.pluginObj.addURLsListToQueue(additionalLinks)
-                # go another level deeper, extract more links from within the list of URLs:
-                moreAdditionalLinks = self.pluginObj.extractLinksFromURLList(self.runDate, additionalLinks)
-                if self.pluginObj.listOfURLS is not None and moreAdditionalLinks is not None:
-                    for urlItem in self.pluginObj.listOfURLS:
-                        if urlItem in moreAdditionalLinks:
-                            moreAdditionalLinks.remove(urlItem)
-                moreAdditionalLinks = self.completedURLs.removeAlreadyFetchedURLs(
-                    moreAdditionalLinks,
-                    pluginName)
-                self.pluginObj.addURLsListToQueue(moreAdditionalLinks)
-
-            elif self.pluginObj.pluginType == Types.MODULE_NEWS_AGGREGATOR:
-                # for news aggregators, put url into common queue:
-                self.pluginObj.addURLsListToQueue(self.pluginObj.listOfURLS)
-
+            self.pluginObj.getURLsListForDate(self.runDate, self.completedURLs)
             logger.debug('Thread %s finished getting URL listing for plugin %s',
                          self.workerID,
                          pluginName)
-            # saveObjToJSON(self.pluginName + '_additional_list_of_URLS.json', additionalLinks + moreAdditionalLinks )
         except Exception as e:
             logger.error(
                 "When trying to get URL listing using plugin: %s, Type TASK_GET_URL_LIST, Exception: %s",
@@ -191,18 +157,13 @@ class worker(threading.Thread):
     def runDataProcessingTasks(self):
         """ Run Data Processing Tasks """
         try:
-            logger.debug('Thread %s given task to process data using plugin %s',
-                         self.workerID, self.pluginName)
-
+            logger.debug('Thread %s given task to process data using plugin %s', self.workerID, self.pluginName)
             if (self.pluginObj.pluginType == Types.MODULE_DATA_PROCESSOR):
-
                 # get data processing initiated for each plugin's function:
                 self.pluginObj.processData(self.runDate)
-
                 logger.debug('Thread %s finished task to process data using plugin %s',
                              self.workerID,
                              self.pluginName)
-
         except Exception as e:
             logger.error("When trying to process data using plugin: %s, Type TASK_PROCESS_DATA: %s, Exception: %s",
                          self.pluginName,
@@ -210,7 +171,7 @@ class worker(threading.Thread):
                          e)
 
     def run(self):
-        """ Overridden to enable thread to be called for executing the Plugin jobs
+        """ Overridden to enable parent thread object to be called for executing the Plugin jobs
         """
         if self.taskType == Types.TASK_GET_URL_LIST:
             self.runURLListGatherTasks()
@@ -224,18 +185,18 @@ class worker(threading.Thread):
 
 
 class aggQueueConsumer(threading.Thread):
-    """ Worker object to consume aggregator sourced common URLs queue asynchronously
+    """ Worker object that asynchronously consumes aggregator sourced common URLs queue
     """
     workerID = -1
 
-    def __init__(self, pluginsList, commonURLsQueue, fetchCycleTime,
+    def __init__(self, pluginsList, commonURLsQueue, queueFetchWaitTime,
                  daemon=None, target=None, name=None):
         """ Initialize the worker object
         """
         self.workerID = name
         self.pluginsDict = pluginsList
         self.commonURLsQueue = commonURLsQueue
-        self.fetchCycleTime = min(30, fetchCycleTime)
+        self.fetchCycleTime = min(60, queueFetchWaitTime)
         logger.debug("Consumer for aggregator sourced common URLs queue worker %s initialized with the plugins: %s",
                      self.workerID,
                      self.pluginsDict)
@@ -252,7 +213,7 @@ class aggQueueConsumer(threading.Thread):
                     self.pluginsDict[pluginID].pluginState == Types.STATE_GET_URL_LIST
                    )
             while (not self.completedURLs.completedQueue.empty()) or arePluginsStillSourcingData:
-                # todo: get urls from common queue, put these into each relevant plugins content fetch queue
+                # TODO: get urls from common queue, put these into each relevant plugins content fetch queue
                 time.sleep(self.fetchCycleTime)
                 for pluginID in self.pluginsDict.keys():
                     arePluginsStillSourcingData = arePluginsStillSourcingData or (
@@ -266,31 +227,34 @@ class aggQueueConsumer(threading.Thread):
 
 
 class histDBWorker(threading.Thread):
-    """ Worker object to save completed URL to db asynchronously
+    """ Worker object to save completed URL to history database asynchronously
     """
     workerID = -1
+    totalURLQueueSize = 0
 
-    def __init__(self, pluginsList, workCompletedURLs, fetchCycleTime,
+    def __init__(self, pluginsList, workCompletedURLs, refreshProgressWaitTime,
                  daemon=None, target=None, name=None):
         """ Initialize the worker object
         """
         self.workerID = name
         self.pluginsDict = pluginsList
         self.completedURLs = workCompletedURLs
-        # fetchCycleTime is an estimate of the time in seconds a thread takes to retrieve a url:
-        self.fetchCycleTime = max(120, fetchCycleTime)
-        logger.debug("Hist database recorder worker %s initialized with the plugins: %s",
+        # refreshProgressWaitTime is an estimate of the time in seconds a thread takes to retrieve a url:
+        self.refreshProgressWaitTime = max(120, refreshProgressWaitTime)
+        logger.debug("History database recorder thread %s initialized with the plugins: %s",
                      self.workerID,
                      self.pluginsDict)
         # call base class:
         super().__init__(daemon=daemon, target=target, name=name)
 
     def run(self):
-        """ Main method run on thread when it is started
+        """ Main method run on history database thread when it is started
         """
         isPluginStillFetchingData = False
         totalCountWrittenToDB = 0
-        logger.info('HistDB Worker Thread: Started now.')
+        totalTimeElapsed = self.refreshProgressWaitTime
+        completedURLCount = 0
+        logger.debug('History database thread started now.')
         try:
             for pluginID in self.pluginsDict.keys():
                 isPluginStillFetchingData = isPluginStillFetchingData or (
@@ -298,27 +262,42 @@ class histDBWorker(threading.Thread):
                    ) or (
                     self.pluginsDict[pluginID].pluginState == Types.STATE_GET_URL_LIST
                    )
-
+                self.totalURLQueueSize = self.totalURLQueueSize + self.pluginsDict[pluginID].urlQueueTotalSize
+            statusBarText = tqdm.format_meter(0, self.totalURLQueueSize, totalTimeElapsed, ncols=80)
+            print(statusBarText, '\b' * 100, end='')
             while (not self.completedURLs.completedQueue.empty()) or isPluginStillFetchingData:
                 countOfURLsWrittenToDB = self.completedURLs.writeQueueToDB()
                 totalCountWrittenToDB = totalCountWrittenToDB + countOfURLsWrittenToDB
-                if self.completedURLs.completedQueue.empty():
-                    logger.debug('HistDB Worker Thread: %s URLs saved to history, pausing %s seconds...',
-                                 self.fetchCycleTime,
-                                 countOfURLsWrittenToDB)
-                    time.sleep(self.fetchCycleTime)
+                if self.completedURLs.completedQueue.empty() and countOfURLsWrittenToDB > 0:
+                    logger.info('Progress Status: %s URLs successfully scraped out of %s processed; %s URLs remain.',
+                                totalCountWrittenToDB,
+                                completedURLCount,
+                                (self.totalURLQueueSize - completedURLCount)
+                                )
+                    time.sleep(self.refreshProgressWaitTime)
+                    totalTimeElapsed = totalTimeElapsed + self.refreshProgressWaitTime
                     isPluginStillFetchingData = False
-
+                completedURLCount = 0
+                self.totalURLQueueSize = 0
                 for pluginID in self.pluginsDict.keys():
                     isPluginStillFetchingData = isPluginStillFetchingData or (
                         self.pluginsDict[pluginID].pluginState == Types.STATE_FETCH_CONTENT
                        ) or (
                         self.pluginsDict[pluginID].pluginState == Types.STATE_GET_URL_LIST
                        )
-                    logger.debug('HistDB Worker Thread: Is plugin %s still fetching data? %s',
+                    completedURLCount = completedURLCount + self.pluginsDict[pluginID].urlProcessedCount
+                    self.totalURLQueueSize = self.totalURLQueueSize + self.pluginsDict[pluginID].urlQueueTotalSize
+                    logger.debug('History Database Worker Thread: Is plugin %s still fetching data? %s',
                                  type(self.pluginsDict[pluginID]).__name__,
                                  (self.pluginsDict[pluginID].pluginState == Types.STATE_FETCH_CONTENT))
-            logger.info('HistDB Worker Thread: Finished saving the list of %s URLs in history database.',
+                if completedURLCount > self.totalURLQueueSize:
+                    self.totalURLQueueSize = completedURLCount
+                statusBarText = tqdm.format_meter(completedURLCount,
+                                                  self.totalURLQueueSize,
+                                                  totalTimeElapsed,
+                                                  ncols=80)
+                print(statusBarText, '\b' * 100, end='')
+            logger.info('History Database Thread: Finished saving a total of %s URLs in history database.',
                         totalCountWrittenToDB)
         except Exception as e:
             logger.error("When trying to save history data, the exception was: %s", e)

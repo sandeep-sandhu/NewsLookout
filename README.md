@@ -42,6 +42,17 @@ The scripts may be invoked by scheduling it via the UNIX cron scheduler or the M
 
 The application created a PID file upon startup and checks for the existence of this file at startup.  The application will not stop.
 
+The application displays its progress on stdout, for example:
+
+>         NewsLookout Web Scraping Application, Version  1.8.1
+>         Python version:  3.8.8 (tags/v3.8.8:024d805, Feb 19 2021, 13:18:16) [MSC v.1928 64 bit (AMD64)]
+>         Reading configuration settings from file: conf\newslookout_win.conf
+>         Logging to file: temp\newslookout.log
+>          12%|████▍                                 | 680/5786 [18:00<2:15:09,  1.59s/it]
+
+
+For a more detailed log of events, refer to the log file.
+
 
 ## Maintenance and Monitoring
 

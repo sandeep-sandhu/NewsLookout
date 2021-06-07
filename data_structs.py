@@ -4,7 +4,7 @@
 """
  File name: data_structs.py
  Application: The NewsLookout Web Scraping Application
- Date: 2021-01-14
+ Date: 2021-06-01
  Purpose: Helper class with data structures supporting the web scraper
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
@@ -43,10 +43,14 @@ import threading
 import json
 import queue
 from json import JSONEncoder
-from collections import OrderedDict
 import bz2
 import base64
 import sqlite3 as lite
+import re
+
+# import internal libraries
+from scraper_utils import deDupeList, fixSentenceGaps
+
 
 ##########
 
@@ -93,56 +97,35 @@ class URLListHelper(JSONEncoder):
         """ default """
         return o.__dict__
 
-    def deDupeList(listWithDuplicates):
-        """ Dedupe a given List by converting into a dict
-        , and then re-converting to a list back again.
-        """
-        dedupedList = listWithDuplicates
-
-        if type(listWithDuplicates).__name__ == 'list':
-            dedupedList = list(
-                 OrderedDict.fromkeys(
-                     listWithDuplicates
-                    )
-                )
-
-        return(dedupedList)
-
     def openConnFromfile(dataFileName):
         """ Read SQLite database file and get its connection.
         This db stores previously saved URLs.
         """
         sqlCon = None
-
         try:
             logger.debug("Trying to open connection to history URLs sqlite DB file '%s'", dataFileName)
-
-            sqlCon = lite.connect(dataFileName)
-
-            cur = sqlCon.cursor()
-
-            if os.path.isfile(dataFileName):
-                cur.execute('delete from NEW_URL_LIST')
-                sqlCon.commit()
-            else:
+            if os.path.isfile(dataFileName) is False:
+                sqlCon = lite.connect(dataFileName)
+                cur = sqlCon.cursor()
                 # create a new file with empty table
                 cur.execute('CREATE TABLE URL_LIST(url TEXT, plugin varchar(100), pubdate DATE, rawsize long, datasize long)')
-                cur.execute('CREATE TABLE NEW_URL_LIST(url TEXT)')
+                cur.execute('CREATE TABLE pending_urls(url varchar(255), plugin_name varchar(100), attempts integer)')
                 cur.execute('SELECT SQLITE_VERSION()')
                 data = cur.fetchone()
+                sqlCon.commit()
                 logger.info("Created new SQLite database to store history of URLs, SQLite version: %s", data[0])
-
+            else:
+                sqlCon = lite.connect(dataFileName)
         except lite.Error as e:
             logger.error("SQLite database error connecting to previous saved URLs db: %s", e)
-
         except Exception as e:
             logger.error("Error connecting to previous saved URLs db: %s", e)
-
         return(sqlCon)
 
     def printDBStats(self):
         """ print SQLite database Stats and version no.
         """
+        sqlCon = None
         try:
             logger.debug("Print SQLite stats: Waiting for db exclusive access...")
             acqResult = self.dbAccessSemaphore.acquire()
@@ -171,6 +154,7 @@ class URLListHelper(JSONEncoder):
         """ Remove already fetched URLs from given list by searching history database
         """
         filteredList = []
+        sqlCon = None
         try:
             logger.debug("Remove already fetched URLs: Waiting for db exclusive access...")
             acqResult = self.dbAccessSemaphore.acquire()
@@ -196,27 +180,76 @@ class URLListHelper(JSONEncoder):
             logger.debug("Remove already fetched URLs: Released exclusive db access")
         return(filteredList)
 
+    def retrieveTodoURLList(self, pluginName):
+        """ Retrieve URL's list from the table pending_urls for given plugin name"""
+        URLsFromSQLite = []
+        sqlCon = None
+        try:
+            logger.debug("Fetching pending url list: Waiting for db exclusive access...")
+            acqResult = self.dbAccessSemaphore.acquire()
+            if acqResult is True:
+                sqlQuery = "select url from pending_urls where plugin_name='" + pluginName + "'"
+                sqlCon = URLListHelper.openConnFromfile(self.dbFileName)
+                cur = sqlCon.cursor()
+                # execute query and get results:
+                cur.execute(sqlQuery)
+                allResults = cur.fetchall()  # fill results into list
+                for urlTuple in allResults:
+                    URLsFromSQLite.append(urlTuple[0])
+        except Exception as e:
+            logger.error("%s: Error when fetching pending url list from sqlite db: %s", pluginName, e)
+        finally:
+            if sqlCon:
+                sqlCon.close()
+            self.dbAccessSemaphore.release()
+            logger.debug("Fetching pending url list: Released exclusive db access")
+        return(URLsFromSQLite)
+
+    def addURLsToPendingTable(self, urlList, pluginName):
+        """ Add URLs To Pending Table
+        Check duplicates using SQL:
+        select count(*), url from pending_urls group by url having count(*)>1
+        """
+        sqlCon = None
+        try:
+            logger.debug("Add URL list to pending table in db: Waiting to get db exclusive access...")
+            acqResult = self.dbAccessSemaphore.acquire(timeout=30)
+            if acqResult is True:
+                logger.debug("Add URL list to pending table in db: Got exclusive db access")
+                sqlCon = URLListHelper.openConnFromfile(self.dbFileName)
+                cur = sqlCon.cursor()
+                urlList = deDupeList(urlList)
+                for urlitem in urlList:
+                    cur.execute('insert into pending_urls (url, plugin_name) values (\'' +
+                                urlitem + '\', \'' +
+                                pluginName + '\')')
+                sqlCon.commit()
+        except Exception as e:
+            logger.error("Error while adding URL list to pending table: %s", e)
+        finally:
+            if sqlCon:
+                sqlCon.close()
+            self.dbAccessSemaphore.release()
+            logger.debug("Add URL list to pending table in db: Released exclusive db access")
+
     def writeQueueToDB(self):
         """ write newly retrieved URLs to file
         """
-        # print('Queue size: ', self.completedQueue.qsize(), "Empty?", self.completedQueue.empty())
+        sqlCon = None
         writeCount = 0
         if not self.completedQueue.empty():
             try:
                 logger.debug("Save newly retrieved URLs to history db: Waiting to get db exclusive access...")
                 acqResult = self.dbAccessSemaphore.acquire(timeout=30)
-
                 if acqResult is True:
                     logger.debug("Save newly retrieved URLs to history db: Got exclusive db access")
                     sqlCon = URLListHelper.openConnFromfile(self.dbFileName)
                     cur = sqlCon.cursor()
-
-                    # get all completed urls from queue:
                     while not self.completedQueue.empty():
-                        # write each item to table:
+                        # get all completed urls from queue:
                         (sURL, rawSize, dataSize, pubdate, pluginName) = self.completedQueue.get()
                         self.completedQueue.task_done()
-                        # cur.execute('insert into URL_LIST VALUES("' + sURL + '")')
+                        # write each item to table:
                         cur.execute(
                                 'insert into URL_LIST (url, plugin, pubdate, rawsize, datasize) VALUES("'
                                 + sURL + '", "'
@@ -225,17 +258,20 @@ class URLListHelper(JSONEncoder):
                                 + str(rawSize) + ', '
                                 + str(dataSize) + ')')
                         writeCount = writeCount + 1
-
-                    cur.execute('delete from NEW_URL_LIST')
+                        cur.execute('delete from pending_urls where url=\'' + sURL +
+                                    '\' and plugin_name=\'' + pluginName + '\' ')
                     sqlCon.commit()
-
-                    # read back total URLs in history:
+                    # delete from pending where url exists in completed table:
+                    cur.execute('delete from pending_urls where url in (select url_list.url from url_list' +
+                                ' inner join pending_urls on pending_urls.plugin_name=url_list.plugin and' +
+                                ' url_list.url=pending_urls.url)')
+                    sqlCon.commit()
+                    # read back total count of URLs in history table:
                     cur.execute('SELECT count(*) from URL_LIST')
                     data = cur.fetchone()
                     logger.debug("Till date, %s URLs were retrieved.", data[0])
-
             except Exception as e:
-                logger.error("While saving newly retrieved URLs to history table: %s", e)
+                logger.error("Error while saving newly retrieved URLs to history table: %s", e)
             finally:
                 if sqlCon:
                     sqlCon.close()
@@ -243,7 +279,6 @@ class URLListHelper(JSONEncoder):
                 logger.debug("Save newly retrieved URLs to history db: Released exclusive db access")
         else:
             logger.debug("No URLs saved to history db at this moment.")
-
         return(writeCount)
 
 ##########
@@ -253,6 +288,7 @@ class NewsArticle(JSONEncoder):
     """ article data structure and object """
 
     urlData = dict()
+    triggerWordFlags = dict()
     uniqueID = ""
     html = None
 
@@ -302,25 +338,50 @@ class NewsArticle(JSONEncoder):
     def getAuthors(self):
         return(self.urlData["sourceName"])
 
+    def getTriggerWords(self):
+        return(self.triggerWordFlags)
+
     def getKeywords(self):
         return(self.urlData["keywords"])
+
+    def getArticleID(self):
+        return(self.urlData["uniqueID"])
 
     def setHTML(self, htmlContent):
         self.html = htmlContent
 
     def setPublishDate(self, publishDate):
-        """ set Publish Date of article """
+        """ set the Publish Date of article """
         try:
             self.urlData["pubdate"] = str(publishDate.strftime("%Y-%m-%d"))
-
         except Exception as e:
             logger.error("Error setting publish date of article: %s", e)
             self.urlData["pubdate"] = str(datetime.now().strftime("%Y-%m-%d"))
 
     def setModuleName(self, moduleName):
+        """ Set the name of the module that generated this news item"""
         self.urlData["module"] = moduleName
 
+    def setTriggerWordFlag(self, triggerKey, triggerFlag):
+        """ Add trigger word flag value for given article"""
+        self.triggerWordFlags[triggerKey] = triggerFlag
+
+    def identifyTriggerWordFlags(self, configur):
+        """ Identify Trigger Word Flags, read from config file """
+        if 'triggerwords' in configur.sections():
+            section = configur['triggerwords']
+            if section.name == 'triggerwords':
+                for key, item in section.items():
+                    matchPat = re.compile(str(item).strip())
+                    regMatchRes = matchPat.search(self.getText().lower())
+                    if regMatchRes is not None:
+                        self.setTriggerWordFlag(key, 1)
+                    else:
+                        self.setTriggerWordFlag(key, 0)
+        self.urlData["triggerwords"] = self.triggerWordFlags
+
     def setTitle(self, articleTitle):
+        """ Set the title """
         self.urlData["title"] = str(articleTitle)
 
     def setKeyWords(self, articleKeyWordsList):
@@ -330,16 +391,16 @@ class NewsArticle(JSONEncoder):
         try:
             for keyword in articleKeyWordsList:
                 # clean words, trim whitespace:
-                resultList.append(NewsArticle.cleanDirtyText(keyword))
+                resultList.append(NewsArticle.cleanText(keyword))
             # de-duplicate the list
-            resultList = URLListHelper.deDupeList(resultList)
+            resultList = deDupeList(resultList)
         except Exception as e:
             logger.error("Error cleaning keywords for article: %s", e)
 
         self.urlData["keywords"] = resultList
 
     def setText(self, articleText):
-        self.urlData["text"] = self.cleanText(articleText)
+        self.urlData["text"] = NewsArticle.cleanText(articleText)
 
     def setIndustries(self, articleIndustryList):
         self.urlData["industries"] = articleIndustryList
@@ -374,37 +435,43 @@ class NewsArticle(JSONEncoder):
         except Exception as theError:
             logger.error("Exception caught reading JSON file: %s", theError)
 
-    def cleanDirtyText(dirtyText):
-        """ Clean Dirty Text
-        """
-        cleanText = ""
-        dirtyText = dirtyText.strip()
-        if len(dirtyText) > 0:
-            try:
-                cleanText = dirtyText.encode("ascii", "ignore").decode().strip()
-            except Exception as e:
-                logger.error("Error cleaning text: %s", e)
-        return(cleanText)
-
-    def cleanText(self, textInput):
+    def cleanText(textInput):
         """ clean text, e.g. replace unicode characters, etc.
         """
+        cleanText = textInput
         if len(textInput) > 1:
-            cleanText = textInput.replace("\u2014", "-")
-            cleanText = cleanText.replace("\u2013", "-")
-            cleanText = cleanText.replace("\n", " ")
-            cleanText = cleanText.replace("\u2019", "'")
-            cleanText = cleanText.replace("\u2018", "'")
-            cleanText = cleanText.replace("\u201d", "'")
-            cleanText = cleanText.replace("\u201c", "'")
-            cleanText = cleanText.replace("\U0001f642", " ")
-            cleanText = cleanText.replace("\u200b", " ")  # \u200b
-            cleanText = cleanText.replace("\x93", " ")
-            cleanText = cleanText.replace("\x94", " ")
-            cleanText = cleanText.replace("''", "'")
-            cleanText = NewsArticle.cleanDirtyText(cleanText)
-        else:
-            cleanText = textInput
+            try:
+                # replace special characters
+                cleanText = cleanText.replace(" Addl. ", " Additional ")
+                cleanText = cleanText.replace("M/s.", "Messers")
+                cleanText = cleanText.replace("m/s.", "Messers")
+                cleanText = cleanText.replace(' Rs.', ' Rupees ')
+                cleanText = cleanText.replace('₹', ' Rupees ')
+                cleanText = cleanText.replace('$', ' Dollars ')
+                cleanText = cleanText.replace("\t", " ")
+                cleanText = cleanText.replace('—', "-")
+                cleanText = cleanText.replace("\u2014", "-")
+                cleanText = cleanText.replace('–', "-")
+                cleanText = cleanText.replace("\u2013", "-")
+                cleanText = cleanText.replace('’', "'")
+                cleanText = cleanText.replace("\u2019", "'")
+                cleanText = cleanText.replace('‘', "'")
+                cleanText = cleanText.replace("\u2018", "'")
+                cleanText = cleanText.replace('”', "'")
+                cleanText = cleanText.replace("\u201d", "'")
+                cleanText = cleanText.replace('“', "'")
+                cleanText = cleanText.replace("\u201c", "'")
+                cleanText = cleanText.replace('​', "'")  # yes, there is a special character here.
+                cleanText = cleanText.replace("\u200b", " ")
+                cleanText = cleanText.replace('🙂', "'")
+                cleanText = cleanText.replace("\U0001f642", " ")
+                cleanText = cleanText.replace("\x93", " ")
+                cleanText = cleanText.replace("\x94", " ")
+                # remove non utf-8 characters
+                cleanText = textInput.encode('utf-8', errors="ignore").decode('utf-8', errors='ignore').strip()
+                cleanText = fixSentenceGaps(cleanText)
+            except Exception as e:
+                logger.error("Error cleaning text: %s", e)
         return(cleanText)
 
     def writeFiles(self, fileNameWithOutExt, baseDirName, htmlContent, saveHTMLFile=False):
@@ -437,6 +504,7 @@ class NewsArticle(JSONEncoder):
             with open(fullPathName, 'wt', encoding='utf-8') as fp:
                 fp.write(jsonContent)
                 fp.close()
+                logger.debug('Saved article as json file: %s', fullPathName)
         except Exception as theError:
             logger.error("Exception caught saving data to json file %s: %s", fullPathName, theError)
             # throw the exception back to calling routines:

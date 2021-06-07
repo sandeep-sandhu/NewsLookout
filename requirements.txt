@@ -10,3 +10,6 @@ pandas
 requests
 tld
 urllib3
+tqdm
+numpy
+gensim

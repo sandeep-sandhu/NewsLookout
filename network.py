@@ -4,7 +4,7 @@
 """
  File name: network.py
  Application: The NewsLookout Web Scraping Application
- Date: 2021-01-14
+ Date: 2021-06-01
  Purpose: Network helper class that performs all network operations for all plugins for the application
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
@@ -86,7 +86,6 @@ class NetworkFetcher:
             self.proxy_ca_certfile = self.configData['proxy_ca_certfile']
             self.verify_ca_cert = self.configData['verify_ca_cert']
             self.newspaper_config = self.configData['newspaper_config']
-            # self.newspaper_config['verify_ca_cert'] = self.verify_ca_cert
             self.fetch_timeout = self.configData['fetch_timeout']
             self.connect_timeout = self.configData['connect_timeout']
         except Exception as e:
@@ -121,8 +120,8 @@ class NetworkFetcher:
             return newspaper.network._get_html_from_response(response)
         response = requests.get(
             url=url,
-            **newspaper.network.get_request_kwargs(timeout, useragent, proxies, headers),
-            verify=False
+            verify=False,
+            **newspaper.network.get_request_kwargs(timeout, useragent, proxies, headers)
             )
         html = newspaper.network._get_html_from_response(response)
         if config.http_success_only:
@@ -138,13 +137,12 @@ class NetworkFetcher:
         logger.debug("Pausing web retrieval for %s seconds.", pauseTime)
         time.sleep(pauseTime)
 
-#    @functools.lru_cache(maxsize=512)
     @functools.lru_cache(maxsize=10000)
-    def fetchRawDataFromURL(self, uRLtoFetch, pluginName):
-        """ fetching raw content From given URL
+    def fetchRawDataFromURL(self, uRLtoFetch, pluginName, getBytes=False):
+        """ Fetch raw content From given URL
         """
-        rawDataContent = b""
-        if len(uRLtoFetch) > 11:
+        httpsResponse = None
+        if uRLtoFetch is not None and len(uRLtoFetch) > 11:
             for retryCounter in range(self.retryCount):
                 logger.debug("RetryCounter %s: Downloading Raw Data for URL %s",
                              retryCounter, uRLtoFetch.encode('ascii', "ignore"))
@@ -152,7 +150,7 @@ class NetworkFetcher:
                     self.customHeader = {'user-agent': self.userAgentStrList[self.userAgentIndex]}
                     # self.requestOpener = urllib3.request.build_opener(urllib.request.HTTPCookieProcessor(self.cookieJar))
                     # response = self.requestOpener.open(uRLtoFetch)
-                    httpsRequests = requests.get(
+                    httpsResponse = requests.get(
                         uRLtoFetch,
                         headers=self.customHeader,
                         timeout=(self.connect_timeout, self.fetch_timeout),
@@ -160,7 +158,6 @@ class NetworkFetcher:
                         verify=self.verify_ca_cert  # warning: if set to false, disables checking SSL certs!
                         # verify=self.proxy_ca_certfile   # provides CA cert
                         )
-                    rawDataContent = httpsRequests.content
                     # since, all completed without error, so don't retry again.
                     break
                 except requests.Timeout as timeoutExp:
@@ -203,8 +200,25 @@ class NetworkFetcher:
                         self.userAgentIndex = self.userAgentIndex + 1
                     # wait for some time
                     self.sleepBeforeNextFetch()
+        return(self.getDataFromHTTPResponse(httpsResponse, getBytes))
 
-        return(rawDataContent)
+    def getDataFromHTTPResponse(self, httpsResponse, getBytes):
+        """ Get data From HTTP response
+        """
+        if httpsResponse is not None and httpsResponse.encoding != 'ISO-8859-1' and getBytes is False:
+            return(httpsResponse.text)
+        elif httpsResponse is not None and getBytes is False:
+            htmlText = httpsResponse.content
+            if 'charset' not in httpsResponse.headers.get('content-type'):
+                encodings = requests.utils.get_encodings_from_content(httpsResponse.text)
+                if len(encodings) > 0:
+                    httpsResponse.encoding = encodings[0]
+                    htmlText = httpsResponse.text
+            return(htmlText)
+        elif httpsResponse is not None:
+            return(httpsResponse.content)
+        else:
+            return(None)
 
     def loadAndSetCookies(self, cookieFileName):
         """ load and Set Cookies from file
@@ -313,5 +327,10 @@ class NetworkFetcher:
                 # wait for some time
                 self.sleepBeforeNextFetch()
         return(rawDataContent)
+
+    def getDataInSession(self, urlList):
+        """ Open a single https session and read several urls """
+        pass
+
 
 # # end of file ##
