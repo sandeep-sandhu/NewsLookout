@@ -4,16 +4,28 @@
 """
  File name: mod_en_in_inexp_business.py
  Application: The NewsLookout Web Scraping Application
- Date: 2021-01-14
- Purpose: Plugin for the Indian Express, Business
+ Date: 2021-06-01
+ Purpose: Plugin for the Indian Express - Business news portal
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
 
- DISCLAIMER: This software is intended for demonstration and educational purposes only.
+ Notice:
+ This software is intended for demonstration and educational purposes only. This software is
+ experimental and a work in progress. Under no circumstances should these files be used in
+ relation to any critical system(s). Use of these files is at your own risk.
+
  Before using it for web scraping any website, always consult that website's terms of use.
  Do not use this software to fetch any data from any website that has forbidden use of web
  scraping or similar mechanisms, or violates its terms of use in any other way. The author is
- not responsible for such kind of inappropriate use of this software.
+ not liable for such kind of inappropriate use of this software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+ FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.
+
 """
 
 ##########
@@ -27,7 +39,7 @@ from bs4 import BeautifulSoup
 
 # import this project's python libraries:
 from base_plugin import basePlugin
-from scraper_utils import cutStrBetweenTags, calculateCRC32
+from scraper_utils import cutStrBetweenTags, calculateCRC32, deDupeList, filterRepeatedchars
 from data_structs import Types
 
 ##########
@@ -38,8 +50,7 @@ logger = logging.getLogger(__name__)
 
 
 class mod_en_in_inexp_business(basePlugin):
-    """ Web Scraping plugin: mod_en_in_inexp_business
-    For Indian Express Newspaper
+    """ Web Scraping plugin - mod_en_in_inexp_business for Indian Express Business Newspaper
     """
 
     minArticleLengthInChars = 250
@@ -76,13 +87,16 @@ class mod_en_in_inexp_business(basePlugin):
                         r"(^https\://indianexpress.com/article/.*)(\-)([0-9]+)(/$)",
                         r"(^https\://indianexpress.com/article/.*)(\-)([0-9]+)(\.html$)"
                         ]
+    urlMatchPatterns = []
 
     invalidTextStrings = []
-
+    subStringsToFilter = []
     articleDateRegexps = dict()
-    authorRegexps = []
     dateMatchPatterns = dict()
-    urlMatchPatterns = []
+
+    authorRegexps = [r"(\"author\":{\"\@type\":\"Person\",\"name\":\")([a-zA-Z_\-\. ]{2,})(\"\})",
+                     r"(<span class=\"author_des\"> By <span>)([a-zA-Z_\-\. ]{2,})(<\/span>)"
+                     ]
     authorMatchPatterns = []
 
     allowedDomains = ["indianexpress.com", "www.newindianexpress.com"]
@@ -99,18 +113,16 @@ class mod_en_in_inexp_business(basePlugin):
         super().__init__()
 
     def extractUniqueIDFromURL(self, uRLtoFetch):
-        """ extract Unique ID From URL
+        """ Extract Unique ID From URL
         """
         uniqueString = ""
         try:
             # calculate CRC string if unique identifier cannot be located in the URL:
             uniqueString = str(calculateCRC32(uRLtoFetch.encode('utf-8')))
-
         except Exception as e:
             logger.error("Error calculating CRC32 of URL: %s , URL was: %s",
                          e,
                          uRLtoFetch.encode('ascii', 'ignore'))
-
         if len(uRLtoFetch) > 6:
             for urlPattern in self.urlMatchPatterns:
                 try:
@@ -118,7 +130,6 @@ class mod_en_in_inexp_business(basePlugin):
                     uniqueString = result.group(3)
                     # if not error till this point then exit
                     break
-
                 except Exception as e:
                     logger.debug("Error identifying unique ID of URL: %s , URL was: %s, Pattern: %s",
                                  e,
@@ -136,7 +147,6 @@ class mod_en_in_inexp_business(basePlugin):
             logger.debug("Extracting industries identified by the article.")
             # docRoot = BeautifulSoup(htmlText, 'lxml')
             # section = article_html.find( "span", "ag")
-
         except Exception as e:
             logger.error("When extracting industries: %s", e)
         return(industries)
@@ -145,17 +155,25 @@ class mod_en_in_inexp_business(basePlugin):
         """ Extract Authors/Agency/Source from html
         """
         authors = []
-        try:
-            strNewsAgent = cutStrBetweenTags(htmlText, '<span class = "author_des">By', '</span></span>')
-            strNewsAgent = cutStrBetweenTags(strNewsAgent, 'target = "_blank">', '</a>')
-
-            if len(strNewsAgent) < 1:
+        maxAuthorStringLength = 100
+        authorStr = None
+        for authorMatch in self.authorMatchPatterns:
+            logger.debug("Trying match pattern: %s", authorMatch)
+            try:
+                result = authorMatch.search(htmlText)
+                if result is not None:
+                    authorStr = result.group(2)
+                    # At this point, the text was correctly extracted, so exit the loop
+                    break
+            except Exception as e:
+                logger.debug("Unable to identify the article authors using regex: %s; string to parse: %s, URL: %s",
+                             e, authorStr, self.URLToFetch)
+            if len(authorStr) < 1:
+                raise Exception("Could not identify news agency/source.")
+            elif len(authorStr) > maxAuthorStringLength:
                 raise Exception("Could not identify news agency/source.")
             else:
-                authors = [strNewsAgent]
-
-        except Exception as e:
-            logger.error("Error extracting news agent from text: %s", e)
+                authors = authorStr.split(',')
         return(authors)
 
     def extractPublishedDate(self, htmlText):
@@ -165,18 +183,15 @@ class mod_en_in_inexp_business(basePlugin):
         date_obj = datetime.now()
         # extract published date
         strJSDatePart = cutStrBetweenTags(htmlText, '"datePublished":"', '+05:30","dateModified"')
-
         try:
             if len(strJSDatePart) > 0:
                 date_obj = datetime.strptime(strJSDatePart, '%Y-%m-%dT%H:%M:%S')
             else:
                 logger.error("Error parsing published date text: %s", strJSDatePart)
-
         except Exception as e:
             logger.error("Error parsing published date string (%s) to date object: %s",
                          strJSDatePart,
                          e)
-
         return(date_obj)
 
     def extractArticleBody(self, htmlContent):
@@ -185,17 +200,39 @@ class mod_en_in_inexp_business(basePlugin):
         try:
             # get article text data by parsing specific tags:
             article_html = BeautifulSoup(htmlContent, 'lxml')
-
             # <div id = "storyContent" class = "articlestorycontent">
             body_root = article_html.find_all("div", "articlestorycontent")
             if len(body_root) > 0:
                 articleText = body_root[0].getText()
             # except Warning as w:
             #    logger.warn("Warning when extracting text via BeautifulSoup: %s", w)
-
         except Exception as e:
             logger.error("Exception extracting article via tags: %s", e)
 
         return(articleText)
+
+    def checkAndCleanText(self, inputText, rawData):
+        """ Check and clean article text
+        """
+        cleanedText = inputText
+        invalidFlag = False
+        try:
+            for badString in self.invalidTextStrings:
+                if cleanedText.find(badString) >= 0:
+                    logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
+                    invalidFlag = True
+            # check if article content is not valid or is too little
+            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
+                cleanedText = self.extractArticleBody(rawData)
+            # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
+            cleanedText = filterRepeatedchars(cleanedText,
+                                              deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
+            # remove invalid substrings:
+            for stringToFilter in deDupeList(self.subStringsToFilter):
+                cleanedText = cleanedText.replace(stringToFilter, " ")
+        except Exception as e:
+            logger.error("Error cleaning text: %s", e)
+        return(cleanedText)
+
 
 # # end of file ##

@@ -4,7 +4,7 @@
 """
  File name: mod_en_in_trak.py
  Application: The NewsLookout Web Scraping Application
- Date: 2021-01-14
+ Date: 2021-06-01
  Purpose: Template to aid writing a custom plugin for the application
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
@@ -36,7 +36,7 @@ import re
 # import web retrieval and text processing python libraries:
 # from bs4 import BeautifulSoup
 from data_structs import Types, ScrapeError
-from scraper_utils import calculateCRC32
+from scraper_utils import calculateCRC32, deDupeList, filterRepeatedchars
 from base_plugin import basePlugin
 
 ##########
@@ -119,8 +119,8 @@ class mod_en_in_trak(basePlugin):
         }
 
     invalidTextStrings = []
-
-    allowedDomains = []
+    subStringsToFilter = []
+    allowedDomains = ['trak.in']
 
     articleIndustryRegexps = []
 
@@ -170,7 +170,7 @@ class mod_en_in_trak(basePlugin):
                              e,
                              uniquePattern)
         else:
-            logger.warning("%s: Invalid content found when trying to identify unique ID")
+            logger.warning("Invalid content found when trying to identify unique ID")
             raise ScrapeError("Invalid article since it does not have a unique identifier.")
         if uniqueString == crcValue:
             logger.info("%s: Unable to identify unique ID for article, hence using CRC32 code: %s",
@@ -226,5 +226,29 @@ class mod_en_in_trak(basePlugin):
         if type(htmlContent) == bytes:
             htmlContent = htmlContent.decode('UTF-8')
         return(body_text)
+
+    def checkAndCleanText(self, inputText, rawData):
+        """ Check and clean article text
+        """
+        cleanedText = inputText
+        invalidFlag = False
+        try:
+            for badString in self.invalidTextStrings:
+                if cleanedText.find(badString) >= 0:
+                    logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
+                    invalidFlag = True
+            # check if article content is not valid or is too little
+            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
+                cleanedText = self.extractArticleBody(rawData)
+            # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
+            cleanedText = filterRepeatedchars(cleanedText,
+                                              deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
+            # remove invalid substrings:
+            for stringToFilter in deDupeList(self.subStringsToFilter):
+                cleanedText = cleanedText.replace(stringToFilter, " ")
+        except Exception as e:
+            logger.error("Error cleaning text: %s", e)
+        return(cleanedText)
+
 
 # # end of file ##

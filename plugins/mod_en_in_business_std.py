@@ -4,7 +4,7 @@
 """
  File name: mod_en_in_business_std.py
  Application: The NewsLookout Web Scraping Application
- Date: 2021-01-14
+ Date: 2021-06-01
  Purpose: Business Standard Newspaper
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
@@ -41,6 +41,7 @@ import re
 from base_plugin import basePlugin
 # from scraper_utils import getNetworkLocFromURL
 from data_structs import Types
+from scraper_utils import deDupeList, filterRepeatedchars
 
 ##########
 
@@ -48,7 +49,7 @@ logger = logging.getLogger(__name__)
 
 
 class mod_en_in_business_std(basePlugin):
-    """ Web Scraping plugin: mod_en_in_business_std
+    """ Web Scraping plugin - mod_en_in_business_std
     Description: Business Standard
     Language: English
     Country: India
@@ -138,8 +139,10 @@ class mod_en_in_business_std(basePlugin):
         }
 
     invalidTextStrings = ['Support quality journalism and subscribe to Business Standard',
+                          'Business Standard has always strived hard to provide up-to-date information'
                           ]
-
+    subStringsToFilter = ['(Only the headline and picture of this report may have been reworked by the Business Standard' +
+                          ' staff; the rest of the content is auto-generated from a syndicated feed.)']
     allowedDomains = ['www.business-standard.com']
 
     articleIndustryRegexps = []
@@ -177,6 +180,7 @@ class mod_en_in_business_std(basePlugin):
             authors.append(matchRes.group(2))
         return(authors)
 
+    # https://www.business-standard.com/article/economy-policy/sporadic-lockdowns-to-cost-india-1-25-billion-per-week-barclays-121041200631_1.html
     def extractArticleBody(self, htmlContent):
         """ extract the text body of the article
         """
@@ -184,5 +188,29 @@ class mod_en_in_business_std(basePlugin):
         if type(htmlContent) == bytes:
             htmlContent = htmlContent.decode('UTF-8')
         return(body_text)
+
+    def checkAndCleanText(self, inputText, rawData):
+        """ Check and clean article text
+        """
+        cleanedText = inputText
+        invalidFlag = False
+        try:
+            for badString in self.invalidTextStrings:
+                if cleanedText.find(badString) >= 0:
+                    logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
+                    invalidFlag = True
+            # check if article content is not valid or is too little
+            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
+                cleanedText = self.extractArticleBody(rawData)
+            # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
+            cleanedText = filterRepeatedchars(cleanedText,
+                                              deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
+            # remove invalid substrings:
+            for stringToFilter in deDupeList(self.subStringsToFilter):
+                cleanedText = cleanedText.replace(stringToFilter, " ")
+        except Exception as e:
+            logger.error("Error cleaning text: %s", e)
+        return(cleanedText)
+
 
 # # end of file ##

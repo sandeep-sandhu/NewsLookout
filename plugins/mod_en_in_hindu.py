@@ -4,8 +4,8 @@
 """
  File name: mod_en_in_hindu.py
  Application: The NewsLookout Web Scraping Application
- Date: 2020-01-11
- Purpose: Plugin for the Hindu
+ Date: 2021-06-01
+ Purpose: Plugin for the Hindu newspaper
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
 
@@ -17,7 +17,7 @@
  Before using it for web scraping any website, always consult that website's terms of use.
  Do not use this software to fetch any data from any website that has forbidden use of web
  scraping or similar mechanisms, or violates its terms of use in any other way. The author is
- not responsible for such kind of inappropriate use of this software.
+ not liable for such kind of inappropriate use of this software.
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -40,6 +40,7 @@ from bs4 import BeautifulSoup
 from data_structs import Types
 # from data_structs import ScrapeError
 from base_plugin import basePlugin
+from scraper_utils import deDupeList, filterRepeatedchars
 
 ##########
 
@@ -47,8 +48,7 @@ logger = logging.getLogger(__name__)
 
 
 class mod_en_in_hindu(basePlugin):
-    """ Web Scraping plugin: mod_en_in_hindu
-    For Hindu Newspaper
+    """ Web Scraping plugin - mod_en_in_hindu for the Hindu business Newspaper
     """
 
     # define a minimum count of characters for text body, article content below this limit will be ignored
@@ -92,25 +92,25 @@ class mod_en_in_hindu(basePlugin):
                          'step.thehindu.com',
                          'sportstar.thehindu.com']
 
-    urlUniqueRegexps = [r"(https.*)(www.thehindu.com\/business\/.*\-)([0-9]+)(\.ece$)",
-                        r"(^https\:\/\/www.thehindu.com\/business\/.*)(\-)([0-9]+)(/$)",
-                        r"(https\:\/\/www.thehindu.com\/business\/.*)(article)([0-9]+)(\.ece)"]
+    urlUniqueRegexps = [r"(https\:\/\/)(www.thehindu.com\/business\/.*\-)([0-9]+)(\.ece$)",
+                        r"(https\:\/\/www.thehindu.com\/business\/.*)(\-)([0-9]+)(/$)",
+                        r"(https\:\/\/www.thehindu.com\/business\/.*)(article)([0-9]+)(\.ece)",
+                        r"(https:\/\/)(www.thehindu.com\/news\/.+\/article)([0-9]{3,})(\.ece)"]
 
     invalidTextStrings = []
-
-    # https://www.thehindu.com/business/cbic-to-hold-special-drive-to-clear-refunds/article34562533.ece
-    # https://www.thehindu.com/business/many-dgft-staff-affected-by-covid-19/article34560843.ece
-    # https://www.thehindu.com/business/Industry/dr-reddys-expects-first-lot-of-russias-covid-19-vaccine-sputnik-v-by-may-end/article34421064.ece
-    # https://www.thehindu.com/business/Industry/iffco-announces-hike-in-fertilizer-rates/article34273587.ece
+    subStringsToFilter = []
     articleDateRegexps = {
         r"(<meta name=\"publish-date\" content=\")(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\+05:30\")":
-        "%Y-%m-%dT%H:%M:%S"}
+        "%Y-%m-%dT%H:%M:%S",
+        # January 22, 2015 15:30 IST
+        r"(<none>\n)([a-zA-Z]{3,} [0-9]{1,2}, 20[0-9]{2} [0-9]{1,2}:[0-9]{2})( IST)":
+        "%B %d, %Y %H:%M"}
     authorRegexps = []
     dateMatchPatterns = dict()
     urlMatchPatterns = []
     authorMatchPatterns = []
 
-    allowedDomains = ["thehindu.com"]
+    allowedDomains = ["www.thehindu.com"]
     listOfURLS = []
     uRLdata = dict()
     urlMatchPatterns = []
@@ -172,5 +172,29 @@ class mod_en_in_hindu(basePlugin):
         except Exception as e:
             logger.error("Error extracting article text via tags: %s", e)
         return(articleText)
+
+    def checkAndCleanText(self, inputText, rawData):
+        """ Check and clean article text
+        """
+        cleanedText = inputText
+        invalidFlag = False
+        try:
+            for badString in self.invalidTextStrings:
+                if cleanedText.find(badString) >= 0:
+                    logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
+                    invalidFlag = True
+            # check if article content is not valid or is too little
+            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
+                cleanedText = self.extractArticleBody(rawData)
+            # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
+            cleanedText = filterRepeatedchars(cleanedText,
+                                              deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
+            # remove invalid substrings:
+            for stringToFilter in deDupeList(self.subStringsToFilter):
+                cleanedText = cleanedText.replace(stringToFilter, " ")
+        except Exception as e:
+            logger.error("Error cleaning text: %s", e)
+        return(cleanedText)
+
 
 # # end of file ##

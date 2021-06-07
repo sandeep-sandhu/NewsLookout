@@ -4,9 +4,8 @@
 """
  File name: mod_in_bse.py
  Application: The NewsLookout Web Scraping Application
- Date: 2020-01-11
+ Date: 2021-06-01
  Purpose: Plugin for the Bombay Stock Exchange Data, India
-
 
 
  Notice:
@@ -39,7 +38,7 @@ import logging
 # from bs4 import BeautifulSoup
 # import lxml
 import zipfile
-
+import requests
 
 # import this project's python libraries:
 from base_plugin import basePlugin
@@ -67,6 +66,7 @@ class mod_in_bse(basePlugin):
     pledgesURL1 = 'https://www.bseindia.com/data/xml/notices.xml'
     pledgesURL2 = 'https://www.bseindia.com/corporates/sastpledge.aspx'
     masterData = {}
+    master_data_dir = None
 
     listOfURLS = []
     urlUniqueRegexps = ["(^https://www.bseindia.com/download/BhavCopy/Equity/EQ_ISINCODE_)([0-9]+)(.zip$)"]
@@ -86,33 +86,33 @@ class mod_in_bse(basePlugin):
         self.count_history_to_fetch = 10
         super().__init__()
 
-    def getURLsListForDate(self, runDate):
+    def getURLsListForDate(self, runDate, completedURLs):
         """ Retrieve the URLs List For a given Date
         """
         self.listOfURLS = []
         try:
-            businessDate = getPreviousDaysDate(runDate)
-            urlForDate = self.mainURL + businessDate.strftime("%d%m%y") + self.mainURL_suffix
-            self.listOfURLS = [urlForDate]
+            # set dates for retrieval based on recursion level in configuration file:
+            if self.configData['recursion_level'] == 2:
+                self.count_history_to_fetch = 10
+            elif self.configData['recursion_level'] == 3:
+                self.count_history_to_fetch = 31
+            elif self.configData['recursion_level'] > 3:
+                self.count_history_to_fetch = 3650
+            else:
+                self.count_history_to_fetch = 1
+            # begin with run date:
+            businessDate = runDate
+            for dayCount in range(self.count_history_to_fetch):
+                # decrement dates one by one
+                businessDate = getPreviousDaysDate(businessDate)
+                urlForDate = self.mainURL + businessDate.strftime("%d%m%y") + self.mainURL_suffix
+                self.listOfURLS.append(urlForDate)
+            # remove already retrieved URLs:
+            self.listOfURLS = completedURLs.removeAlreadyFetchedURLs(self.listOfURLS, self.pluginName)
             logger.info("Total count of valid articles to be retrieved = %s for business date: %s",
                         len(self.listOfURLS), businessDate.strftime("%Y-%m-%d"))
         except Exception as e:
-            logger.error("Error trying to retrieve listing of URLs: %s", e)
-
-    def extractLinksFromURLList(self, runDate, listOfURLS):
-        """ Generate history URLs by filling the default date pattern of the data file.
-        """
-        additionalLinks = []
-        startDate = getPreviousDaysDate(runDate)
-        # begin with previous date
-        businessDate = startDate
-        for dayCount in range(self.count_history_to_fetch):
-            # decrement dates one by one
-            businessDate = getPreviousDaysDate(businessDate)
-            urlForDate = self.mainURL + businessDate.strftime("%d%m%y") + self.mainURL_suffix
-            additionalLinks.append(urlForDate)
-        logger.info("Generated links for %s dates", len(additionalLinks))
-        return(additionalLinks)
+            logger.error("Error trying to retrieve URL list at recursion level %s: %s", self.configData['recursion_level'], e)
 
     def fetchDataFromURL(self, uRLtoFetch, WorkerID):
         """ Fetch data From given URL
@@ -122,13 +122,13 @@ class mod_in_bse(basePlugin):
         sizeOfDataDownloaded = -1
         uncompressSize = 0
         publishDateStr = ""
-
+        self.master_data_dir = self.configData['master_data_dir']
         logger.debug("Worker ID %s Fetching data from URL: %s", WorkerID, uRLtoFetch.encode("ascii"))
         # output tuple structure: (uRL, len_raw_data, len_text, publish_date)
         resultVal = (uRLtoFetch, None, None, None)
         try:
             (publishDate, dataUniqueID) = self.extractUniqueIDFromURL(uRLtoFetch)
-            rawData = self.networkHelper.fetchRawDataFromURL(uRLtoFetch, type(self).__name__)
+            rawData = self.downloadDataArchive(uRLtoFetch, type(self).__name__)
             # write data to file:
             fileNameWithOutExt = self.makeUniqueFileName(dataUniqueID)
             sizeOfDataDownloaded = len(rawData)
@@ -152,8 +152,9 @@ class mod_in_bse(basePlugin):
                                                            dirPathName,
                                                            WorkerID,
                                                            str(publishDate.strftime("%Y%m%d")))
+                    uncompressSize = uncompressSize + self.fetchPledgesData(self.master_data_dir, publishDate)
                 except Exception as theError:
-                    logger.error("When writing downloaded data to zip file '%s': %s", fullPathName, theError)
+                    logger.error("Error saving downloaded data to zip file '%s': %s", fullPathName, theError)
             else:
                 logger.info("Ignoring data zip file '%s' since its size %s is less than %s bytes",
                             fullPathName, len(rawData), self.minArticleLengthInChars)
@@ -174,22 +175,20 @@ class mod_in_bse(basePlugin):
             memberFileName = memberZipInfo.filename
             if memberZipInfo.filename.find('Readme.txt') < 0:
                 try:
-                    if os.path.isfile(os.path.join(dataDirForDate, memberFileName)) is False:
-                        logger.debug("Extracting file '%s' from zip archive.", memberFileName)
-                        zipDatafile.extract(memberZipInfo, path=dataDirForDate)
                     # rename extracted files to prefix the module's name:
                     if memberFileName.startswith('EQ_ISINCODE_'):
                         newName = os.path.join(dataDirForDate, "equity_bse_" + publishDateStr + '.csv')
                     else:
                         newName = os.path.join(dataDirForDate, type(self).__name__ + "_" + memberFileName)
-                    os.rename(os.path.join(dataDirForDate, memberFileName),
-                              newName)
+                    if os.path.isfile(newName) is False:
+                        logger.debug("Extracting file '%s' from zip archive.", memberFileName)
+                        zipDatafile.extract(memberZipInfo, path=dataDirForDate)
+                    os.rename(os.path.join(dataDirForDate, memberFileName), newName)
                     expandedSize = expandedSize + memberZipInfo.file_size
                 except Exception as e:
                     logger.error("Error extracting the fetched zip archive: %s", e)
         zipDatafile.close()
-        # delete zip file as its no longer required:
-        os.remove(zipFileName)
+        os.remove(zipFileName)  # delete zip file since its no longer required
         return(expandedSize)
 
     def extractUniqueIDFromURL(self, URLToFetch):
@@ -198,7 +197,6 @@ class mod_in_bse(basePlugin):
         # use today's date as default
         uniqueString = datetime.now().strftime('%d%m%y')
         date_obj = None
-
         if len(URLToFetch) > 6:
             for urlPattern in self.urlMatchPatterns:
                 try:
@@ -207,13 +205,25 @@ class mod_in_bse(basePlugin):
                     date_obj = datetime.strptime(uniqueString, '%d%m%y')
                     # if we did not encounter any error till this point, then this is the answer, so exit loop
                     break
-
                 except Exception as e:
                     logger.debug("Error identifying unique ID of URL: %s , URL was: %s, Pattern: %s",
                                  e,
                                  URLToFetch.encode('ascii'),
                                  urlPattern)
-
         return((date_obj, uniqueString))
+
+    def fetchPledgesData(self, dirPathName, publishDate):
+        """ fetch Pledges Data"""
+        resp = None
+        fetchTimeout = self.configData['fetch_timeout']
+        try:
+            with requests.Session() as sess:
+                sess.proxies.update(self.configData['proxies'])
+                resp = sess.get(self.pledgesURL2, timeout=fetchTimeout)
+                # write: resp.content
+        except Exception as e:
+            logger.error('Error getting pledges data: %s', e)
+        return(resp.content)
+
 
 # # end of file ##

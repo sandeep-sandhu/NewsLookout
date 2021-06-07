@@ -4,7 +4,7 @@
 """
  File name: mod_en_in_indiakanoon.py
  Application: The NewsLookout Web Scraping Application
- Date: 2021-01-14
+ Date: 2021-06-01
  Purpose: plugin for India Kanoon portal on legal rulings
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
@@ -17,7 +17,7 @@
  Before using it for web scraping any website, always consult that website's terms of use.
  Do not use this software to fetch any data from any website that has forbidden use of web
  scraping or similar mechanisms, or violates its terms of use in any other way. The author is
- not responsible for such kind of inappropriate use of this software.
+ not liable for such kind of inappropriate use of this software.
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -40,6 +40,7 @@ import bs4
 from base_plugin import basePlugin
 from data_structs import Types
 # from data_structs import ScrapeError
+from scraper_utils import deDupeList, filterRepeatedchars
 
 ##########
 
@@ -47,8 +48,8 @@ logger = logging.getLogger(__name__)
 
 
 class mod_en_in_indiakanoon(basePlugin):
-    """ Web Scraping plugin: mod_en_in_indiakanoon
-    Description: india kanoon portal with legal events
+    """ Web Scraping plugin - mod_en_in_indiakanoon
+    Description: india kanoon portal for legal rulings
     Language: English
     Country: India
     """
@@ -128,7 +129,9 @@ class mod_en_in_indiakanoon(basePlugin):
                       'https://indiankanoon.org/members',
                       'https://indiankanoon.org/browse/',
                       'https://indiankanoon.org/search_tips.html',
-                      'https://indiankanoon.org/court_case_online.html'
+                      'https://indiankanoon.org/court_case_online.html',
+                      'https://indiankanoon.org/members/signup/',
+                      'https://indiankanoon.org/members/passwdrst/'
                       ]
 
     nonContentStrings = []
@@ -155,11 +158,14 @@ class mod_en_in_indiakanoon(basePlugin):
                           r'|December]{3,} [2|1][0-9]{2})': '%dst %B %Y',
                           r'(.)([0-9]{1,2}nd [January|February|March|April|May|June|July|August|September|October|November' +
                           r'|December]{3,} [2|1][0-9]{2})': '%dnd %B %Y'
+                          # TODO: 11th April, 1944
                           }
 
     invalidTextStrings = ['Try out our Premium Member services']
-
-    allowedDomains = []
+    subStringsToFilter = ['<p>Try out our <b>Premium Member</b> services: <b>Virtual Legal Assistant</b>,  ' +
+                          '<b>Query Alert Service</b> and an ad-free experience. <a href="/members/">' +
+                          'Free for one month</a> and pay only if you like it.</p>']
+    allowedDomains = ['indiankanoon.org']
 
     articleIndustryRegexps = []
 
@@ -210,26 +216,50 @@ class mod_en_in_indiakanoon(basePlugin):
         htmlContent = htmlContent.decode('UTF-8') if type(htmlContent) == bytes else htmlContent
         try:
             result_tag = BeautifulSoup(htmlContent, 'lxml').find_all("div", attrs={"class": "docsource_main"})
-            for member in result_tag[0].parent.children:
-                if type(member) == bs4.element.Tag:
-                    if not (member.has_attr('class') and "ad_doc" in member.attrs['class']) and (
-                            member is not None) and (len(member.contents) > 1):
+            if result_tag is not None:
+                # FIXME: 'NavigableString' object has no attribute 'contents'
+                for member in result_tag[0].parent.children:
+                    if type(member) == bs4.element.Tag and (
+                            not (member.has_attr('class') and "ad_doc" in member.attrs['class']) and (
+                                member is not None) and (len(member.contents) > 1)
+                            ):
                         subItemText = "\n"
                         for subItem in member.contents:
                             if type(subItem) == bs4.element.Tag:
-                                subItemText = subItemText + "\n" + subItem.text
+                                subItemText = subItemText + " \n " + subItem.text
                             elif subItem is not None:
-                                subItemText = subItemText + "\n" + subItem.string
+                                subItemText = subItemText + " \n " + subItem.string
                         allText.append(subItemText)
                     else:
                         allText = allText + member.contents
             for item in allText:
                 body_text = body_text + " " + str(item).strip()
-            body_text = body_text.replace('<p>Try out our <b>Premium Member</b> services: <b>Virtual Legal Assistant</b>,  ' +
-                                          '<b>Query Alert Service</b> and an ad-free experience. <a href="/members/">' +
-                                          'Free for one month</a> and pay only if you like it.</p>', '')
         except Exception as e:
             logger.error("Error retrieving content of article: %s", e)
         return(body_text)
+
+    def checkAndCleanText(self, inputText, rawData):
+        """ Check and clean article text
+        """
+        cleanedText = inputText
+        invalidFlag = False
+        try:
+            for badString in self.invalidTextStrings:
+                if cleanedText.find(badString) >= 0:
+                    logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
+                    invalidFlag = True
+            # check if article content is not valid or is too little
+            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
+                cleanedText = self.extractArticleBody(rawData)
+            # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
+            cleanedText = filterRepeatedchars(cleanedText,
+                                              deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
+            # remove invalid substrings:
+            for stringToFilter in deDupeList(self.subStringsToFilter):
+                cleanedText = cleanedText.replace(stringToFilter, " ")
+        except Exception as e:
+            logger.error("Error cleaning text: %s", e)
+        return(cleanedText)
+
 
 # # end of file ##

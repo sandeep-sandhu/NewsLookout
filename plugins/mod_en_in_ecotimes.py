@@ -4,8 +4,8 @@
 """
  File name: mod_en_in_ecotimes.py
  Application: The NewsLookout Web Scraping Application
- Date: 2021-01-14
- Purpose: Plugin for the Economic Times
+ Date: 2021-06-01
+ Purpose: Plugin for the Economic Times news portal
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu
 
  Provides:
@@ -52,7 +52,7 @@ from bs4 import BeautifulSoup
 
 # import this project's python libraries:
 from base_plugin import basePlugin
-from scraper_utils import getNetworkLocFromURL
+from scraper_utils import getNetworkLocFromURL, filterRepeatedchars, deDupeList
 from data_structs import Types
 
 ##########
@@ -108,7 +108,11 @@ class mod_en_in_ecotimes(basePlugin):
                          'economictimes.indiatimes.com/news/elections/',
                          'economictimes.indiatimes.com/primearticlelist/',
                          '/articlelist/',
-                         'economictimes.indiatimes.com/markets/stocks/stock-quotes?'
+                         'economictimes.indiatimes.com/markets/stocks/stock-quotes?',
+                         'economictimes.indiatimes.com/?',
+                         'economictimes.indiatimes.com/etlatestnews.cms?',
+                         'economictimes.indiatimes.com/mostemailed.cms?',
+                         'economictimes.indiatimes.com/mostcommented.cms?'
                          ]
 
     # get URL links from these URLs but don't fetch content from them:
@@ -140,6 +144,7 @@ class mod_en_in_ecotimes(basePlugin):
                       'https://economictimes.indiatimes.com/tv',
                       'https://economictimes.indiatimes.com/topic/Covid-19',
                       'https://economictimes.indiatimes.com/topic/capital-goods-stocks',
+                      'https://economictimes.indiatimes.com/sunday-et',
                       'https://economictimes.indiatimes.com/et-now',
                       'https://economictimes.indiatimes.com/et-now/auto',
                       'https://economictimes.indiatimes.com/et-now/brand-equity',
@@ -251,7 +256,63 @@ class mod_en_in_ecotimes(basePlugin):
                       'https://economictimes.indiatimes.com/markets/midcap-stocks',
                       'https://economictimes.indiatimes.com/markets/smallcap-stocks',
                       'https://economictimes.indiatimes.com/markets/largecap-stocks',
-                      'https://economictimes.indiatimes.com/markets/stocks/stock-market-holiday-calendar'
+                      'https://economictimes.indiatimes.com/markets/stocks/stock-market-holiday-calendar',
+                      'https://economictimes.indiatimes.com/industry/banking/finance',
+                      'https://economictimes.indiatimes.com/industry/banking/finance/banking',
+                      'https://economictimes.indiatimes.com/industry/banking-/-finance/banking',
+                      'https://economictimes.indiatimes.com/industry/cons-products/durables',
+                      'https://economictimes.indiatimes.com/industry/cons-products/electronics',
+                      'https://economictimes.indiatimes.com/industry/cons-products/fashion-/-cosmetics-/-jewellery',
+                      'https://economictimes.indiatimes.com/industry/cons-products/fmcg',
+                      'https://economictimes.indiatimes.com/industry/cons-products/food',
+                      'https://economictimes.indiatimes.com/industry/cons-products/garments-/-textiles',
+                      'https://economictimes.indiatimes.com/industry/cons-products/liquor',
+                      'https://economictimes.indiatimes.com/industry/cons-products/paints',
+                      'https://economictimes.indiatimes.com/industry/cons-products/tobacco',
+                      'https://economictimes.indiatimes.com/industry/energy/power',
+                      'https://economictimes.indiatimes.com/industry/energy/oil-gas',
+                      'https://economictimes.indiatimes.com/industry/renewables',
+                      'https://economictimes.indiatimes.com/industry/indl-goods/svs/construction',
+                      'https://economictimes.indiatimes.com/industry/indl-goods/svs/engineering',
+                      'https://economictimes.indiatimes.com/industry/indl-goods/svs/cement',
+                      'https://economictimes.indiatimes.com/industry/indl-goods/svs/chem-/-fertilisers',
+                      'https://economictimes.indiatimes.com/industry/indl-goods/svs/metals-mining',
+                      'https://economictimes.indiatimes.com/industry/indl-goods/svs/packaging',
+                      'https://economictimes.indiatimes.com/industry/indl-goods/svs/paper-/-wood-/-glass/-plastic/-marbles',
+                      'https://economictimes.indiatimes.com/industry/indl-goods/svs/petrochem',
+                      'https://economictimes.indiatimes.com/industry/indl-goods/svs/steel',
+                      'https://economictimes.indiatimes.com/industry/healthcare-/-biotech/biotech',
+                      'https://economictimes.indiatimes.com/industry/healthcare/biotech/healthcare',
+                      'https://economictimes.indiatimes.com/industry/healthcare/biotech/pharmaceuticals',
+                      'https://economictimes.indiatimes.com/industry/services/advertising',
+                      'https://economictimes.indiatimes.com/industry/services/consultancy-/-audit',
+                      'https://economictimes.indiatimes.com/industry/services/education',
+                      'https://economictimes.indiatimes.com/industry/services/hotels-/-restaurants',
+                      'https://economictimes.indiatimes.com/industry/services/property-/-cstruction',
+                      'https://economictimes.indiatimes.com/industry/services/retail',
+                      'https://economictimes.indiatimes.com/industry/services/travel',
+                      'https://economictimes.indiatimes.com/industry/media-/-entertainment/entertainment',
+                      'https://economictimes.indiatimes.com/industry/transportation/railways',
+                      'https://economictimes.indiatimes.com/industry/transportation/airlines-/-aviation',
+                      'https://economictimes.indiatimes.com/industry/transportation/shipping-/-transport',
+                      'https://economictimes.indiatimes.com/tech/information-tech',
+                      'https://economictimes.indiatimes.com/tech/technology',
+                      'https://economictimes.indiatimes.com/industry/jiopages',
+                      'https://economictimes.indiatimes.com/markets/global-markets',
+                      'https://economictimes.indiatimes.com/markets/sgx-nifty',
+                      'https://economictimes.indiatimes.com/indices/sensex_30_companies',
+                      'https://timesofindia.indiatimes.com/blogs/author/dr-arun-singh-and-neeraj-sahai/',
+                      'https://timesofindia.indiatimes.com/blogs/author/rajivkumar/',
+                      'https://timesofindia.indiatimes.com/blogs/author/bachikarkaria/',
+                      'https://timesofindia.indiatimes.com/blogs/author/manoj-joshi/',
+                      'https://timesofindia.indiatimes.com/blogs/author/vinitadawranangia/',
+                      'https://timesofindia.indiatimes.com/blogs/author/chetanbhagat/',
+                      'https://timesofindia.indiatimes.com/blogs/author/ruchirsharma/',
+                      'https://timesofindia.indiatimes.com/blogs/author/bachikarkaria/',
+                      'https://timesofindia.indiatimes.com/blogs/author/manoj-joshi/',
+                      'https://timesofindia.indiatimes.com/blogs/author/vinitadawranangia/',
+                      'https://timesofindia.indiatimes.com/blogs/author/chetanbhagat/',
+                      'https://timesofindia.indiatimes.com/blogs/author/ruchirsharma/'
                       ]
 
     urlUniqueRegexps = [r"(http.+\/economictimes\.indiatimes\.com)(.*\/)([0-9]+)(\.cms)",
@@ -282,7 +343,8 @@ class mod_en_in_ecotimes(basePlugin):
     urlMatchPatterns = []
 
     invalidTextStrings = ["If you choose to ignore this message, we'll assume that you are happy to receive all cookies"]
-    # TODO - add string: if you like this article then
+
+    subStringsToFilter = []
 
     allowedDomains = ["economictimes.indiatimes.com"]
     listOfURLS = []
@@ -484,5 +546,29 @@ class mod_en_in_ecotimes(basePlugin):
         except Exception as e:
             logger.error("When extracting article content in format 5: %s", e)
         return(body_text)
+
+    def checkAndCleanText(self, inputText, rawData):
+        """ Check and clean article text
+        """
+        cleanedText = inputText
+        invalidFlag = False
+        try:
+            for badString in self.invalidTextStrings:
+                if cleanedText.find(badString) >= 0:
+                    logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
+                    invalidFlag = True
+            # check if article content is not valid or is too little
+            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
+                cleanedText = self.extractArticleBody(rawData)
+            # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
+            cleanedText = filterRepeatedchars(cleanedText,
+                                              deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
+            # remove invalid substrings:
+            for stringToFilter in deDupeList(self.subStringsToFilter):
+                cleanedText = cleanedText.replace(stringToFilter, " ")
+        except Exception as e:
+            logger.error("Error cleaning text: %s", e)
+        return(cleanedText)
+
 
 # # end of file ##

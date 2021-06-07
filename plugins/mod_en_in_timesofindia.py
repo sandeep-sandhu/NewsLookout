@@ -4,7 +4,7 @@
 """
  File name: mod_en_in_timesofindia.py
  Application: The NewsLookout Web Scraping Application
- Date: 2020-01-11
+ Date: 2021-06-01
  Purpose: Plugin for the Times of India (TOI) blog
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
@@ -36,7 +36,7 @@ import re
 from bs4 import BeautifulSoup
 
 from data_structs import Types, ScrapeError
-from scraper_utils import calculateCRC32
+from scraper_utils import calculateCRC32, deDupeList, filterRepeatedchars
 from base_plugin import basePlugin
 
 # #########
@@ -155,7 +155,7 @@ class mod_en_in_timesofindia(basePlugin):
     urlUniqueRegexps = []
 
     invalidTextStrings = []
-
+    subStringsToFilter = []
     articleDateRegexps = dict()
     authorRegexps = []
     dateMatchPatterns = dict()
@@ -179,6 +179,7 @@ class mod_en_in_timesofindia(basePlugin):
     def extractUniqueIDFromContent(self, htmlContent, URLToFetch):
         """ Identify Unique ID From content
         Pattern: data-articlemsid="154959"
+                 data-articlemsid="143505"
         """
         uniqueString = ""
         crcValue = "zzz-zzz-zzz"
@@ -192,7 +193,7 @@ class mod_en_in_timesofindia(basePlugin):
                          e,
                          URLToFetch.encode('ascii'))
         if len(htmlContent) > self.minArticleLengthInChars:
-            uniquePattern = re.compile(r"(data-articlemsid=\")([0-9]+)(\")")
+            uniquePattern = re.compile(r"(data\-articlemsid=\")([0-9]{3,})(\")")
             try:
                 result = uniquePattern.search(htmlContent.decode('UTF-8'))
                 if result is not None:
@@ -202,15 +203,14 @@ class mod_en_in_timesofindia(basePlugin):
                              self.pluginName,
                              e,
                              uniquePattern)
+            return(uniqueString)
         else:
-            logger.warn("%s: Invalid content found when trying to identify unique ID")
-            raise ScrapeError("Invalid article since it does not have a unique identifier.")
+            logger.warning("%s: Invalid content found when trying to identify unique ID", URLToFetch)
         if uniqueString == crcValue:
-            logger.warn("%s: Unable to identify unique ID for article, hence using CRC32 code: %s",
-                        self.pluginName,
-                        uniqueString)
-            raise ScrapeError("Invalid article since it does not have a unique identifier.")
-        return(uniqueString)
+            logger.warning("%s: Unable to identify unique ID for article, hence using CRC32 code: %s",
+                           self.pluginName,
+                           uniqueString)
+        raise ScrapeError("Invalid article since it does not have a unique identifier.")
 
     def extractArticleBody(self, htmlContent):
         """ Extract the text body of the article
@@ -256,5 +256,29 @@ class mod_en_in_timesofindia(basePlugin):
         except Exception as e:
             logger.error("Error extracting news agent from text: %s", e)
         return(authors)
+
+    def checkAndCleanText(self, inputText, rawData):
+        """ Check and clean article text
+        """
+        cleanedText = inputText
+        invalidFlag = False
+        try:
+            for badString in self.invalidTextStrings:
+                if cleanedText.find(badString) >= 0:
+                    logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
+                    invalidFlag = True
+            # check if article content is not valid or is too little
+            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
+                cleanedText = self.extractArticleBody(rawData)
+            # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
+            cleanedText = filterRepeatedchars(cleanedText,
+                                              deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
+            # remove invalid substrings:
+            for stringToFilter in deDupeList(self.subStringsToFilter):
+                cleanedText = cleanedText.replace(stringToFilter, " ")
+        except Exception as e:
+            logger.error("Error cleaning text: %s", e)
+        return(cleanedText)
+
 
 # # end of file ##

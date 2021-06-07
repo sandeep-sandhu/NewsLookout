@@ -4,7 +4,7 @@
 """
  File name: mod_en_in_ndtv.py
  Application: The NewsLookout Web Scraping Application
- Date: 2020-01-11
+ Date: 2021-06-01
  Purpose: Plugin for NDTV
 
 
@@ -38,7 +38,7 @@ from bs4 import BeautifulSoup
 
 # import this project's python libraries:
 from base_plugin import basePlugin
-from scraper_utils import retainValidArticles
+from scraper_utils import retainValidArticles, deDupeList, filterRepeatedchars
 from data_structs import Types
 
 ##########
@@ -68,7 +68,7 @@ class mod_en_in_ndtv(basePlugin):
 
     nonContentStrings = ['/trends/most-popular-business-news',
                          'www.ndtv.com/business/?',
-                         'www.ndtv.com/webstories/?',
+                         'www.ndtv.com/webstories/',
                          'www.ndtv.com/topic/',
                          '/photos/news/top-photos-of-the-day',
                          'www.ndtv.com/careers/?',
@@ -76,7 +76,8 @@ class mod_en_in_ndtv(basePlugin):
                          'www.ndtv.com/?pfrom',
                          'www.ndtv.com/budget?pfrom',
                          'www.ndtv.com/webstories/celeb',
-                         'www.ndtv.com/jobs/'
+                         'www.ndtv.com/jobs/',
+                         'www.ndtv.com/business/hindi'
                          ]
 
     # this list of URLs will be visited to get links for articles,
@@ -114,6 +115,7 @@ class mod_en_in_ndtv(basePlugin):
                       'https://www.ndtv.com/tamil',
                       'https://www.ndtv.com/diaspora',
                       'https://www.ndtv.com/cheat-sheet',
+                      'https://www.ndtv.com/webstories/beauty',
                       'https://www.ndtv.com/webstories/tech',
                       'https://www.ndtv.com/webstories/humor',
                       'https://www.ndtv.com/business/forex',
@@ -194,7 +196,7 @@ class mod_en_in_ndtv(basePlugin):
         }
 
     invalidTextStrings = []
-
+    subStringsToFilter = []
     allowedDomains = ["www.ndtv.com"]
 
     articleIndustryRegexps = []
@@ -216,7 +218,7 @@ class mod_en_in_ndtv(basePlugin):
         super().__init__()
 
     def getArticlesListFromRSS(self):
-        """ extract Article listing using the BeautifulSoup library
+        """ Extract Article listing using the BeautifulSoup library
         to identify the list from its RSS feed
         """
         # <item>
@@ -224,14 +226,11 @@ class mod_en_in_ndtv(basePlugin):
         for thisFeedURL in self.all_rss_feeds:
             try:
                 rawData = self.networkHelper.fetchRawDataFromURL(thisFeedURL, self.pluginName)
-
                 rss_feed_xml = BeautifulSoup(rawData, 'lxml-xml')
-
                 for item in rss_feed_xml.channel:
                     if item.name == "item":
                         link_contents = item.link.contents[0]
                         self.listOfURLS.append(link_contents)
-
             except Exception as e:
                 logger.error("%s: Error getting urls listing from RSS feed %s: %s",
                              self.pluginName,
@@ -249,23 +248,18 @@ class mod_en_in_ndtv(basePlugin):
             docRoot = BeautifulSoup(htmlContent, 'lxml')
             section = docRoot.find_all(class_=['ins_storybody', 'content_text row description', 'fullstoryCtrl_fulldetails'])
             paragraphList = []
-
             for node in section:
                 paragraphList = paragraphList + node.find_all('p', text=True)
-
             for item in paragraphList:
                 body_text = body_text + str(item.get_text())
-
             section = docRoot.findAll('span', {"itemprop": 'articleBody'})
             if len(section) > 0:
                 for item in section:
                     body_text = body_text + str(item.get_text())
-
             section = docRoot.findAll('div', {"itemprop": 'articleBody'})
             if len(section) > 0:
                 for item in section:
                     body_text = body_text + str(item.get_text())
-
         except Exception as e:
             logger.error("Exception extracting article via tags: %s", e)
         return(body_text)
@@ -277,7 +271,6 @@ class mod_en_in_ndtv(basePlugin):
         try:
             # get article text data by parsing specific tags:
             docRoot = BeautifulSoup(htmlContent, 'lxml')
-
             section = docRoot.findAll('h1', {"itemprop": 'headline'})
             if len(section) > 0:
                 for item in section:
@@ -286,18 +279,40 @@ class mod_en_in_ndtv(basePlugin):
             logger.error("Exception extracting article via tags: %s", e)
         return(title_text)
 
-    # *** MANDATORY to implement ***
     def extractIndustries(self, uRLtoFetch, htmlText):
         """ Extract the industry of the articles from its URL or contents
         """
         industries = []
         return(industries)
 
-    # *** MANDATORY to implement ***
     def extractAuthors(self, htmlText):
         """ extract the author from the html content
         """
         authors = []
         return(authors)
+
+    def checkAndCleanText(self, inputText, rawData):
+        """ Check and clean article text
+        """
+        cleanedText = inputText
+        invalidFlag = False
+        try:
+            for badString in self.invalidTextStrings:
+                if cleanedText.find(badString) >= 0:
+                    logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
+                    invalidFlag = True
+            # check if article content is not valid or is too little
+            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
+                cleanedText = self.extractArticleBody(rawData)
+            # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
+            cleanedText = filterRepeatedchars(cleanedText,
+                                              deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
+            # remove invalid substrings:
+            for stringToFilter in deDupeList(self.subStringsToFilter):
+                cleanedText = cleanedText.replace(stringToFilter, " ")
+        except Exception as e:
+            logger.error("Error cleaning text: %s", e)
+        return(cleanedText)
+
 
 # # end of file ##

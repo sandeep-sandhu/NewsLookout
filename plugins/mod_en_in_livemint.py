@@ -4,15 +4,27 @@
 """
  File name: mod_en_in_livemint.py
  Application: The NewsLookout Web Scraping Application
- Date: 2020-01-11
- Purpose: Plugin for LiveMint
+ Date: 2021-06-01
+ Purpose: Plugin for LiveMint news portal
 
 
- DISCLAIMER: This software is intended for demonstration and educational purposes only.
+ Notice:
+ This software is intended for demonstration and educational purposes only. This software is
+ experimental and a work in progress. Under no circumstances should these files be used in
+ relation to any critical system(s). Use of these files is at your own risk.
+
  Before using it for web scraping any website, always consult that website's terms of use.
  Do not use this software to fetch any data from any website that has forbidden use of web
  scraping or similar mechanisms, or violates its terms of use in any other way. The author is
- not responsible for such kind of inappropriate use of this software.
+ not liable for such kind of inappropriate use of this software.
+
+ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+ INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
+ PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE
+ FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+ OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ DEALINGS IN THE SOFTWARE.
+
 """
 
 ##########
@@ -29,6 +41,7 @@ import logging
 from base_plugin import basePlugin
 # from scraper_utils import retainValidArticles
 from data_structs import Types
+from scraper_utils import deDupeList, filterRepeatedchars
 
 ##########
 
@@ -36,8 +49,7 @@ logger = logging.getLogger(__name__)
 
 
 class mod_en_in_livemint(basePlugin):
-    """ Web Scraping plugin: mod_en_in_livemint
-    For Live mint
+    """ Web Scraping plugin - mod_en_in_livemint for the Live mint news portal
     """
 
     # define a minimum count of characters for text body, article content below this limit will be ignored
@@ -84,6 +96,8 @@ class mod_en_in_livemint(basePlugin):
     # this list of URLs will be visited to get links for articles,
     # but their content will not be scraped to pick up news content
     nonContentURLs = [mainURL,
+                      'https://www.livemint.com/market',
+                      'https://www.livemint.com/premium',
                       'https://www.livemint.com/mostpopular',
                       'https://www.livemint.com/wsj',
                       'https://www.livemint.com/companies/news',
@@ -181,6 +195,9 @@ class mod_en_in_livemint(basePlugin):
     articleDateRegexps = dict()
 
     invalidTextStrings = []
+    subStringsToFilter = ['Subscribe to Mint Newsletters',
+                          'Enter a valid email',
+                          'Thank you for subscribing to our newsletter.']
 
     allowedDomains = ['www.livemint.com']
 
@@ -222,5 +239,29 @@ class mod_en_in_livemint(basePlugin):
         """
         body_text = ""
         return(body_text)
+
+    def checkAndCleanText(self, inputText, rawData):
+        """ Check and clean article text
+        """
+        cleanedText = inputText
+        invalidFlag = False
+        try:
+            for badString in self.invalidTextStrings:
+                if cleanedText.find(badString) >= 0:
+                    logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
+                    invalidFlag = True
+            # check if article content is not valid or is too little
+            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
+                cleanedText = self.extractArticleBody(rawData)
+            # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
+            cleanedText = filterRepeatedchars(cleanedText,
+                                              deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
+            # remove invalid substrings:
+            for stringToFilter in deDupeList(self.subStringsToFilter):
+                cleanedText = cleanedText.replace(stringToFilter, " ")
+        except Exception as e:
+            logger.error("Error cleaning text: %s", e)
+        return(cleanedText)
+
 
 # # end of file ##

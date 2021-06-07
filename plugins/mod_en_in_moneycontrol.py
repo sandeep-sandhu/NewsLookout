@@ -4,7 +4,7 @@
 """
  File name: mod_en_in_moneycontrol.py
  Application: The NewsLookout Web Scraping Application
- Date: 2020-01-11
+ Date: 2021-06-01
  Purpose: Plugin for Money Control
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
@@ -17,7 +17,7 @@
  Before using it for web scraping any website, always consult that website's terms of use.
  Do not use this software to fetch any data from any website that has forbidden use of web
  scraping or similar mechanisms, or violates its terms of use in any other way. The author is
- not responsible for such kind of inappropriate use of this software.
+ not liable for such kind of inappropriate use of this software.
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -40,6 +40,7 @@ from bs4 import BeautifulSoup
 from base_plugin import basePlugin
 from data_structs import Types
 # from data_structs import ScrapeError
+from scraper_utils import deDupeList, filterRepeatedchars
 
 ##########
 
@@ -341,11 +342,11 @@ class mod_en_in_moneycontrol(basePlugin):
                         r"(https\:\/\/www.moneycontrol.com\/.+)(_)([0-9]{6,})(\.html)"]
 
     invalidTextStrings = []
+    subStringsToFilter = []
 
-    # <div class="date_time">Dec 29, 04:12</div>
     articleDateRegexps = {
         r'(<input type=\"hidden\" id=\"to_timestamp\" value=\")(20[0-9]{2}[0-9]{2}[0-9]{2}[0-9]{2}[0-9]{2}[0-9]{2})(\">)':
-        '%Y%m%d%H%M%S'
+        '%Y%m%d%H%M%S'  # <div class="date_time">Dec 29, 04:12</div>
         }
     authorRegexps = []
     dateMatchPatterns = dict()
@@ -418,5 +419,29 @@ class mod_en_in_moneycontrol(basePlugin):
         except Exception as e:
             logger.error("Exception extracting article body: %s", e)
         return(articleText)
+
+    def checkAndCleanText(self, inputText, rawData):
+        """ Check and clean article text
+        """
+        cleanedText = inputText
+        invalidFlag = False
+        try:
+            for badString in self.invalidTextStrings:
+                if cleanedText.find(badString) >= 0:
+                    logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
+                    invalidFlag = True
+            # check if article content is not valid or is too little
+            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
+                cleanedText = self.extractArticleBody(rawData)
+            # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
+            cleanedText = filterRepeatedchars(cleanedText,
+                                              deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
+            # remove invalid substrings:
+            for stringToFilter in deDupeList(self.subStringsToFilter):
+                cleanedText = cleanedText.replace(stringToFilter, " ")
+        except Exception as e:
+            logger.error("Error cleaning text: %s", e)
+        return(cleanedText)
+
 
 # # end of file ##

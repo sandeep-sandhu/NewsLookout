@@ -4,7 +4,7 @@
 """
  File name: mod_en_in_forbes.py
  Application: The NewsLookout Web Scraping Application
- Date: 2020-01-11
+ Date: 2021-06-01
  Purpose: Plugin for the Forbes India news portal
 
 
@@ -16,7 +16,7 @@
  Before using it for web scraping any website, always consult that website's terms of use.
  Do not use this software to fetch any data from any website that has forbidden use of web
  scraping or similar mechanisms, or violates its terms of use in any other way. The author is
- not responsible for such kind of inappropriate use of this software.
+ not liable for such kind of inappropriate use of this software.
 
  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR
@@ -24,6 +24,7 @@
  FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
  OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  DEALINGS IN THE SOFTWARE.
+
 """
 
 # #########
@@ -36,7 +37,7 @@ import logging
 from bs4 import BeautifulSoup
 
 from data_structs import Types
-from scraper_utils import cutStrBetweenTags
+from scraper_utils import cutStrBetweenTags, filterRepeatedchars, deDupeList
 # from data_structs import ScrapeError
 from base_plugin import basePlugin
 
@@ -112,7 +113,7 @@ class mod_en_in_forbes(basePlugin):
                         ]
 
     invalidTextStrings = []
-
+    subStringsToFilter = []
     articleDateRegexps = {}
     authorRegexps = []
     dateMatchPatterns = dict()
@@ -170,5 +171,29 @@ class mod_en_in_forbes(basePlugin):
         except Exception as e:
             logger.error("Exception extracting article via tags: %s", e)
         return(articleText)
+
+    def checkAndCleanText(self, inputText, rawData):
+        """ Check and clean article text
+        """
+        cleanedText = inputText
+        invalidFlag = False
+        try:
+            for badString in self.invalidTextStrings:
+                if cleanedText.find(badString) >= 0:
+                    logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
+                    invalidFlag = True
+            # check if article content is not valid or is too little
+            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
+                cleanedText = self.extractArticleBody(rawData)
+            # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
+            cleanedText = filterRepeatedchars(cleanedText,
+                                              deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
+            # remove invalid substrings:
+            for stringToFilter in deDupeList(self.subStringsToFilter):
+                cleanedText = cleanedText.replace(stringToFilter, " ")
+        except Exception as e:
+            logger.error("Error cleaning text: %s", e)
+        return(cleanedText)
+
 
 # # end of file ##
