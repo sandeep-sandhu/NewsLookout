@@ -24,6 +24,7 @@
 
 from pathlib import Path
 import os
+import sys
 cwd = Path(os.getcwd())
 sys.path.append(cwd.parent)
 sys.path.append(os.path.join(cwd.parent, 'plugins'))
