@@ -1,9 +1,10 @@
 # NewsLookout Web Scraping Application
-The NewsLookout web scraping application for financial events.
- Scalable, modular and configurable multi-threaded python console application.
-The application is readily extended by adding custom modules via its 'plugin' architecture for additional news sources,
- custom data pre-processing and NLP based news text analytics
- (e.g. entity recognition, negative event classification, economy trends, industry trends, etc.).
+The NewsLookout web scraping application is intended for gathering financial events from public news websites.
+It is a scalable, modular and configurable multi-threaded python console application.
+The application is readily extended by adding custom modules via its 'plugin' architecture. Plugins can be added for a variety of tasks including - for scraping additional news sources, perform custom data pre-processing and run NLP based news text analytics such as - entity recognition, negative event classification, economy trends, industry trends, etc.
+
+
+![Build Status](https://github.com/sandeep-sandhu/NewsLookout/actions/workflows/python-app.yml/badge.svg)
 
 
 ## Installation
