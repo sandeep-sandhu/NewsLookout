@@ -32,8 +32,10 @@
 
 # import standard python libraries:
 import sys
+from pathlib import Path
+import os
+
 # import getopt
-# import os
 # import time
 # import logging
 # import importlib
@@ -48,11 +50,24 @@ import sys
 # ###################################
 
 
+def setupEnviron():
+    from pathlib import Path
+    import os
+    import sys
+    cwd = Path(os.getcwd())
+    sys.path.append(cwd.parent)
+    sys.path.append(os.path.join(cwd.parent, 'plugins'))
+    sys.path.append(os.path.join(cwd.parent, 'plugins_contrib'))
+    import scraper_utils
+    from scraper_app import NewsLookout
+
+
 class MainAppTestCase():
 
     def setUp(self):
         """Call before every test case."""
         print("setup test")
+        setupEnviron()
         # load config
 
     def tearDown(self):
@@ -62,18 +77,14 @@ class MainAppTestCase():
     def testAppClass(self):
         """Test case AppClass
         """
+        setupEnviron()
         appClassInst = NewsLookout()
         print(appClassInst.__name__)
         assert 1 == 1, "App class not calculating values correctly"
 
 
 if __name__ == "__main__":
-    sys.path.append('NewsLookout')
-    sys.path.append('NewsLookout\\plugins')
-    sys.path.append('NewsLookout\\plugins_contrib')
-
-    # import project's python libraries:
-    from scraper_app import NewsLookout
+    setupEnviron()
 
     testApp = MainAppTestCase()
     # run all tests

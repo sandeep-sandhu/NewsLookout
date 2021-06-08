@@ -2,6 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
+ File: Test modules for NewsLookout application
+ Date: 2021-06-01
 
  Notice:
  This software is intended for demonstration and educational purposes only. This software is
@@ -22,13 +24,4 @@
 
 """
 
-from pathlib import Path
-import os
-import sys
-cwd = Path(os.getcwd())
-sys.path.append(cwd.parent)
-sys.path.append(os.path.join(cwd.parent, 'plugins'))
-sys.path.append(os.path.join(cwd.parent, 'plugins_contrib'))
 
-import scraper_utils
-from scraper_app import NewsLookout

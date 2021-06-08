@@ -33,8 +33,10 @@
 
 # import standard python libraries:
 import sys
+from pathlib import Path
+import os
+
 # import getopt
-# import os
 # import time
 # import logging
 # import importlib
@@ -46,8 +48,19 @@ import sys
 # import newspaper
 # import nltk
 
+# ###################################
 
-####################################
+
+def setupEnviron():
+    from pathlib import Path
+    import os
+    import sys
+    cwd = Path(os.getcwd())
+    sys.path.append(cwd.parent)
+    sys.path.append(os.path.join(cwd.parent, 'plugins'))
+    sys.path.append(os.path.join(cwd.parent, 'plugins_contrib'))
+    import scraper_utils
+    from scraper_app import NewsLookout
 
 
 class UtilsTestCase:
@@ -69,6 +82,7 @@ class UtilsTestCase:
 
 
 def test_sameURLWithoutQueryParams_true():
+    setupEnviron()
     url1 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=x"
     url2 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=a"
     # url3 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotas?ticker=x"
@@ -77,6 +91,7 @@ def test_sameURLWithoutQueryParams_true():
 
 
 def test_sameURLWithoutQueryParams_false():
+    setupEnviron()
     url1 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=x"
     # url2 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=a"
     url3 = "https://economictimes.indiatimes.com/markets/stocks/stooo-qaaaas?ticker=x"
@@ -85,10 +100,4 @@ def test_sameURLWithoutQueryParams_false():
 
 
 if __name__ == "__main__":
-    from pathlib import Path
-    import os
-    cwd = Path(os.getcwd())
-    sys.path.append(cwd.parent)
-    sys.path.append(os.path.join(cwd.parent, 'plugins'))
-    # import project's python libraries:
-    import scraper_utils
+    setupEnviron()
