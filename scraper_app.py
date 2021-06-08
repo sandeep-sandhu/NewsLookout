@@ -95,6 +95,8 @@ class NewsLookout:
         """
         print("NewsLookout Web Scraping Application, Version ", self.configData['version'])
         print("Python version: ", sys.version)
+
+    def config(self):
         self.readArgs()
         self.appQueue = queueManager()
         configurObj = self.readConfigFile()
@@ -219,11 +221,6 @@ class NewsLookout:
                 'plugins_contributed_dir',
                 default=os.path.join(self.configData['install_prefix'], 'plugins_contrib')
                 )
-            self.configData['enabledPlugins'] = checkAndSanitizeConfigString(
-                configur,
-                'plugins',
-                'enabled',
-                default='')
             self.configData['logfile'] = checkAndSanitizeConfigString(
                 configur,
                 'installation',
@@ -305,10 +302,38 @@ class NewsLookout:
                 maxValue=600,
                 minValue=1
                 )
-            self.configData['retry_wait_rand_min_sec'] = configur.getint('operation', 'retry_wait_rand_min_sec')
-            self.configData['retry_wait_rand_max_sec'] = configur.getint('operation', 'retry_wait_rand_max_sec')
-            self.configData['fetch_timeout'] = configur.getint('operation', 'fetch_timeout')
-            self.configData['connect_timeout'] = configur.getint('operation', 'connect_timeout')
+            self.configData['retry_wait_rand_min_sec'] = checkAndSanitizeConfigInt(
+                configur,
+                'operation',
+                'retry_wait_rand_min_sec',
+                default=3,
+                maxValue=600,
+                minValue=0
+                )
+            self.configData['retry_wait_rand_max_sec'] = checkAndSanitizeConfigInt(
+                configur,
+                'operation',
+                'retry_wait_rand_max_sec',
+                default=10,
+                maxValue=600,
+                minValue=1
+                )
+            self.configData['fetch_timeout'] = checkAndSanitizeConfigInt(
+                configur,
+                'operation',
+                'fetch_timeout',
+                default=3,
+                maxValue=600,
+                minValue=3
+                )
+            self.configData['connect_timeout'] = checkAndSanitizeConfigInt(
+                configur,
+                'operation',
+                'connect_timeout',
+                default=3,
+                maxValue=600,
+                minValue=3
+                )
             self.configData['rundate'] = checkAndParseDate(self.configData['rundate'])
         except Exception as e:
             print("Error reading operational configuration from file (", self.configData['configfile'], "): ", e)
@@ -367,9 +392,9 @@ class NewsLookout:
 
 def main():
     global app_inst
-
     # instantiate the main application class
     app_inst = NewsLookout()
+    app_inst.config()
 
     # setup logger with DEBUG level as default
     logLevel = logging.DEBUG
@@ -402,30 +427,26 @@ def main():
     logging.getLogger('').addHandler(scraperLogFileHandler)
     print("Logging to file:", app_inst.configData['logfile'])
 
-    # create PID file before starting the run:
+    # create PID file before starting the application:
     if os.path.isfile(app_inst.configData['pid_file']):
         print("ERROR: Unable to start the application since PID file exists: ", app_inst.configData['pid_file'])
         sys.exit(1)
     else:
-        # create empty file
         fp = None
         try:
             pidValue = os.getpid()
-            fp = open(app_inst.configData['pid_file'], 'wt', encoding='utf-8')
+            fp = open(app_inst.configData['pid_file'], 'wt', encoding='utf-8')  # create empty file
             fp.write(str(pidValue))
         except Exception as e:
             print("Error creating PID file: ", e, app_inst.configData['pid_file'])
             sys.exit(1)
         finally:
             fp.close()
-
     # run the application:
     app_inst.run(__version__)
-
     # close down everything, remove the pid file
     if os.path.isfile(app_inst.configData['pid_file']):
         try:
-            # delete: app_inst.configData['pid_file']
             os.remove(app_inst.configData['pid_file'])
         except Exception as e:
             logging.error("Error removing PID file %s: %s", app_inst.configData['pid_file'], e)
@@ -433,7 +454,6 @@ def main():
     else:
         logging.info("PID file %s does not exist, so unable to delete it.",
                      app_inst.configData['pid_file'])
-
     print("The program has completed execution successfully.")
 
 
