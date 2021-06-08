@@ -85,7 +85,10 @@ def test_sameURLWithoutQueryParams_false():
 
 
 if __name__ == "__main__":
-    sys.path.append('bin')
-    sys.path.append('plugins')
+    from pathlib import Path
+    import os
+    cwd = Path(os.getcwd())
+    sys.path.append(cwd.parent)
+    sys.path.append(os.path.join(cwd.parent, 'plugins'))
     # import project's python libraries:
     import scraper_utils
