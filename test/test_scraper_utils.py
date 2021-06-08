@@ -33,56 +33,19 @@
 
 # import standard python libraries:
 import sys
-from pathlib import Path
 import os
 
-# import getopt
-# import time
-# import logging
-# import importlib
-# import importlib.resources
-# from configparser import ConfigParser
-
-# import web retrieval and text processing python libraries:
-# import bs4
-# import newspaper
-# import nltk
 
 # ###################################
 
 
-def setupEnviron():
-    from pathlib import Path
-    import os
-    import sys
-    cwd = Path(os.getcwd())
-    sys.path.append(cwd.parent)
-    sys.path.append(os.path.join(cwd.parent, 'plugins'))
-    sys.path.append(os.path.join(cwd.parent, 'plugins_contrib'))
-    import scraper_utils
-    from scraper_app import NewsLookout
-
-
-class UtilsTestCase:
-
-    def setUp(self):
-        """Call before every test case."""
-        print("setup unittest")
-        # load config
-
-    def tearDown(self):
-        """Call after every test case."""
-        print("close unittest")
-
-    def testUtilsClass(self):
-        """Test case AppClass
-        """
-        # appClassInst = NewsLookout()
-        assert 1 == 1, "Utils class not calculating values correctly"
-
-
 def test_sameURLWithoutQueryParams_true():
-    setupEnviron()
+    # parentFolder = '..\\'
+    parentFolder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    sys.path.append(parentFolder)
+    sys.path.append(os.path.join(parentFolder, 'plugins'))
+    sys.path.append(os.path.join(parentFolder, 'plugins_contrib'))
+    import scraper_utils
     url1 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=x"
     url2 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=a"
     # url3 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotas?ticker=x"
@@ -91,7 +54,12 @@ def test_sameURLWithoutQueryParams_true():
 
 
 def test_sameURLWithoutQueryParams_false():
-    setupEnviron()
+    # parentFolder = '..\\'
+    parentFolder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    sys.path.append(parentFolder)
+    sys.path.append(os.path.join(parentFolder, 'plugins'))
+    sys.path.append(os.path.join(parentFolder, 'plugins_contrib'))
+    import scraper_utils
     url1 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=x"
     # url2 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=a"
     url3 = "https://economictimes.indiatimes.com/markets/stocks/stooo-qaaaas?ticker=x"
@@ -100,4 +68,6 @@ def test_sameURLWithoutQueryParams_false():
 
 
 if __name__ == "__main__":
-    setupEnviron()
+    test_sameURLWithoutQueryParams_true()
+
+# end of file

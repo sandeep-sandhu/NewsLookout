@@ -32,58 +32,27 @@
 
 # import standard python libraries:
 import sys
-from pathlib import Path
 import os
-
-# import getopt
-# import time
-# import logging
-# import importlib
-# import importlib.resources
-# from configparser import ConfigParser
-
-# import web retrieval and text processing python libraries:
-# import bs4
-# import newspaper
-# import nltk
 
 # ###################################
 
 
-def setupEnviron():
-    from pathlib import Path
-    import os
-    import sys
-    cwd = Path(os.getcwd())
-    sys.path.append(cwd.parent)
-    sys.path.append(os.path.join(cwd.parent, 'plugins'))
-    sys.path.append(os.path.join(cwd.parent, 'plugins_contrib'))
-    import scraper_utils
-    from scraper_app import NewsLookout
+def testPluginClass():
+    """Test case Base Plugin Class
+    """
+    # parentFolder = '..\\'
+    parentFolder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+    sys.path.append(parentFolder)
+    sys.path.append(os.path.join(parentFolder, 'plugins'))
+    sys.path.append(os.path.join(parentFolder, 'plugins_contrib'))
 
-
-class BasePluginTestCase:
-
-    def setUp(self):
-        """Call before every test case."""
-        print("setup test")
-        setupEnviron()
-        # load config
-
-    def tearDown(self):
-        """Call after every test case."""
-        print("close test")
-
-    def testBasePluginClass(self):
-        """Test case Base Plugin Class
-        """
-        setupEnviron()
-        appClassInst = NewsLookout()
-        print(appClassInst.__name__)
-        assert 1 == 1, "Base Plugin class is not calculating values correctly"
+    from mod_en_in_ecotimes import mod_en_in_ecotimes
+    pluginClassInst = mod_en_in_ecotimes()
+    print(type(pluginClassInst).__name__)
+    assert type(pluginClassInst).__name__ == "mod_en_in_ecotimes", "mod_en_in_ecotimes Plugin is not initialising correctly"
 
 
 if __name__ == "__main__":
-    setupEnviron()
+    testPluginClass()
 
 # end of file
