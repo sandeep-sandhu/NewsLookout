@@ -533,18 +533,18 @@ class NewsArticle(JSONEncoder):
             logger.error("Exception caught reading data from JSON file: %s", theError)
 
     def cleanText(textInput):
-        """ clean text, e.g. replace unicode characters, etc.
+        """ Clean text, e.g. replace unicode characters, etc.
         """
         cleanText = textInput
         if len(textInput) > 1:
             try:
                 # replace special characters:
-                replaceWithSpaces = []
-                # \u0915 \u092f \u0938 \u091a \u0941 \u093e \u0906 \u092f \u094b
-                # \u092c \u093e \u092c \u093e \u0902 \u0917 \u0925 \u092e
-                # \u092e \u0930 \u0908 \u0926 \u0932 \u0905 \u092d \u0923 \u0902
-                # \u0924 \u0938 \u092f \u093e \u092a \u0924 \u0909 \u092a
-                # \u091c \u0940
+                replaceWithSpaces = ['\u0915', '\u092f', '\u0938', '\u091a', '\u0941', '\u093e', '\u0906', '\u092f', '\u094b',
+                                     '\u092c', '\u093e', '\u092c', '\u093e', '\u0902', '\u0917', '\u0925', '\u092e', '\u092e',
+                                     '\u0930', '\u0908', '\u0926', '\u0932', '\u0905', '\u092d', '\u0923', '\u0902', '\u0924',
+                                     '\u0938', '\u092f', '\u093e', '\u092a', '\u0924', '\u0909', '\u092a' '\u091c', '\u0940']
+                for uniCodeChar in replaceWithSpaces:
+                    cleanText = cleanText.replace(uniCodeChar, " ")
                 cleanText = cleanText.replace(" Addl. ", " Additional ")
                 cleanText = cleanText.replace("M/s.", "Messers")
                 cleanText = cleanText.replace("m/s.", "Messers")

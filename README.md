@@ -68,13 +68,20 @@ The application displays its progress on stdout, for example:
 >         NewsLookout Web Scraping Application, Version  1.9.0
 >         Python version:  3.8.8 (tags/v3.8.8:024d805, Feb 19 2021, 13:18:16) [MSC v.1928 64 bit (AMD64)]
 >         Reading configuration settings from file: conf\newslookout.conf
->         Saving data to: data\data
+>         Saving data to: data\web_scrapes
 >         Logging events to file: temp\newslookout.log
 >         Web-scraping Progress:
 >          12%|████▍                                 | 680/5786 [18:00<2:15:09,  1.59s/it]
 
 
 For a more detailed log of events, refer to the log file.
+
+
+## Customizing and Writing your own Plugins
+
+You can extend the web scraper's functionality to add any additional website that you need scraped by using the template file 'template_for_plugin.py' and customising it.  Name your custom plugin file with the same name as the name of the class object. Place it in the 'plugins_contrib' folder and add the plugin's name in the configuration file. It will be picked up automatically and run when the  application is next run.
+
+Take a look at one of the already implemented plugins code for examples of how a plugin can be written.
 
 
 ## Maintenance and Monitoring
