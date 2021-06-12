@@ -43,7 +43,7 @@ import requests
 # import this project's python libraries:
 from base_plugin import basePlugin
 from scraper_utils import getPreviousDaysDate
-from data_structs import Types
+from data_structs import Types, ExecutionResult
 
 ##########
 
@@ -112,11 +112,14 @@ class mod_in_bse(basePlugin):
             logger.info("Total count of valid articles to be retrieved = %s for business date: %s",
                         len(self.listOfURLS), businessDate.strftime("%Y-%m-%d"))
         except Exception as e:
-            logger.error("Error trying to retrieve URL list at recursion level %s: %s", self.configData['recursion_level'], e)
+            logger.error("Error trying to retrieve URL list at recursion level %s: %s",
+                         self.configData['recursion_level'], e)
+        self.putQueueEndMarker()
 
     def fetchDataFromURL(self, uRLtoFetch, WorkerID):
         """ Fetch data From given URL
         """
+        self.pluginState = Types.STATE_FETCH_CONTENT
         fullPathName = ""
         dirPathName = ""
         sizeOfDataDownloaded = -1
@@ -124,8 +127,7 @@ class mod_in_bse(basePlugin):
         publishDateStr = ""
         self.master_data_dir = self.configData['master_data_dir']
         logger.debug("Worker ID %s Fetching data from URL: %s", WorkerID, uRLtoFetch.encode("ascii"))
-        # output tuple structure: (uRL, len_raw_data, len_text, publish_date)
-        resultVal = (uRLtoFetch, None, None, None)
+        resultVal = None
         try:
             (publishDate, dataUniqueID) = self.extractUniqueIDFromURL(uRLtoFetch)
             rawData = self.downloadDataArchive(uRLtoFetch, type(self).__name__)
@@ -158,8 +160,12 @@ class mod_in_bse(basePlugin):
             else:
                 logger.info("Ignoring data zip file '%s' since its size %s is less than %s bytes",
                             fullPathName, len(rawData), self.minArticleLengthInChars)
-            # save count of characters of downloaded data for the given URL
-            resultVal = (uRLtoFetch, sizeOfDataDownloaded, uncompressSize, publishDateStr)
+            # save metrics/count of downloaded data for the given URL
+            resultVal = ExecutionResult(uRLtoFetch,
+                                        sizeOfDataDownloaded,
+                                        uncompressSize,
+                                        publishDateStr,
+                                        self.pluginName)
         except Exception as e:
             logger.error("While fetching data, Exception was: %s", e)
         return(resultVal)

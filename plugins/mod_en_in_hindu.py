@@ -59,6 +59,8 @@ class mod_en_in_hindu(basePlugin):
 
     # archive URL: https://www.thehindu.com/archive/
     mainURL = 'https://www.thehindu.com/business/'
+    mainURLDateFormatted = 'https://www.thehindu.com/archive/print/%Y/%m/%d/'
+
     all_rss_feeds = ["https://www.thehindu.com/business/feeder/default.rss"]
 
     # fetch only URLs containing the following substrings:

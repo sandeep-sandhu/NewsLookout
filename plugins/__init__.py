@@ -4,8 +4,8 @@
 """
  File name: __init__.py
  Application: The NewsLookout Web Scraping Application
- Date: 2021-01-14
- Purpose: base class that is the parent for all plugins for the application
+ Date: 2021-06-01
+ Purpose: Plugin module for all plugins for the application
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
 
@@ -29,10 +29,3 @@
 """
 
 # from base_plugin import basePlugin
-
-# from mod_en_in_ecotimes import mod_en_in_ecotimes
-# from mod_en_in_inexp_business import mod_en_in_inexp_business
-# from mod_in_nse import mod_in_nse
-# from mod_in_bse import mod_in_bse
-
-# from mod_dedupe import mod_dedupe

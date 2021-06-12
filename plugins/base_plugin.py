@@ -57,7 +57,9 @@ Provides:
 import re
 import logging
 import sys
+import os
 from datetime import datetime
+# from datetime import timezone
 
 # import web retrieval and text processing python libraries:
 from bs4 import BeautifulSoup
@@ -66,7 +68,7 @@ from newspaper import Article
 
 # import this project's python libraries:
 from network import NetworkFetcher
-from data_structs import Types, NewsArticle, ScrapeError
+from data_structs import Types, NewsArticle, ScrapeError, ExecutionResult
 
 from scraper_utils import normalizeURL, extractLinks, calculateCRC32
 from scraper_utils import retainValidArticles, removeInValidArticles
@@ -163,13 +165,13 @@ class basePlugin:
         Logs an error and exits if these are not found in the plugin.
         """
         self.pluginName = type(self).__name__
-        self.pluginState = Types.STATE_GET_URL_LIST
-        self.URLToFetch = ""
+        self.URLToFetch = None
         self.networkHelper = None
         self.newsPaperArticle = None
         self.urlQueue = None
         self.urlQueueTotalSize = 0
         self.urlProcessedCount = 0
+        self.pluginState = Types.STATE_GET_URL_LIST
         if self.pluginType in [Types.MODULE_NEWS_CONTENT]:
             # check required attributes:
             attributesTocheck = ['mainURL', 'validURLStringsToCheck', 'invalidURLSubStrings',
@@ -188,6 +190,8 @@ class basePlugin:
                     logger.error("%s plugin must implement method: %s",
                                  self.pluginName, methodName)
                     sys.exit(-1)
+        elif self.pluginType in [Types.MODULE_DATA_PROCESSOR]:
+            self.pluginState = Types.STATE_PROCESS_DATA
 
     def config(self, configDict):
         """ Configure the plugin
@@ -205,15 +209,16 @@ class basePlugin:
             logger.error("%s: Could not read configuration parameters: %s", self.pluginName, e)
         try:
             logger.debug("%s: Applying the configuration parameters", self.pluginName)
-            for urlRegex in self.urlUniqueRegexps:
-                # logger.debug("Compiling match pattern for URL identification: %s", urlRegex)
-                self.urlMatchPatterns.append(re.compile(urlRegex))
-            for authorRegex in self.authorRegexps:
-                # logger.debug("Compiling match pattern for Authors: %s", authorRegex)
-                self.authorMatchPatterns.append(re.compile(authorRegex))
-            for dateRegex in self.articleDateRegexps.keys():
-                # logger.debug("Compiling match pattern for dates: %s", dateRegex )
-                self.dateMatchPatterns[dateRegex] = (re.compile(dateRegex), self.articleDateRegexps[dateRegex])
+            if self.pluginType not in [Types.MODULE_NEWS_AGGREGATOR, Types.MODULE_DATA_PROCESSOR]:
+                for urlRegex in self.urlUniqueRegexps:
+                    # logger.debug("Compiling match pattern for URL identification: %s", urlRegex)
+                    self.urlMatchPatterns.append(re.compile(urlRegex))
+                for authorRegex in self.authorRegexps:
+                    # logger.debug("Compiling match pattern for Authors: %s", authorRegex)
+                    self.authorMatchPatterns.append(re.compile(authorRegex))
+                for dateRegex in self.articleDateRegexps.keys():
+                    # logger.debug("Compiling match pattern for dates: %s", dateRegex )
+                    self.dateMatchPatterns[dateRegex] = (re.compile(dateRegex), self.articleDateRegexps[dateRegex])
         except Exception as e:
             logger.error("%s: Could not apply configuration parameters: %s", self.pluginName, e)
 
@@ -221,6 +226,18 @@ class basePlugin:
         """ Helper function to read plugin specific configuration
         """
         return(self.configReader.get('plugins', configElement))
+
+    def getStatusString(self):
+        """ Prepare status text to be printed out by the worker thread in the log
+        """
+        statusString = ''
+        if self.pluginType in [Types.MODULE_NEWS_CONTENT]:
+            statusString = 'State = ' + Types.decodeNameFromIntVal(self.pluginState)
+        elif self.pluginType in [Types.MODULE_DATA_PROCESSOR]:
+            statusString = 'State = ' + Types.decodeNameFromIntVal(self.pluginState)
+        elif self.pluginType in [Types.MODULE_NEWS_AGGREGATOR]:
+            statusString = 'State = ' + Types.decodeNameFromIntVal(self.pluginState)
+        return(statusString)
 
     def setNetworkHelper(self):
         """ Initialise the object that communicates over the network
@@ -254,6 +271,9 @@ class basePlugin:
         self.urlQueue.put((10000000, None))
         # change state of plugin to indicate url gathering is over.
         self.pluginState = Types.STATE_FETCH_CONTENT
+        # nothing more to do for a news aggregator:
+        if self.pluginType == Types.MODULE_NEWS_AGGREGATOR:
+            self.pluginState = Types.STATE_STOPPED
         # empty out the url list in the plugin:
         self.listOfURLS = []
         logger.info("%s: Final count of articles to be retrieved = %s",
@@ -261,10 +281,16 @@ class basePlugin:
                     self.urlQueue.qsize() - 1
                     )
 
-    def makeUniqueFileName(self, uniqueID, URL=None):
-        """ Create a Unique File Name for this article to be saved
+    def identifyDataPathForRunDate(self, runDateString):
+        """ Identify Path For Run Date
         """
-        return(self.pluginName + "_" + str(uniqueID))
+        return(os.path.join(self.configData['data_dir'], str(runDateString)))
+
+    def makeUniqueFileName(pluginName, baseDirName, uniqueID, URL=None):
+        """ Create a Unique File Name for this article to be saved
+        It does not contain the extension - .json, this has to be appended.
+        """
+        return(os.path.join(baseDirName, pluginName + "_" + str(uniqueID)))
 
     def filterInvalidURLs(self, urlList):
         """ Filter Invalid URLs:
@@ -316,7 +342,7 @@ class basePlugin:
             thisNewsPSource.set_categories()
             for index, category in enumerate(thisNewsPSource.categories):
                 category_html = self.networkHelper.fetchRawDataFromURL(category.url, self.pluginName)
-                logger.debug("Retrieved %s bytes from category URL: %s", len(category_html), category.url)
+                # logger.debug("Retrieved %s bytes from category URL: %s", len(category_html), category.url)
                 thisNewsPSource.categories[index].html = category_html
             thisNewsPSource.categories = [c for c in thisNewsPSource.categories if c.html]
             # thisNewsPSource.download_categories()  # disabled to handle proxy certificate problem
@@ -324,7 +350,7 @@ class basePlugin:
             thisNewsPSource.set_feeds()
             for index, feed in enumerate(thisNewsPSource.feeds):
                 feed_html = self.networkHelper.fetchRawDataFromURL(feed.url, self.pluginName)
-                logger.debug("Retrieved %s bytes from feed URL: %s", len(feed_html), feed.url)
+                # logger.debug("Retrieved %s bytes from feed URL: %s", len(feed_html), feed.url)
                 thisNewsPSource.feeds[index].rss = feed_html
             thisNewsPSource.feeds = [f for f in thisNewsPSource.feeds if f.rss]
             # thisNewsPSource.download_feeds()  # disabled to handle proxy certificate problem
@@ -332,8 +358,9 @@ class basePlugin:
             # remove invalid data
             newspaperSourcedURLS = self.filterInvalidURLs(thisNewsPSource.articles)
             # normalize the list of URLs:
-            for uRLIndex in range(len(newspaperSourcedURLS)):
-                self.listOfURLS.append(normalizeURL(newspaperSourcedURLS[uRLIndex]))
+            if newspaperSourcedURLS is not None:
+                for uRLIndex in range(len(newspaperSourcedURLS)):
+                    self.listOfURLS.append(normalizeURL(newspaperSourcedURLS[uRLIndex]))
         except Exception as e:
             logger.error("%s: Error extracting articles list using the Newspaper library: %s",
                          self.pluginName,
@@ -362,9 +389,7 @@ class basePlugin:
     def getURLsListForDate(self, runDate, completedURLs):
         """ Retrieve the URLs List for the given run date
         """
-        logger.debug("%s: Fetching list of urls for date: %s",
-                     self.pluginName,
-                     str(runDate.strftime("%Y-%m-%d")))
+        logger.debug("%s: Fetching list of urls for date: %s", self.pluginName, str(runDate.strftime("%Y-%m-%d")))
         self.listOfURLS = []
         try:
             self.getArticlesListFromRSS()
@@ -373,42 +398,67 @@ class basePlugin:
             self.listOfURLS = deDupeList(self.listOfURLS +
                                          self.extractArticleListFromMainURL(runDate) +
                                          completedURLs.retrieveTodoURLList(self.pluginName))
+            if 'mainURLDateFormatted' in dir(self):
+                searchResultsURLForDate = runDate.strftime(self.mainURLDateFormatted)
+                searchURLsForDate = self.extractLinksFromURLList(runDate, [searchResultsURLForDate])
+                if searchURLsForDate is not None and len(searchURLsForDate) > 0:
+                    self.listOfURLS = self.listOfURLS + searchURLsForDate
+                logger.debug("%s: Added search URL for current date:: %s", self.pluginName, searchResultsURLForDate)
         except Exception as e:
-            logger.error("%s: Error trying to retrieve listing of URLs from main and pending lists: %s",
-                         self.pluginName,
-                         e)
-        links2LevelsDeep = []
-        links3LevelsDeep = []
-        links4LevelsDeep = []
+            logger.error("%s: Error retrieving list of URLs from main URL and pending table: %s", self.pluginName, e)
         try:
             if self.pluginType in [Types.MODULE_NEWS_CONTENT,
                                    Types.MODULE_DATA_CONTENT,
                                    Types.MODULE_NEWS_API
                                    ]:
-                if self.configData['recursion_level'] > 1:  # go another level deeper
-                    logger.info("Started collecting URLs 2 levels deep, for plugin: %s", self.pluginName)
-                    links2LevelsDeep = self.extractLinksFromURLList(runDate, self.listOfURLS)
-                    if self.configData['recursion_level'] > 2:  # go yet another level deeper
-                        logger.info("Started collecting URLs 3 levels deep, for plugin: %s", self.pluginName)
-                        links3LevelsDeep = self.extractLinksFromURLList(runDate, links2LevelsDeep)
-                        if self.configData['recursion_level'] > 3:  # go yet another level deeper
-                            logger.info("Started collecting URLs 4 levels deep, for plugin: %s", self.pluginName)
-                            links4LevelsDeep = self.extractLinksFromURLList(runDate, links3LevelsDeep)
-                allURLs = self.listOfURLS + links2LevelsDeep + links3LevelsDeep + links4LevelsDeep
-                allURLs = deDupeList(allURLs)
-                # remove invalid articles:
-                allURLs = self.filterInvalidURLs(allURLs)
+                allURLs = self.getLinksRecursively(self.listOfURLS, runDate, self.configData['recursion_level'])
                 allURLs = completedURLs.removeAlreadyFetchedURLs(allURLs, self.pluginName)
                 self.addURLsListToQueue(allURLs)
                 completedURLs.addURLsToPendingTable(allURLs, self.pluginName)
             elif self.pluginType == Types.MODULE_NEWS_AGGREGATOR:
                 # Recursion is not applicable for news aggregators; simply add url into common queue:
                 # TODO: identify the relevant pluginName from the allowed domain
+                # completedURLs.addURLsToPendingTable(self.listOfURLS, self.pluginName)
                 self.addURLsListToQueue(self.listOfURLS)
         except Exception as e:
             logger.error("%s: Error trying to validate retrieved listing of URLs: %s",
                          self.pluginName,
                          e)
+        self.putQueueEndMarker()
+
+    def getLinksRecursively(self, uRLSList, runDate, recursionLevel):
+        """ Get Links Recursively
+        """
+        allURLs = uRLSList
+        # initialize local variables:
+        links2LevelsDeep = []
+        links3LevelsDeep = []
+        links4LevelsDeep = []
+        try:
+            if recursionLevel > 1:
+                # go another level deeper
+                logger.info("Started collecting URLs 2 levels deep, for plugin: %s", self.pluginName)
+                links2LevelsDeep = self.extractLinksFromURLList(runDate, allURLs)
+                if links2LevelsDeep is not None:
+                    allURLs = allURLs + links2LevelsDeep
+                if recursionLevel > 2 and links2LevelsDeep is not None:
+                    # go yet another level deeper
+                    logger.info("Started collecting URLs 3 levels deep, for plugin: %s", self.pluginName)
+                    links3LevelsDeep = self.extractLinksFromURLList(runDate, links2LevelsDeep)
+                    if links3LevelsDeep is not None:
+                        allURLs = allURLs + links3LevelsDeep
+                    if recursionLevel > 3 and links3LevelsDeep is not None:
+                        # go yet another level deeper
+                        logger.info("Started collecting URLs 4 levels deep, for plugin: %s", self.pluginName)
+                        links4LevelsDeep = self.extractLinksFromURLList(runDate, links3LevelsDeep)
+                        if links4LevelsDeep is not None:
+                            allURLs = allURLs + links4LevelsDeep
+            allURLs = deDupeList(allURLs)
+            # remove invalid articles:
+            allURLs = self.filterInvalidURLs(allURLs)
+        except Exception as e:
+            logger.error("Error getting links recursively: %s", e)
+        return(allURLs)
 
     def extractPublishedDate(self, htmlText):
         """ Extract Published Date from html content
@@ -425,8 +475,9 @@ class basePlugin:
                 result = datePattern.search(htmlText)
                 if result is not None:
                     dateString = result.group(2)
-                    date_obj = datetime.strptime(dateString, datetimeFormatStr)
-                    if date_obj > datetime.now():
+                    date_obj = datetime.strptime(dateString, datetimeFormatStr).replace(tzinfo=None)
+                    currentDateTime = datetime.now()
+                    if date_obj > currentDateTime:
                         logger.debug("%s: Invalid article date identified in the future: %s, for URL: %s",
                                      self.pluginName, date_obj, self.URLToFetch)
                     else:
@@ -452,7 +503,8 @@ class basePlugin:
             urlsToBeExtracted = [self.mainURL] + self.nonContentURLs
             linksLevel1 = self.extractLinksFromURLList(runDate, urlsToBeExtracted)
         except Exception as e:
-            logger.error("%s: When Extracting article list from main URL, error was: %s", self.pluginName, e)
+            logger.error("%s: When Extracting article list from main URL, error was: %s",
+                         self.pluginName, e)
         return(linksLevel1)
 
     def extractLinksFromURLList(self, runDate, listOfURLs):
@@ -531,7 +583,7 @@ class basePlugin:
         """ Fetch complete cleaned data From given URL
         The output tuple structure is: (uRL, len_raw_data, len_text, publish_date)
         """
-        resultVal = (uRLtoFetch, None, None, None)
+        resultVal = None
         # set this plugin instance's URL attribute until its data retrieval is completed
         self.URLToFetch = uRLtoFetch
         try:
@@ -544,28 +596,36 @@ class basePlugin:
             # scrape data/html only if this url is not listed as part of nonContent URL list
             if uRLtoFetch not in self.nonContentURLs:
                 htmlContent = self.networkHelper.fetchRawDataFromURL(uRLtoFetch, self.pluginName)
-                logger.debug("%s: Fetched %s characters of html data", self.pluginName, len(htmlContent))
-
-                # create newspaper library's article object:
-                newsPaperArticle = Article(uRLtoFetch, config=self.networkHelper.newspaper_config)
-                #  set html data from the fetched html content
-                newsPaperArticle.set_html(htmlContent)
-                # check data is valid, clean it:
-                validData = self.parseFetchedData(uRLtoFetch, newsPaperArticle, WorkerID)
-                # check if content is adequate, if so save it to file:
-                if validData.getTextSize() > self.minArticleLengthInChars:
-                    # write news article object 'validData' to file:
-                    validData.writeFiles(self.makeUniqueFileName(validData.getArticleID(), URL=uRLtoFetch),
-                                         self.baseDirName,
-                                         str(htmlContent),
-                                         saveHTMLFile=self.bSaveHTMLFile)
-                    # save metrics including count of characters of scraped and cleaned text for the given URL
-                    resultVal = (uRLtoFetch, len(htmlContent), validData.getTextSize(), validData.getPublishDate())
-                else:
-                    logger.debug("%s: Insufficient or invalid data (%s characters) retrieved for URL: %s",
-                                 self.pluginName,
-                                 validData.getTextSize(),
-                                 uRLtoFetch.encode('ascii', "ignore"))
+                if htmlContent is not None and len(htmlContent) > self.minArticleLengthInChars:
+                    logger.debug("%s: Fetched %s characters of html data", self.pluginName, len(htmlContent))
+                    # create newspaper library's article object:
+                    newsPaperArticle = Article(uRLtoFetch, config=self.networkHelper.newspaper_config)
+                    #  set html data from the fetched html content
+                    newsPaperArticle.set_html(htmlContent)
+                    # check data is valid, clean it:
+                    validData = self.parseFetchedData(uRLtoFetch, newsPaperArticle, WorkerID)
+                    # check if content is adequate, if so save it to file:
+                    if validData.getTextSize() > self.minArticleLengthInChars:
+                        # write news article object 'validData' to file:
+                        savefileNameWithOutExt = basePlugin.makeUniqueFileName(
+                            self.pluginName,
+                            self.identifyDataPathForRunDate(str(validData.getPublishDate())),
+                            validData.getArticleID(),
+                            URL=validData.getURL())
+                        validData.writeFiles(savefileNameWithOutExt,
+                                             str(htmlContent),
+                                             saveHTMLFile=self.bSaveHTMLFile)
+                        resultVal = ExecutionResult(uRLtoFetch,
+                                                    validData.getHTMLSize(),
+                                                    validData.getTextSize(),
+                                                    validData.getPublishDate(),
+                                                    self.pluginName,
+                                                    dataFileName=savefileNameWithOutExt)
+                    else:
+                        logger.debug("%s: Insufficient or invalid data (%s characters) retrieved for URL: %s",
+                                     self.pluginName,
+                                     validData.getTextSize(),
+                                     uRLtoFetch.encode('ascii', "ignore"))
         except Exception as e:
             logger.info("%s: Ignoring URL %s due to: %s",
                         self.pluginName, uRLtoFetch.encode('ascii', "ignore"), e)

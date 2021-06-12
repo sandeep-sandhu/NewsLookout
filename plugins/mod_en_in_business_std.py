@@ -64,6 +64,8 @@ class mod_en_in_business_std(basePlugin):
     # main webpage URL
     mainURL = "https://www.business-standard.com/"
 
+    mainURLDateFormatted = "https://www.business-standard.com/advance-search?type=print-media&print_date=%d-%m-%Y"
+
     # RSS feeds to pick up latest news article links
     all_rss_feeds = ['https://www.business-standard.com/rss/home_page_top_stories.rss',
                      'https://www.business-standard.com/rss/latest.rss',

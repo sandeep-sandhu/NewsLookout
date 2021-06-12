@@ -193,6 +193,10 @@ class mod_en_in_ndtv(basePlugin):
     articleDateRegexps = {
         r"(content = \")(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\+05:30\")": "%Y-%m-%dT%H:%M:%S",
         r"(Updated: )([a-zA-Z]+ [0-9]{1,2}, 20[0-9]{2} [0-9]{1,2}:[0-9]{2})( [a-zA-Z]{2} IST)": "%B %d, %Y %H:%M"
+        # FIXME: Could not identify article date: time data 'Jun 7, 2021 5:47' does not match format '%B %d, %Y %H:%M',
+        # string to parse: Jun 7, 2021 5:47, using regexp:
+        # (Updated: )([a-zA-Z]+ [0-9]{1,2}, 20[0-9]{2} [0-9]{1,2}:[0-9]{2})( [a-zA-Z]{2} IST),
+        # URL: https://www.ndtv.com/education/cancel-university-exams-say-students-states-scrap-board-exams
         }
 
     invalidTextStrings = []

@@ -32,24 +32,24 @@
 
 # import standard python libraries:
 import logging
-
-# import web retrieval and text processing python libraries:
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize, sent_tokenize
-from nltk.stem import PorterStemmer
-from num2words import num2words
-import numpy as np
-import gensim
-
+import os
+from tqdm import tqdm
+# import numpy as np
 
 # import this project's python libraries:
 from base_plugin import basePlugin
-from data_structs import Types
-# from data_structs import NewsArticle
+from data_structs import Types, NewsArticle
+from scraper_utils import getFullFilePathsInDir
+# from scraper_utils import getNextDaysDate, getPreviousDaysDate
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+import spacy
 
 ##########
 
 logger = logging.getLogger(__name__)
+
+###########
 
 
 class mod_dedupe(basePlugin):
@@ -59,130 +59,214 @@ class mod_dedupe(basePlugin):
     minArticleLengthInChars = 400
     pluginType = Types.MODULE_DATA_PROCESSOR  # implies data post-processor
 
-    listOfURLS = []
-    urlUniqueRegexps = []
-    urlMatchPatterns = []
+    listOfFiles = []
     uRLdata = dict()
 
     def __init__(self):
         """ Initialize the object """
         super().__init__()
 
-    def processData(self, runDate):
-        """ process data """
-        # find list of artciles newly fetched
-        # load each article one by one
-        # for each article loaded, compare with other articles within +/- 10 days
-        # highlight newer article as duplicate
-        # for same date but different sources, highlight shorter article as duplicate
-        pass
+    def setConfig(self, configDict):
+        self.workDir = configDict['data_dir']
 
-    def compareTwoArticles(self, text1, text2):
-        """ Compare two articles
+    def setupModel(self):
+        """
+        Setup the NLP models for computing similarity.
         """
         try:
-            similarityResult = 0
-            logger.debug("Comparing article texts")
-            # nlp = spacy.load("en_core_web_lg")
-            # doc1 = nlp(text1)
-            # doc2 = nlp(text2)
-            # # Similarity of two documents
-            # similarityResult = doc1.similarity(doc2)
-            logger.debug("Processed text: %s", self.preprocess(text1))
+            self.nlpModel = spacy.load("en_core_web_lg")
+        except Exception as e:
+            logger.error("Error loading the NLP model for de-dupe: %s", e)
 
-            logger.debug("Similarity of doc1 with doc2 is: %s", similarityResult)
+    def processData(self, runDate):
+        """ Process data for runDate
+        :param runDate: The business date for which the text needs to be processed.
+        :type runDate: datetime
+        """
+        self.setupModel()
+        print("\nData de-duplication progress:")
+        # find list of articles newly fetched:
+        listOfFiles = self.identifyFilesForDate(runDate)
+        logger.info("Identified %s files to be de-duplicated for date: %s",
+                    len(listOfFiles), runDate.strftime('%Y-%m-%d'))
+        # load each article one by one, and compare with other articles:
+        deletedCount = 0
+        fileNameToKeep = None
+        for fileIndex1, file1 in enumerate(listOfFiles):
+            try:
+                statusBarText = tqdm.format_meter(fileIndex1 + 1,
+                                                  len(listOfFiles),
+                                                  0.1,
+                                                  ncols=80,
+                                                  ascii=False)
+                print(statusBarText, '\b' * 100, end='')
+                # load document data from fileName and compute its text embedding:
+                if os.path.isfile(file1):
+                    document1 = self.computeTextEmbeddingDoc(file1)
+                    if document1 is not None:
+                        for fileIndex2 in range(fileIndex1 + 1, len(listOfFiles)):
+                            document2 = self.computeTextEmbeddingDoc(listOfFiles[fileIndex2])
+                            logger.debug('de-dupe %s -> %s', file1, listOfFiles[fileIndex2])
+                            resultTuple = self.compareTwoArticles(document1, document2,
+                                                                  compareThreshold=0.99, maxSizePercentDiff=0.20)
+                            # check that first article's file exist, only then delete the second article:
+                            if resultTuple is not None and os.path.isfile(resultTuple[1].getFileName()):
+                                self.removeArticle(resultTuple[2])
+                                deletedCount = deletedCount + 1
+            except Exception as e:
+                logger.error("Error identifying similar files: %s, file compared: %s", e, file1)
+        print('')
+        logger.info('\nDeleted %s duplicates.', deletedCount)
+
+    def deleteDuplicateFiles(self, similarTuples):
+        """ Delete duplicate files for each set of duplicates identified
+        """
+        # for each pair, delete the second document, i.e.: recTuple[index][2]
+        if similarTuples is not None:
+            for counter, recTuple in enumerate(similarTuples):
+                try:
+                    # check that first record files exist, only then delete the second record:
+                    if os.path.isfile(recTuple[1].getFileName()):
+                        self.removeArticle(recTuple[2])
+                except Exception as e:
+                    logger.error("Error deleting duplicate files for %s tuple %s: %s", counter, recTuple, e)
+        return(counter + 1)
+
+    def identifyFilesForDate(self, runDate):
+        """ Get list of files for directories for tomorow's run-date, today's run date and yesterday's run-date
+        :param runDate: The business date for which the text needs to be processed.
+        :type runDate: datetime
+        :rtype List[str]
+        """
+        runDateString = runDate.strftime("%Y-%m-%d")
+        listOfFiles = getFullFilePathsInDir(self.identifyDataPathForRunDate(runDateString))
+        # # get articles from previous day too:
+        # listOfFiles = listOfFiles + getFullFilePathsInDir(
+        #     self.identifyDataPathForRunDate(getPreviousDaysDate(runDateString)))
+        # # get for next day, in case data is available:
+        # listOfFiles = listOfFiles + getFullFilePathsInDir(
+        #     self.identifyDataPathForRunDate(getNextDaysDate(runDateString)))
+        # remove non-json files:
+        newlist = [i for i in listOfFiles if i.endswith('json')]
+        return(newlist)
+
+    def makeDocPairs(self, listOfFiles):
+        """ For each file in listOfFiles, make a unique pair with all other files.
+        Return this list of pair-wise tuples.
+        """
+        allDocuments = []
+        allPairsList = []
+        for fileName in listOfFiles:
+            try:
+                # load document data from fileName and compute its text embedding:
+                document = self.computeTextEmbeddingDoc(fileName)
+                if document is not None:
+                    allDocuments.append(document)
+            except Exception as e:
+                logger.error("Error calculating text embedding: %s, file: %s", e, fileName)
+        # make pairs of all files, remove duplicates since order does not matter
+        try:
+            allPairsList = [(allDocuments[i], allDocuments[j]) for i in range(len(allDocuments))
+                            for j in range(i+1, len(allDocuments))]
+        except Exception as e:
+            logger.error("Error making pairs of documents: %s", e)
+        return(allPairsList)
+
+    def compareAllDocsInList(self, allPairsList, compareThreshold=0.99):
+        """ For each file in allPairsList, load the document text.
+        Calculate text representation for this document.
+        In a loop, compare the text representation of each file with all others
+        Save and return the scores in a list of Tuples.
+        """
+        listOfTuples = []
+        try:
+            logger.debug("Started calculating pair-wise similarity scores for all documents")
+            for docPair in allPairsList:
+                resultTuple = self.compareTwoArticles(docPair[0], docPair[1], compareThreshold=compareThreshold)
+                listOfTuples.append(resultTuple)
+        except Exception as e:
+            logger.error("Error comparing documents pair-wise: %s", e)
+        return(listOfTuples)
+
+    def compareTwoArticles(self, doc1, doc2, compareThreshold=0.99, maxSizePercentDiff=0.20):
+        """ Compare two articles using their text embeddings.
+        If the similarity score is <compareThreshold> or more, then check size difference.
+        If size difference is less than maxSizePercentDiff
+        """
+        similarityScore = 0.0
+        resultTuple = None
+        try:
+            # Calculate the similarity ofdoc1 vs. doc2
+            similarityScore = doc1.getTextEmbedding().similarity(doc2.getTextEmbedding())
+            smallerLen = min(doc1.getTextSize(), doc2.getTextSize())
+            biggerLen = max(doc1.getTextSize(), doc2.getTextSize())
+            percentDiff = (biggerLen-smallerLen)*1.0/biggerLen
+            # return set of tuples whose value of similarity score exceeds the threshold (i.e. compareThreshold)
+            # and percentage size difference is not more than 20%
+            # and both documents are from different publications
+            logger.debug("Similarity of doc 1 vs. 2 = %s, Percentage size diff = %s", similarityScore, percentDiff)        
+            if (similarityScore >= compareThreshold and percentDiff < maxSizePercentDiff and
+                    doc1.getModuleName() != doc2.getModuleName()):
+                # find older document and place it second so its deleted,
+                # or else, for same date, delete the smaller document
+                if doc1.getTextSize() > doc2.getTextSize():
+                    resultTuple = (similarityScore, doc1, doc2)
+                else:
+                    resultTuple = (similarityScore, doc2, doc1)
+        except Exception as e:
+            logger.error("Error trying to calculate similarity of documents: %s", e)
+        return(resultTuple)
+
+    def computeTextEmbeddingDoc(self, fileName):
+        """ Calculate Text Embedding
+        """
+        document = None
+        try:
+            document = NewsArticle()
+            # load data from fileName:
+            document.readFromJSON(fileName)
+            document.setFileName(fileName)
+            # logger.debug("Generating text representation of the document for file %s", fileName)
+            textEmbedding = self.nlpModel(document.getText())
+            document.setTextEmbedding(textEmbedding)
         except Exception as e:
             logger.error("Error trying to calculate similarity of URLs: %s", e)
+        return(document)
 
-    def convert_lower_case(self, data):
-        return np.char.lower(data)
+    def removeArticle(self, articleObject):
+        """ Remove article identified as duplicate
+        """
+        try:
+            logger.debug("Removing files for module: %s, Article ID = %s",
+                         articleObject.getModuleName(),
+                         articleObject.getArticleID())
+            if os.path.isfile(articleObject.getFileName()):
+                # delete it:
+                logger.info("Deleting duplicate article's json file: %s, for URL: %s",
+                            articleObject.getFileName(), articleObject.getURL())
+                os.remove(articleObject.fileName)
+            # calculate .html.bz2 filename, check if exists, delete it:
+            htmlFileName = articleObject.getFileName().replace('.json', '.html.bz2')
+            if os.path.isfile(htmlFileName):
+                logger.debug("Deleting duplicate article's HTML file: %s", htmlFileName)
+                os.remove(htmlFileName)
+        except Exception as e:
+            logger.error("Error: %s", e)
 
-    def remove_stop_words(self, data):
-        stop_words = stopwords.words('english')
-        words = word_tokenize(str(data))
-        new_text = ""
-        for w in words:
-            if w not in stop_words and len(w) > 1:
-                new_text = new_text + " " + w
-        return new_text
-
-    def remove_punctuation(self, data):
-        symbols = r"!\"#$%&()*+-./:;<=>?@[\]^_`{|}~\n"
-        for i in range(len(symbols)):
-            data = np.char.replace(data, symbols[i], ' ')
-            data = np.char.replace(data, "  ", " ")
-        data = np.char.replace(data, ',', '')
-        return data
-
-    def remove_apostrophe(self, data):
-        return np.char.replace(data, "'", "")
-
-    def stemming(self, data):
-        stemmer = PorterStemmer()
-        tokens = word_tokenize(str(data))
-        new_text = ""
-        for w in tokens:
-            new_text = new_text + " " + stemmer.stem(w)
-        return new_text
-
-    def convert_numbers(self, data):
-        tokens = word_tokenize(str(data))
-        new_text = ""
-        for w in tokens:
-            try:
-                w = num2words(int(w))
-            except Exception as e:
-                logger.error("Error converting numbers: %s", e)
-            new_text = new_text + " " + w
-        new_text = np.char.replace(new_text, "-", " ")
-        return new_text
-
-    def preprocess(self, data):
-        data = self.convert_lower_case(data)
-        data = self.remove_punctuation(data)  # remove comma seperately
-        data = self.remove_apostrophe(data)
-        data = self.remove_stop_words(data)
-        data = self.convert_numbers(data)
-        data = self.stemming(data)
-        data = self.remove_punctuation(data)
-        data = self.convert_numbers(data)
-        data = self.stemming(data)  # needed again as we need to stem the words
-        data = self.remove_punctuation(data)  # needed again as num2word is giving few hypens and commas fourty-one
-        data = self.remove_stop_words(data)  # needed again as num2word is giving stop words 101 - one hundred and one
-        return data
-
-    def similarityNLTK(self, text1, text2):
-        #
-        file_docs = []
-        tokens = sent_tokenize(text1)
-        for line in tokens:
-            file_docs.append(line)
-        gen_docs = [[w.lower() for w in word_tokenize(text)] for text in file_docs]
-        dictionary = gensim.corpora.Dictionary(gen_docs)
-        print(dictionary.token2id)
-        corpus = [dictionary.doc2bow(gen_doc) for gen_doc in gen_docs]
-        tf_idf = gensim.models.TfidfModel(corpus)
-        for doc in tf_idf[corpus]:
-            print([[dictionary[id], np.around(freq, decimals=2)] for id, freq in doc])
-        # building the index
-        sims = gensim.similarities.Similarity('workdir/', tf_idf[corpus],
-                                              num_features=len(dictionary))
-        file2_docs = []
-        tokens = sent_tokenize(text2)
-        for line in tokens:
-            file2_docs.append(line)
-        print("Number of documents:", len(file2_docs))
-        for line in file2_docs:
-            query_doc = [w.lower() for w in word_tokenize(line)]
-            query_doc_bow = dictionary.doc2bow(query_doc)  # update an existing dictionary and create bag of words
-        # perform a similarity query against the corpus
-        query_doc_tf_idf = tf_idf[query_doc_bow]
-        # print(document_number, document_similarity)
-        print('Comparing Result:', sims[query_doc_tf_idf])
-        sum_of_sims = (np.sum(sims[query_doc_tf_idf], dtype=np.float32))
-        print(sum_of_sims)
-        percentage_of_similarity = round(float((sum_of_sims / len(file_docs)) * 100))
-        return(percentage_of_similarity)
-
+    def examineSampleDocs(self, similarTuples, printLimit):
+        """ Print sample list of similar documents on screen
+        """
+        counter = 0
+        for index, record in enumerate(similarTuples):
+            score = record[0]
+            if record[1].urlData["module"] != record[2].urlData["module"]:
+                text1 = record[1].getText()
+                text2 = record[2].getText()
+                print('\n---Example', index, 'with similarity score =', score)
+                print(" _____Text 1:", record[1].urlData["module"], ', ID =', record[1].getArticleID(), "\n", text1)
+                print(" _____Text 2:", record[2].urlData["module"], ', ID =', record[2].getArticleID(), "\n", text2)
+                counter = counter + 1
+            if counter > printLimit:
+                break
 
 # # end of file ##

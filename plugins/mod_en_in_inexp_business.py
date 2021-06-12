@@ -31,7 +31,6 @@
 ##########
 
 # import standard python libraries:
-from datetime import datetime
 import logging
 
 # import web retrieval and text processing python libraries:
@@ -39,7 +38,7 @@ from bs4 import BeautifulSoup
 
 # import this project's python libraries:
 from base_plugin import basePlugin
-from scraper_utils import cutStrBetweenTags, calculateCRC32, deDupeList, filterRepeatedchars
+from scraper_utils import deDupeList, filterRepeatedchars
 from data_structs import Types
 
 ##########
@@ -91,7 +90,13 @@ class mod_en_in_inexp_business(basePlugin):
 
     invalidTextStrings = []
     subStringsToFilter = []
-    articleDateRegexps = dict()
+    articleDateRegexps = {r'("datePublished":")(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})' +
+                          r'(\+05:30","dateModified")':
+                          '%Y-%m-%dT%H:%M:%S',
+                          r'(Published: <span>)([0-9]{1,}th[ ]+[A-Za-z]{3,} 20[0-9]{2} [0-9]{2}:[0-9]{2})( .M<\/span>)':
+                          '%dth  %B %Y %H:%M'
+                          }
+
     dateMatchPatterns = dict()
 
     authorRegexps = [r"(\"author\":{\"\@type\":\"Person\",\"name\":\")([a-zA-Z_\-\. ]{2,})(\"\})",
@@ -111,33 +116,6 @@ class mod_en_in_inexp_business(basePlugin):
         self.articleDateRegexps.update(basePlugin.articleDateRegexps)
         self.urlUniqueRegexps = super().urlUniqueRegexps + self.urlUniqueRegexps
         super().__init__()
-
-    def extractUniqueIDFromURL(self, uRLtoFetch):
-        """ Extract Unique ID From URL
-        """
-        uniqueString = ""
-        try:
-            # calculate CRC string if unique identifier cannot be located in the URL:
-            uniqueString = str(calculateCRC32(uRLtoFetch.encode('utf-8')))
-        except Exception as e:
-            logger.error("Error calculating CRC32 of URL: %s , URL was: %s",
-                         e,
-                         uRLtoFetch.encode('ascii', 'ignore'))
-        if len(uRLtoFetch) > 6:
-            for urlPattern in self.urlMatchPatterns:
-                try:
-                    result = urlPattern.search(uRLtoFetch)
-                    uniqueString = result.group(3)
-                    # if not error till this point then exit
-                    break
-                except Exception as e:
-                    logger.debug("Error identifying unique ID of URL: %s , URL was: %s, Pattern: %s",
-                                 e,
-                                 uRLtoFetch.encode('ascii'),
-                                 urlPattern)
-        else:
-            logger.error("Giving up identifying unique ID for URL: %s", uRLtoFetch.encode('ascii'))
-        return(uniqueString)
 
     def extractIndustries(self, uRLtoFetch, htmlText):
         """  Extract Industries relevant to the article from URL or html content
@@ -175,24 +153,6 @@ class mod_en_in_inexp_business(basePlugin):
             else:
                 authors = authorStr.split(',')
         return(authors)
-
-    def extractPublishedDate(self, htmlText):
-        """ Extract Published Date from html
-        """
-        # default is todays date-time:
-        date_obj = datetime.now()
-        # extract published date
-        strJSDatePart = cutStrBetweenTags(htmlText, '"datePublished":"', '+05:30","dateModified"')
-        try:
-            if len(strJSDatePart) > 0:
-                date_obj = datetime.strptime(strJSDatePart, '%Y-%m-%dT%H:%M:%S')
-            else:
-                logger.error("Error parsing published date text: %s", strJSDatePart)
-        except Exception as e:
-            logger.error("Error parsing published date string (%s) to date object: %s",
-                         strJSDatePart,
-                         e)
-        return(date_obj)
 
     def extractArticleBody(self, htmlContent):
         """ Extract article's text using the Beautiful Soup library """

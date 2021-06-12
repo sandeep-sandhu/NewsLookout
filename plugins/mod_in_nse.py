@@ -47,7 +47,7 @@ import requests
 # import this project's python libraries:
 from base_plugin import basePlugin
 from scraper_utils import getPreviousDaysDate, calculateCRC32
-from data_structs import Types, NewsArticle
+from data_structs import Types, NewsArticle, ExecutionResult
 
 ##########
 
@@ -128,18 +128,20 @@ class mod_in_nse(basePlugin):
             logger.info("Total count of valid articles to be retrieved = %s for business date: %s",
                         len(self.listOfURLS), businessDate.strftime("%Y-%m-%d"))
         except Exception as e:
-            logger.error("Error trying to retrieve URL list at recursion level %s: %s", self.configData['recursion_level'], e)
+            logger.error("Error trying to retrieve URL list at recursion level %s: %s",
+                         self.configData['recursion_level'], e)
+        self.putQueueEndMarker()
 
     def fetchDataFromURL(self, uRLtoFetch, WorkerID):
         """ Fetch data From given URL
         """
+        self.pluginState = Types.STATE_FETCH_CONTENT
         fullPathName = ""
         dirPathName = ""
         sizeOfDataDownloaded = -1
         uncompressSize = 0
         publishDateStr = ""
-        # output tuple structure: (uRL, len_raw_data, len_text, publish_date)
-        resultVal = (uRLtoFetch, None, None, None)
+        resultVal = None
         self.master_data_dir = self.configData['master_data_dir']
         logger.debug("Fetching %s, Worker ID %s", uRLtoFetch.encode("ascii"), WorkerID)
         try:
@@ -177,7 +179,12 @@ class mod_in_nse(basePlugin):
                                                        uRLtoFetch)
             except Exception as theError:
                 logger.error("Error saving downloaded data to zip file '%s': %s", fullPathName, theError)
-            resultVal = (uRLtoFetch, sizeOfDataDownloaded, uncompressSize, publishDateStr)
+            # save metrics/count of downloaded data for the given URL
+            resultVal = ExecutionResult(uRLtoFetch,
+                                        sizeOfDataDownloaded,
+                                        uncompressSize,
+                                        publishDateStr,
+                                        self.pluginName)
         else:
             logger.info("Ignoring data file '%s' since its size (%s bytes) is less than the minimum of %s bytes",
                         fullPathName, len(rawData), self.minArticleLengthInChars)

@@ -217,9 +217,11 @@ class mod_en_in_indiakanoon(basePlugin):
         try:
             result_tag = BeautifulSoup(htmlContent, 'lxml').find_all("div", attrs={"class": "docsource_main"})
             if result_tag is not None:
-                # FIXME: 'NavigableString' object has no attribute 'contents'
+                # FIXME: list index out of range - 'https://indiankanoon.org/browse/jodhpur/'
                 for member in result_tag[0].parent.children:
-                    if type(member) == bs4.element.Tag and (
+                    if isinstance(member, bs4.NavigableString):
+                        allText.append(str(member).replace("\n", " "))
+                    elif type(member) == bs4.element.Tag and (
                             not (member.has_attr('class') and "ad_doc" in member.attrs['class']) and (
                                 member is not None) and (len(member.contents) > 1)
                             ):
@@ -235,7 +237,7 @@ class mod_en_in_indiakanoon(basePlugin):
             for item in allText:
                 body_text = body_text + " " + str(item).strip()
         except Exception as e:
-            logger.error("Error retrieving content of article: %s", e)
+            logger.error("Error retrieving content of article: %s, URL = %s", e, self.URLToFetch)
         return(body_text)
 
     def checkAndCleanText(self, inputText, rawData):
