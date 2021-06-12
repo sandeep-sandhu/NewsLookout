@@ -11,6 +11,7 @@
 Provides:
     Types
     URLListHelper
+    ExecutionResult
     NewsArticle
 
 
@@ -39,7 +40,6 @@ Provides:
 import logging
 import os
 from datetime import datetime
-import threading
 import json
 import queue
 from json import JSONEncoder
@@ -74,6 +74,16 @@ class Types:
     STATE_GET_URL_LIST = 10
     STATE_FETCH_CONTENT = 20
     STATE_PROCESS_DATA = 40
+    STATE_STOPPED = 80
+    STATE_NOT_STARTED = 160
+
+    def decodeNameFromIntVal(typeIntValue):
+        attrNames = dir(Types)
+        for name in attrNames:
+            attrIntVal = getattr(Types, name, None)
+            if attrIntVal == typeIntValue:
+                return(name)
+
 
 ##########
 
@@ -85,12 +95,22 @@ class ScrapeError(Exception):
 
 
 class URLListHelper(JSONEncoder):
-    """ saves and retrieves completed URLs """
+    """ Utility class that saves and retrieves completed URLs
+    Uses semaphores extensively to avoid database lock and access problems
+    when writing/reading data in this multi-threaded application
+    """
+    ddl_url_table = str('create table if not exists URL_LIST' +
+                        '(url TEXT, plugin varchar(100), pubdate DATE, rawsize long, datasize long)')
+    ddl_pending_urls_table = str('create table if not exists pending_urls' +
+                                 '(url varchar(255), plugin_name varchar(100), attempts integer)')
+    # NOTE: The TIMESTAMP field accepts a string in ISO 8601 format 'YYYY-MM-DD HH:MM:SS.mmmmmm' or datetime.datetime object:
+    ddl_failed_urls_table = str('create table if not exists FAILED_URLS' +
+                                '(url TEXT, plugin_name varchar(100), failedtime timestamp)')
 
-    def __init__(self, dataFileName):
+    def __init__(self, dataFileName, dbAccessSemaphore):
         """ Initialize the object """
         self.dbFileName = dataFileName
-        self.dbAccessSemaphore = threading.Semaphore()
+        self.dbAccessSemaphore = dbAccessSemaphore
         self.completedQueue = queue.Queue()
 
     def default(self, o):
@@ -104,18 +124,13 @@ class URLListHelper(JSONEncoder):
         sqlCon = None
         try:
             logger.debug("Trying to open connection to history URLs sqlite DB file '%s'", dataFileName)
-            if os.path.isfile(dataFileName) is False:
-                sqlCon = lite.connect(dataFileName)
-                cur = sqlCon.cursor()
-                # create a new file with empty table
-                cur.execute('CREATE TABLE URL_LIST(url TEXT, plugin varchar(100), pubdate DATE, rawsize long, datasize long)')
-                cur.execute('CREATE TABLE pending_urls(url varchar(255), plugin_name varchar(100), attempts integer)')
-                cur.execute('SELECT SQLITE_VERSION()')
-                data = cur.fetchone()
-                sqlCon.commit()
-                logger.info("Created new SQLite database to store history of URLs, SQLite version: %s", data[0])
-            else:
-                sqlCon = lite.connect(dataFileName)
+            sqlCon = lite.connect(dataFileName, detect_types=lite.PARSE_DECLTYPES | lite.PARSE_COLNAMES)
+            cur = sqlCon.cursor()
+            # identify if tables are missing, if so create these:
+            cur.execute(URLListHelper.ddl_url_table)
+            cur.execute(URLListHelper.ddl_pending_urls_table)
+            cur.execute(URLListHelper.ddl_failed_urls_table)
+            sqlCon.commit()
         except lite.Error as e:
             logger.error("SQLite database error connecting to previous saved URLs db: %s", e)
         except Exception as e:
@@ -129,7 +144,6 @@ class URLListHelper(JSONEncoder):
         try:
             logger.debug("Print SQLite stats: Waiting for db exclusive access...")
             acqResult = self.dbAccessSemaphore.acquire()
-
             if acqResult is True:
                 logger.debug("Print SQLite stats: Got exclusive db access")
                 sqlCon = URLListHelper.openConnFromfile(self.dbFileName)
@@ -140,8 +154,7 @@ class URLListHelper(JSONEncoder):
                 cur.execute('SELECT count(*) from URL_LIST')
                 data = cur.fetchone()
                 logger.info(
-                    "Total count of URLs retrieved = %s, History dataset SQLite version: %s", data[0], SQLiteVersion)
-
+                    "Total count of URLs retrieved = %s, History Dataset SQLite version: %s", data[0], SQLiteVersion)
         except Exception as e:
             logger.error("While showing previously retrieved URLs stats: %s", e)
         finally:
@@ -164,11 +177,14 @@ class URLListHelper(JSONEncoder):
                 cur = sqlCon.cursor()
                 if newURLsList is not None:
                     for listItem in newURLsList:
-                        cur.execute('select url from URL_LIST where url = "' + listItem + '"')
-                        data = cur.fetchone()
-                        if data is not None and len(data) > 0 and data[0] == listItem:
-                            data = None
-                            # logger.debug("Already fetched earlier, so removing URL: %s", data[0])
+                        result = cur.execute('select url from URL_LIST where url = ? union all ' +
+                                             'select url from FAILED_URLS where url = ?',
+                                             (listItem, listItem))
+                        rowset = result.fetchall()
+                        if rowset is not None and len(rowset) > 0 and rowset[0][0] == listItem:
+                            rowset = None
+                            # logger.debug('URL already fetched or failed, so not adding to pending list. URL = %s',
+                            #     rowset[0][0])
                         else:
                             filteredList.append(listItem)
         except Exception as e:
@@ -177,7 +193,7 @@ class URLListHelper(JSONEncoder):
             if sqlCon:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
-            logger.debug("Remove already fetched URLs: Released exclusive db access")
+            logger.debug("Removed already fetched URLs for plugin %s: Released exclusive db access", pluginName)
         return(filteredList)
 
     def retrieveTodoURLList(self, pluginName):
@@ -202,7 +218,7 @@ class URLListHelper(JSONEncoder):
             if sqlCon:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
-            logger.debug("Fetching pending url list: Released exclusive db access")
+            logger.debug("Fetched pending url list for plugin %s: Released exclusive db access.", pluginName)
         return(URLsFromSQLite)
 
     def addURLsToPendingTable(self, urlList, pluginName):
@@ -215,14 +231,13 @@ class URLListHelper(JSONEncoder):
             logger.debug("Add URL list to pending table in db: Waiting to get db exclusive access...")
             acqResult = self.dbAccessSemaphore.acquire(timeout=30)
             if acqResult is True:
-                logger.debug("Add URL list to pending table in db: Got exclusive db access")
+                logger.debug("Adding URL list to pending table for plugin %s: Got exclusive db access.", pluginName)
                 sqlCon = URLListHelper.openConnFromfile(self.dbFileName)
                 cur = sqlCon.cursor()
                 urlList = deDupeList(urlList)
-                for urlitem in urlList:
-                    cur.execute('insert into pending_urls (url, plugin_name) values (\'' +
-                                urlitem + '\', \'' +
-                                pluginName + '\')')
+                for sURL in urlList:
+                    cur.execute('insert into pending_urls (url, plugin_name) values (?, ?)',
+                                (sURL, pluginName))
                 sqlCon.commit()
         except Exception as e:
             logger.error("Error while adding URL list to pending table: %s", e)
@@ -230,7 +245,36 @@ class URLListHelper(JSONEncoder):
             if sqlCon:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
-            logger.debug("Add URL list to pending table in db: Released exclusive db access")
+            logger.debug("Completed adding URL list to pending table for plugin %s: Released exclusive db access.", pluginName)
+
+    def addURLToFailedTable(self, sURL, pluginName, failTime):
+        """ Add URL to failed URLs table.
+        To avoid duplicates, add URL if it does not already exist in table.
+        """
+        sqlCon = None
+        try:
+            logger.debug("Add URL list to pending table in db: Waiting to get db exclusive access...")
+            acqResult = self.dbAccessSemaphore.acquire(timeout=30)
+            if acqResult is True:
+                logger.debug("Add URL list to pending table in db: Got exclusive db access")
+                sqlCon = URLListHelper.openConnFromfile(self.dbFileName)
+                cur = sqlCon.cursor()
+                # get count of url to check if it already exists:
+                result = cur.execute('select count(*) from FAILED_URLS where url = ?', (sURL,))
+                rowset = result.fetchall()
+                # To avoid duplicates, add only if it does not exist:
+                if rowset is not None and len(rowset) > 0 and rowset[0][0] == 0:
+                    cur.execute('insert into FAILED_URLS (url, plugin_name, failedtime) values (?, ?, ?)',
+                                (sURL, pluginName, failTime))
+                    cur.execute('delete from pending_urls where url=? and plugin_name=?', (sURL, pluginName))
+                    sqlCon.commit()
+        except Exception as e:
+            logger.error("Error while adding URL list to pending table: %s", e)
+        finally:
+            if sqlCon:
+                sqlCon.close()
+            self.dbAccessSemaphore.release()
+            logger.debug("Completed adding URL list to pending table in db: Released exclusive db access")
 
     def writeQueueToDB(self):
         """ write newly retrieved URLs to file
@@ -246,20 +290,17 @@ class URLListHelper(JSONEncoder):
                     sqlCon = URLListHelper.openConnFromfile(self.dbFileName)
                     cur = sqlCon.cursor()
                     while not self.completedQueue.empty():
-                        # get all completed urls from queue:
-                        (sURL, rawSize, dataSize, pubdate, pluginName) = self.completedQueue.get()
+                        # get all completed urls from queue: When trying to retrieve data the exception was
+                        resultObj = self.completedQueue.get()
                         self.completedQueue.task_done()
                         # write each item to table:
                         cur.execute(
-                                'insert into URL_LIST (url, plugin, pubdate, rawsize, datasize) VALUES("'
-                                + sURL + '", "'
-                                + pluginName + '", "'
-                                + pubdate + '", '
-                                + str(rawSize) + ', '
-                                + str(dataSize) + ')')
+                                'insert into URL_LIST (url, plugin, pubdate, rawsize, datasize) VALUES(?, ?, ?, ?, ?)',
+                                resultObj.getAsTuple()
+                                )
                         writeCount = writeCount + 1
-                        cur.execute('delete from pending_urls where url=\'' + sURL +
-                                    '\' and plugin_name=\'' + pluginName + '\' ')
+                        cur.execute('delete from pending_urls where url=\'' + resultObj.URL +
+                                    '\' and plugin_name=\'' + resultObj.pluginName + '\' ')
                     sqlCon.commit()
                     # delete from pending where url exists in completed table:
                     cur.execute('delete from pending_urls where url in (select url_list.url from url_list' +
@@ -284,6 +325,33 @@ class URLListHelper(JSONEncoder):
 ##########
 
 
+class ExecutionResult():
+    """ Object that encapsulates the result of data retrieval
+    """
+    URL = None
+    rawDataFileName = None
+    savedDataFileName = None
+    rawDataSize = 0
+    textSize = 0
+    publishDate = None
+    pluginName = None
+
+    def __init__(self, sURL, htmlContentLen, textContentLen, publishDate, pluginName,
+                 dataFileName=None, rawDataFile=None):
+        self.URL = sURL
+        self.rawDataFileName = rawDataFile
+        self.savedDataFileName = dataFileName
+        self.rawDataSize = htmlContentLen
+        self.textSize = textContentLen
+        self.publishDate = publishDate
+        self.pluginName = pluginName
+
+    def getAsTuple(self):
+        return((self.URL, self.pluginName, self.publishDate, self.rawDataSize, self.textSize))
+
+##########
+
+
 class NewsArticle(JSONEncoder):
     """ article data structure and object """
 
@@ -294,6 +362,16 @@ class NewsArticle(JSONEncoder):
 
     def getPublishDate(self):
         return(self.urlData["pubdate"])
+
+    def getURL(self):
+        return(self.urlData["URL"])
+
+    def getModuleName(self):
+        """ get the name of the module that generated this news item"""
+        return(self.urlData["module"])
+
+    def getHTML(self):
+        return(self.html)
 
     def getBase64FromHTML(articleHTMLText):
         """ Get Base64 text data From HTML text
@@ -335,6 +413,14 @@ class NewsArticle(JSONEncoder):
             logger.error("Error getting text size of article: %s", e)
         return(textSize)
 
+    def getHTMLSize(self):
+        htmlSize = 0
+        try:
+            htmlSize = len(self.html)
+        except Exception as e:
+            logger.error("Error getting html size of article: %s", e)
+        return(htmlSize)
+
     def getAuthors(self):
         return(self.urlData["sourceName"])
 
@@ -347,8 +433,20 @@ class NewsArticle(JSONEncoder):
     def getArticleID(self):
         return(self.urlData["uniqueID"])
 
+    def getTextEmbedding(self):
+        return(self.nlpDoc)
+
+    def getFileName(self):
+        return(self.fileName)
+
+    def setTextEmbedding(self, nlpDoc):
+        self.nlpDoc = nlpDoc
+
     def setHTML(self, htmlContent):
         self.html = htmlContent
+
+    def setFileName(self, fileName):
+        self.fileName = fileName
 
     def setPublishDate(self, publishDate):
         """ set the Publish Date of article """
@@ -396,7 +494,6 @@ class NewsArticle(JSONEncoder):
             resultList = deDupeList(resultList)
         except Exception as e:
             logger.error("Error cleaning keywords for article: %s", e)
-
         self.urlData["keywords"] = resultList
 
     def setText(self, articleText):
@@ -427,13 +524,13 @@ class NewsArticle(JSONEncoder):
     def readFromJSON(self, jsonFileName):
         """ read from JSON file into object
         """
-        logger.debug("Reading JSON file to load previously saved article %s", jsonFileName)
+        # logger.debug("Reading JSON file to load previously saved article %s", jsonFileName)
         try:
             with open(jsonFileName, 'r', encoding='utf-8') as fp:
                 self.urlData = json.load(fp)
                 fp.close()
         except Exception as theError:
-            logger.error("Exception caught reading JSON file: %s", theError)
+            logger.error("Exception caught reading data from JSON file: %s", theError)
 
     def cleanText(textInput):
         """ clean text, e.g. replace unicode characters, etc.
@@ -441,7 +538,13 @@ class NewsArticle(JSONEncoder):
         cleanText = textInput
         if len(textInput) > 1:
             try:
-                # replace special characters
+                # replace special characters:
+                replaceWithSpaces = []
+                # \u0915 \u092f \u0938 \u091a \u0941 \u093e \u0906 \u092f \u094b
+                # \u092c \u093e \u092c \u093e \u0902 \u0917 \u0925 \u092e
+                # \u092e \u0930 \u0908 \u0926 \u0932 \u0905 \u092d \u0923 \u0902
+                # \u0924 \u0938 \u092f \u093e \u092a \u0924 \u0909 \u092a
+                # \u091c \u0940
                 cleanText = cleanText.replace(" Addl. ", " Additional ")
                 cleanText = cleanText.replace("M/s.", "Messers")
                 cleanText = cleanText.replace("m/s.", "Messers")
@@ -463,35 +566,34 @@ class NewsArticle(JSONEncoder):
                 cleanText = cleanText.replace("\u201c", "'")
                 cleanText = cleanText.replace('​', "'")  # yes, there is a special character here.
                 cleanText = cleanText.replace("\u200b", " ")
-                cleanText = cleanText.replace('🙂', "'")
+                cleanText = cleanText.replace('🙂', " ")
                 cleanText = cleanText.replace("\U0001f642", " ")
                 cleanText = cleanText.replace("\x93", " ")
                 cleanText = cleanText.replace("\x94", " ")
                 # remove non utf-8 characters
-                cleanText = textInput.encode('utf-8', errors="ignore").decode('utf-8', errors='ignore').strip()
+                cleanText = textInput.encode('utf-8', errors="replace").decode('utf-8', errors='ignore').strip()
                 cleanText = fixSentenceGaps(cleanText)
             except Exception as e:
                 logger.error("Error cleaning text: %s", e)
         return(cleanText)
 
-    def writeFiles(self, fileNameWithOutExt, baseDirName, htmlContent, saveHTMLFile=False):
+    def writeFiles(self, fileNameWithOutExt, htmlContent, saveHTMLFile=False):
         """ write output To JSON and/or html file
         """
         fullHTMLPathName = ""
         fullPathName = ""
         jsonContent = ""
-        dirPathName = ""
         try:
-            dirPathName = os.path.join(baseDirName, self.urlData["pubdate"])
+            parentDirName = os.path.dirname(fileNameWithOutExt)
             # first check if directory of given date exists, or not
-            if os.path.isdir(dirPathName) is False:
+            if os.path.isdir(parentDirName) is False:
                 # dir does not exist, so try creating it:
-                os.mkdir(dirPathName)
+                os.mkdir(parentDirName)
         except Exception as theError:
-            logger.error("Exception caught creating directory %s: %s", dirPathName, theError)
+            logger.error("Exception when saving article creating parent directory %s: %s", parentDirName, theError)
         try:
             if saveHTMLFile is True:
-                fullHTMLPathName = os.path.join(dirPathName, fileNameWithOutExt + ".html.bz2")
+                fullHTMLPathName = fileNameWithOutExt + ".html.bz2"
                 with bz2.open(fullHTMLPathName, "wb") as fpt:
                     # Write compressed data to file
                     fpt.write(htmlContent.encode("utf-8"))
@@ -500,7 +602,7 @@ class NewsArticle(JSONEncoder):
             logger.error("Exception caught writing data to html file %s: %s", fullHTMLPathName, theError)
         try:
             jsonContent = self.toJSON()
-            fullPathName = os.path.join(dirPathName, fileNameWithOutExt + ".json")
+            fullPathName = fileNameWithOutExt + ".json"
             with open(fullPathName, 'wt', encoding='utf-8') as fp:
                 fp.write(jsonContent)
                 fp.close()

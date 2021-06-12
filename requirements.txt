@@ -10,4 +10,4 @@ tld
 urllib3
 tqdm
 numpy
-gensim
+spacy

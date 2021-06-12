@@ -4,7 +4,7 @@
 """
  File name: scraper_app.py
  Application: The NewsLookout Web Scraping Application
- Date: 2021-06-01
+ Date: 2021-06-10
  Purpose: Main class for the web scraping and news text processing application
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
@@ -35,7 +35,7 @@
 
 ##########
 
-__version__ = "1.8.5"
+__version__ = "1.9.0"
 __author__ = "Sandeep Singh Sandhu"
 __copyright__ = "Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu"
 __credits__ = ["Sandeep Singh Sandhu"]
@@ -77,7 +77,7 @@ class NewsLookout:
                   'version': __version__, 'logLevelStr': 'INFO', 'rundate': datetime.now(),
                   'logfile': os.path.join('logs', 'scraper.log'), 'configfile': os.path.join('conf', 'scraper.conf'),
                   'pid_file': os.path.join('logs', 'scraper.pid'), 'newspaper_config': None,
-                  'data_dir': 'data', 'plugins_dir': 'plugins', 'worker_threads': 2,
+                  'data_dir': 'data', 'plugins_dir': 'plugins',
                   'master_data_dir': os.path.join('data', 'master_data'), 'proxy_url_http': '', 'proxy_url_https': '',
                   'recursion_level': 1, 'user_agent':
                   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML, like Gecko) Version/7.0.3",
@@ -277,7 +277,6 @@ class NewsLookout:
             self.configData['proxy_url_https'] = configur.get('operation', 'proxy_url_https').strip()
             self.configData['proxy_user'] = configur.get('operation', 'proxy_user').strip()
             self.configData['proxy_password'] = configur.get('operation', 'proxy_password').strip()
-            self.configData['worker_threads'] = configur.getint('operation', 'worker_threads')
             self.configData['recursion_level'] = checkAndSanitizeConfigInt(
                 configur,
                 'operation',
@@ -373,10 +372,9 @@ class NewsLookout:
         except Exception as e:
             print("ERROR: Unable to set proxy parameters: %s", e)
 
-    def run(self, currVersion):
+    def run(self):
         """Run the application job after configuring the main queue
         """
-        self.configData['version'] = currVersion
         logging.info('--- NewsLookout Application (version %s) has started retrieving data for run date: %s ---',
                      self.configData['version'],
                      self.configData['rundate'])
@@ -425,7 +423,8 @@ def main():
                         )
     # add to root logger
     logging.getLogger('').addHandler(scraperLogFileHandler)
-    print("Logging to file:", app_inst.configData['logfile'])
+    print("Saving data to:", app_inst.configData['data_dir'])
+    print("Logging events to file:", app_inst.configData['logfile'])
 
     # create PID file before starting the application:
     if os.path.isfile(app_inst.configData['pid_file']):
@@ -443,8 +442,9 @@ def main():
         finally:
             fp.close()
     # run the application:
-    app_inst.run(__version__)
-    # close down everything, remove the pid file
+    app_inst.run()
+
+    # After completion of run(), close down everything, remove the pid file:
     if os.path.isfile(app_inst.configData['pid_file']):
         try:
             os.remove(app_inst.configData['pid_file'])
@@ -452,8 +452,7 @@ def main():
             logging.error("Error removing PID file %s: %s", app_inst.configData['pid_file'], e)
             sys.exit(1)
     else:
-        logging.info("PID file %s does not exist, so unable to delete it.",
-                     app_inst.configData['pid_file'])
+        logging.info("PID file %s does not exist, so unable to delete it.", app_inst.configData['pid_file'])
     print("The program has completed execution successfully.")
 
 

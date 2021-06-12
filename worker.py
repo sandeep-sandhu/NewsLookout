@@ -19,6 +19,9 @@
         runDataRetrievalTasks
         runDataProcessingTasks
 
+    aggQueueConsumer
+        run
+
     histDBWorker
         run
 
@@ -49,6 +52,7 @@ import threading
 import time
 from datetime import datetime
 import queue
+import copy
 from tqdm import tqdm
 
 # import this project's modules
@@ -62,24 +66,28 @@ logger = logging.getLogger(__name__)
 
 
 class worker(threading.Thread):
-    """
-    This worker object runs fetching and data extraction processes within each thread.
+    """ This worker object runs fetching and data extraction processes within each thread.
     """
     workerID = -1
-    taskType = Types.TASK_GET_URL_LIST
+    taskType = None
     runDate = datetime.now()
-    queueFillwaitTime = 20
+    queueFillwaitTime = 1
 
-    def __init__(self, pluginObj, taskType, workCompletedURLs,
+    def __init__(self,
+                 pluginObj,
+                 taskType,
+                 workCompletedURLs,
                  daemon=None, target=None, name=None):
-        """
-        Initialize the worker with plugin, task type, and URL completed tracker object
+        """ Initialize the worker with plugin of type: base_plugin.basePlugin,
+         taskType of type: data_structs.Types.<task type>,
+         and workCompletedURLs which is the URL completed tracker object of type: data_structs.URLListHelper
         """
         self.workerID = name
         self.pluginObj = pluginObj
         self.pluginName = type(self.pluginObj).__name__
         self.taskType = taskType
         self.completedURLs = workCompletedURLs
+        self.queueFillwaitTime = 120
         logger.debug("Worker %s initialized with the plugin: %s", self.workerID, self.pluginObj)
         super().__init__(daemon=daemon, target=target, name=name)
 
@@ -87,8 +95,7 @@ class worker(threading.Thread):
         self.runDate = runDate
 
     def runURLListGatherTasks(self):
-        """
-        Run Tasks to gather the listing of URLs
+        """ Run Tasks to gather the listing of URLs
         """
         pluginName = type(self.pluginObj).__name__
         try:
@@ -103,21 +110,17 @@ class worker(threading.Thread):
                 "When trying to get URL listing using plugin: %s, Type TASK_GET_URL_LIST, Exception: %s",
                 pluginName,
                 e)
-        finally:
-            self.pluginObj.putQueueEndMarker()
 
     def runDataRetrievalTasks(self):
         """ Run Data Retrieval Tasks
         """
-        retrievedItem = None
-        sURL = None
         logger.info("Started data retrieval job for plugin: %s, queue size: %s",
                     self.pluginName,
                     self.pluginObj.urlQueue.qsize()
                     )
         while (not self.pluginObj.urlQueue.empty()) or (self.pluginObj.pluginState == Types.STATE_GET_URL_LIST):
+            retrievedItem = None
             try:
-                sURL = None
                 if self.pluginObj.urlQueue.empty():
                     logger.debug('%s: Waiting %s seconds for input queue to fill up; plugin state = %s',
                                  self.pluginName,
@@ -126,36 +129,38 @@ class worker(threading.Thread):
                                  )
                     time.sleep(self.queueFillwaitTime)
                 retrievedItem = self.pluginObj.urlQueue.get(timeout=self.queueFillwaitTime)
+                self.pluginObj.urlQueue.task_done()
+                sURL = None
                 if retrievedItem is not None:
                     (priority, sURL) = retrievedItem
-                    self.pluginObj.urlQueue.task_done()
+                fetchResult = None
                 if sURL is not None:
-                    fetchMetrics = self.pluginObj.fetchDataFromURL(sURL, self.workerID)
-                    if fetchMetrics is not None:
-                        (uRL, len_raw_data, len_text, publish_date) = fetchMetrics
-                        if len_text is not None and len_text > 3:
-                            self.completedURLs.completedQueue.put(
-                                (uRL, len_raw_data, len_text, publish_date, self.pluginName))
+                    fetchResult = self.pluginObj.fetchDataFromURL(sURL, self.workerID)
+                    if fetchResult is not None and fetchResult.textSize is not None and fetchResult.textSize > 3:
+                        self.completedURLs.completedQueue.put(fetchResult)
+                    else:
+                        # add url to failed table:
+                        self.completedURLs.addURLToFailedTable(sURL, self.pluginName, datetime.now())
             except queue.Empty as qempty:
                 logger.debug("%s: Queue was empty when trying to retrieve data: %s",
                              self.pluginName,
                              qempty
                              )
             except Exception as e:
-                logger.error("%s: When trying to retrieve data the exception was: %s, retrievedItem = %s, URL = %s",
+                logger.error("%s: When trying to retrieve data the exception was: %s, retrievedItem = %s",
                              self.pluginName,
                              e,
-                             retrievedItem,
-                             sURL
+                             retrievedItem
                              )
         logger.debug('Thread %s finished tasks to retrieve data for plugin %s',
                      self.workerID,
                      self.pluginName)
-        # once all data is fetched, set state to process data:
-        self.pluginObj.pluginState = Types.STATE_PROCESS_DATA
+        # at this point, since all data has been fetched, change the plugin's state to process data:
+        self.pluginObj.pluginState = Types.STATE_STOPPED
 
     def runDataProcessingTasks(self):
-        """ Run Data Processing Tasks """
+        """ Run Data Processing Tasks
+        """
         try:
             logger.debug('Thread %s given task to process data using plugin %s', self.workerID, self.pluginName)
             if (self.pluginObj.pluginType == Types.MODULE_DATA_PROCESSOR):
@@ -196,7 +201,7 @@ class aggQueueConsumer(threading.Thread):
         self.workerID = name
         self.pluginsDict = pluginsList
         self.commonURLsQueue = commonURLsQueue
-        self.fetchCycleTime = min(60, queueFetchWaitTime)
+        self.fetchCycleTime = queueFetchWaitTime
         logger.debug("Consumer for aggregator sourced common URLs queue worker %s initialized with the plugins: %s",
                      self.workerID,
                      self.pluginsDict)
@@ -231,6 +236,8 @@ class histDBWorker(threading.Thread):
     """
     workerID = -1
     totalURLQueueSize = 0
+    previousState = dict()
+    currentState = dict()
 
     def __init__(self, pluginsList, workCompletedURLs, refreshProgressWaitTime,
                  daemon=None, target=None, name=None):
@@ -240,15 +247,35 @@ class histDBWorker(threading.Thread):
         self.pluginsDict = pluginsList
         self.completedURLs = workCompletedURLs
         # refreshProgressWaitTime is an estimate of the time in seconds a thread takes to retrieve a url:
-        self.refreshProgressWaitTime = max(120, refreshProgressWaitTime)
+        self.refreshProgressWaitTime = refreshProgressWaitTime
+        self.previousState = dict()
+        self.currentState = dict()
         logger.debug("History database recorder thread %s initialized with the plugins: %s",
                      self.workerID,
                      self.pluginsDict)
         # call base class:
         super().__init__(daemon=daemon, target=target, name=name)
 
+    def getStatusChange(self):
+        """ Get Status Change
+        """
+        statusMessages = []
+        # current status is: self.currentState, previous status is: self.previousState
+        for pluginName in self.currentState.keys():
+            try:
+                # for each key in current status, check and compare value in previous state
+                currentState = self.currentState[pluginName]
+                if len(self.previousState) > 0 and currentState != self.previousState[pluginName]:
+                    # print For plugin z, status changed from x to y
+                    statusMessages.append(pluginName +
+                                          ' changed state to -> ' +
+                                          currentState.replace('STATE_', '').replace('_', ' '))
+            except Exception as e:
+                logger.debug("Error comparing previous state of plugin: %s", e)
+        return(statusMessages)
+
     def run(self):
-        """ Main method run on history database thread when it is started
+        """ Main method that runs this history database thread when it is started
         """
         isPluginStillFetchingData = False
         totalCountWrittenToDB = 0
@@ -263,40 +290,51 @@ class histDBWorker(threading.Thread):
                     self.pluginsDict[pluginID].pluginState == Types.STATE_GET_URL_LIST
                    )
                 self.totalURLQueueSize = self.totalURLQueueSize + self.pluginsDict[pluginID].urlQueueTotalSize
-            statusBarText = tqdm.format_meter(0, self.totalURLQueueSize, totalTimeElapsed, ncols=80)
-            print(statusBarText, '\b' * 100, end='')
-            while (not self.completedURLs.completedQueue.empty()) or isPluginStillFetchingData:
+            print("Web-scraping Progress:")
+            while (not self.completedURLs.completedQueue.empty()) or isPluginStillFetchingData is True:
                 countOfURLsWrittenToDB = self.completedURLs.writeQueueToDB()
+                # keep a total count, this will be reported before closing the application
                 totalCountWrittenToDB = totalCountWrittenToDB + countOfURLsWrittenToDB
-                if self.completedURLs.completedQueue.empty() and countOfURLsWrittenToDB > 0:
+                # wait for some time before checking again:
+                time.sleep(self.refreshProgressWaitTime)
+                totalTimeElapsed = totalTimeElapsed + self.refreshProgressWaitTime
+                # log progress only if some data was fetched while waiting:
+                if countOfURLsWrittenToDB > 0:
                     logger.info('Progress Status: %s URLs successfully scraped out of %s processed; %s URLs remain.',
                                 totalCountWrittenToDB,
                                 completedURLCount,
                                 (self.totalURLQueueSize - completedURLCount)
                                 )
-                    time.sleep(self.refreshProgressWaitTime)
-                    totalTimeElapsed = totalTimeElapsed + self.refreshProgressWaitTime
-                    isPluginStillFetchingData = False
+                # reset flag before checking all plugins again within loop:
+                isPluginStillFetchingData = False
                 completedURLCount = 0
                 self.totalURLQueueSize = 0
+                # save previous state, use deepcopy
+                self.previousState = copy.deepcopy(self.currentState)
+                # re-initialize the variable to capture current state:
+                self.currentState = dict()
                 for pluginID in self.pluginsDict.keys():
+                    self.currentState[type(self.pluginsDict[pluginID]).__name__] = Types.decodeNameFromIntVal(
+                        self.pluginsDict[pluginID].pluginState)
+                    # flag 'isPluginStillFetchingData' as True if any plugin is still fetching data,
+                    # or, if it is still retrieving URL listing
                     isPluginStillFetchingData = isPluginStillFetchingData or (
                         self.pluginsDict[pluginID].pluginState == Types.STATE_FETCH_CONTENT
                        ) or (
                         self.pluginsDict[pluginID].pluginState == Types.STATE_GET_URL_LIST
                        )
+                    # re-calculate totals since other threads may have increased list of urls to be fetched
                     completedURLCount = completedURLCount + self.pluginsDict[pluginID].urlProcessedCount
                     self.totalURLQueueSize = self.totalURLQueueSize + self.pluginsDict[pluginID].urlQueueTotalSize
-                    logger.debug('History Database Worker Thread: Is plugin %s still fetching data? %s',
-                                 type(self.pluginsDict[pluginID]).__name__,
-                                 (self.pluginsDict[pluginID].pluginState == Types.STATE_FETCH_CONTENT))
-                if completedURLCount > self.totalURLQueueSize:
-                    self.totalURLQueueSize = completedURLCount
+                # after loop, prepare status-bar text, then print it out
                 statusBarText = tqdm.format_meter(completedURLCount,
                                                   self.totalURLQueueSize,
                                                   totalTimeElapsed,
-                                                  ncols=80)
+                                                  ncols=80,
+                                                  ascii=False)
                 print(statusBarText, '\b' * 100, end='')
+                for statusMessage in self.getStatusChange():
+                    logger.info(statusMessage)
             logger.info('History Database Thread: Finished saving a total of %s URLs in history database.',
                         totalCountWrittenToDB)
         except Exception as e:

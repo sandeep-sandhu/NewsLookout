@@ -292,6 +292,30 @@ def checkAndParseDate(dateStr):
     return(runDate)
 
 
+def getNextDaysDate(runDate):
+    """ Given a date input, get date object of next day
+    """
+    businessDate = runDate
+    try:
+        if type(runDate).__name__ == 'datetime':
+            businessDate = runDate + timedelta(days=1)
+        else:
+            logger.error("runDate parameter is of type: %s", type(runDate).__name__)
+    except Exception as e:
+        logger.error("While calculating date value of next day: %s", e)
+    return(businessDate)
+
+
+def getFullFilePathsInDir(directoryName):
+    """ Get Files From Directory
+    """
+    filesList = []
+    if os.path.isdir(directoryName) is True:
+        filesList = [os.path.join(directoryName, i) for i in os.listdir(directoryName)
+                     if os.path.isfile(os.path.join(directoryName, i))]
+    return(filesList)
+
+
 def getPreviousDaysDate(runDate):
     """ Given a date input, get date object of previous day
     """
@@ -306,6 +330,22 @@ def getPreviousDaysDate(runDate):
     return(businessDate)
 
 
+def readPluginNames(configObj):
+    """ Read the list of plugins enabled in the configuration file
+    """
+    pluginList = []
+    try:
+        if 'plugins' in configObj.sections():
+            section = configObj['plugins']
+            if section.name == 'plugins':
+                for key, item in section.items():
+                    if key.startswith('plugin'):
+                        pluginList.append(item)
+    except Exception as e:
+        logger.error("Error reading names of enabled plugins: %s", e)
+    return(pluginList)
+
+
 def loadPlugins(configData):
     """load only enabled plugins from the class files in the package directory
     """
@@ -317,7 +357,7 @@ def loadPlugins(configData):
     sys.path.append(plugins_dir)
     sys.path.append(contrib_plugins_dir)
     # get list of plugins mentioned in the config file as comma separated list
-    enabledPluginNames = removeStartTrailQuotes(configData['enabledPlugins']).split(',')
+    enabledPluginNames = readPluginNames(configData['configReader'])
     pluginList = []
     for listItem in enabledPluginNames:
         pluginList.append(removeStartTrailQuotes(listItem.strip()))
@@ -399,6 +439,16 @@ def getNetworkLocFromURL(URLStr):
     return(res.parsed_url.netloc)
 
 
+def checkIfURLIsValid(urlString):
+    """ Check if URL is Valid """
+    try:
+        get_tld(urlString, as_object=True)
+        return(True)
+    except Exception as e:
+        logger.debug("Invalid URL %s: %s", urlString, e)
+        return(False)
+
+
 def sameURLWithoutQueryParams(url1, url2):
     """
     Compare two URLs and return True if they are the same
@@ -423,6 +473,8 @@ def sameURLWithoutQueryParams(url1, url2):
 
 def extractLinks(url, docRoot):
     """ Extract all Links from beautifulSoup document object of HTML content
+    Detect and fix URL errors, such as relative links starting with /
+    Ignore invalid tags such as - javascript: , whatsappp:, mailto:, etc.
     """
     allLinks = []
     try:
@@ -433,12 +485,16 @@ def extractLinks(url, docRoot):
                 if tag.name == "a" and "href" in tag.attrs.keys():
                     linkValue = tag['href']
                     if linkValue.startswith('/'):
+                        # convert to proper URL using network-location of the contianing page's url
                         allLinks.append(
                                         rootTLDObj.parsed_url.scheme
                                         + '://'
                                         + rootTLDObj.parsed_url.netloc
                                         + linkValue)
-                    elif linkValue.startswith("javascript:") is False and linkValue.startswith('mailto:') is False:
+                    elif (linkValue.startswith("javascript:") is False and linkValue.startswith('mailto:') is False and
+                          linkValue.startswith('#') is False and linkValue.startswith('?') is False and
+                          linkValue.startswith('../') is False and
+                          linkValue.startswith('http://http://') is False and linkValue.startswith('whatsapp:') is False):
                         allLinks.append(linkValue)
     except Exception as e:
         logger.error("Error extracting all Links from html document: %s", e)
