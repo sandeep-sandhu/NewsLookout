@@ -23,5 +23,13 @@
  DEALINGS IN THE SOFTWARE.
 
 """
+# import standard python libraries:
+import sys
+import os
 
+parentFolder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+sys.path.append(parentFolder)
+sys.path.append(os.path.join(parentFolder, 'plugins'))
+sys.path.append(os.path.join(parentFolder, 'plugins_contrib'))
 
+# end of file #
