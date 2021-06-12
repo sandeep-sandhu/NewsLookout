@@ -33,6 +33,7 @@
 # import standard python libraries:
 import logging
 import os
+import time
 from tqdm import tqdm
 # import numpy as np
 
@@ -83,6 +84,7 @@ class mod_dedupe(basePlugin):
         :param runDate: The business date for which the text needs to be processed.
         :type runDate: datetime
         """
+        logging.captureWarnings(True)
         self.setupModel()
         print("\nData de-duplication progress:")
         # find list of articles newly fetched:
@@ -91,28 +93,29 @@ class mod_dedupe(basePlugin):
                     len(listOfFiles), runDate.strftime('%Y-%m-%d'))
         # load each article one by one, and compare with other articles:
         deletedCount = 0
-        fileNameToKeep = None
+        startTime = time.time()
         for fileIndex1, file1 in enumerate(listOfFiles):
             try:
+                stopTime = time.time()
                 statusBarText = tqdm.format_meter(fileIndex1 + 1,
                                                   len(listOfFiles),
-                                                  0.1,
+                                                  stopTime - startTime,
                                                   ncols=80,
                                                   ascii=False)
                 print(statusBarText, '\b' * 100, end='')
+                startTime = time.time()
                 # load document data from fileName and compute its text embedding:
-                if os.path.isfile(file1):
-                    document1 = self.computeTextEmbeddingDoc(file1)
-                    if document1 is not None:
-                        for fileIndex2 in range(fileIndex1 + 1, len(listOfFiles)):
-                            document2 = self.computeTextEmbeddingDoc(listOfFiles[fileIndex2])
-                            logger.debug('de-dupe %s -> %s', file1, listOfFiles[fileIndex2])
-                            resultTuple = self.compareTwoArticles(document1, document2,
-                                                                  compareThreshold=0.99, maxSizePercentDiff=0.20)
-                            # check that first article's file exist, only then delete the second article:
-                            if resultTuple is not None and os.path.isfile(resultTuple[1].getFileName()):
-                                self.removeArticle(resultTuple[2])
-                                deletedCount = deletedCount + 1
+                document1 = self.computeTextEmbeddingDoc(file1)
+                if document1 is not None:
+                    for fileIndex2 in range(fileIndex1 + 1, len(listOfFiles)):
+                        document2 = self.computeTextEmbeddingDoc(listOfFiles[fileIndex2])
+                        logger.debug('de-dupe %s -> %s', file1, listOfFiles[fileIndex2])
+                        resultTuple = self.compareTwoArticles(document1, document2,
+                                                              compareThreshold=0.99, maxSizePercentDiff=0.20)
+                        # check that first article's file exist, only then delete the second article:
+                        if resultTuple is not None and os.path.isfile(resultTuple[1].getFileName()):
+                            self.removeArticle(resultTuple[2])
+                            deletedCount = deletedCount + 1
             except Exception as e:
                 logger.error("Error identifying similar files: %s, file compared: %s", e, file1)
         print('')
@@ -150,44 +153,6 @@ class mod_dedupe(basePlugin):
         newlist = [i for i in listOfFiles if i.endswith('json')]
         return(newlist)
 
-    def makeDocPairs(self, listOfFiles):
-        """ For each file in listOfFiles, make a unique pair with all other files.
-        Return this list of pair-wise tuples.
-        """
-        allDocuments = []
-        allPairsList = []
-        for fileName in listOfFiles:
-            try:
-                # load document data from fileName and compute its text embedding:
-                document = self.computeTextEmbeddingDoc(fileName)
-                if document is not None:
-                    allDocuments.append(document)
-            except Exception as e:
-                logger.error("Error calculating text embedding: %s, file: %s", e, fileName)
-        # make pairs of all files, remove duplicates since order does not matter
-        try:
-            allPairsList = [(allDocuments[i], allDocuments[j]) for i in range(len(allDocuments))
-                            for j in range(i+1, len(allDocuments))]
-        except Exception as e:
-            logger.error("Error making pairs of documents: %s", e)
-        return(allPairsList)
-
-    def compareAllDocsInList(self, allPairsList, compareThreshold=0.99):
-        """ For each file in allPairsList, load the document text.
-        Calculate text representation for this document.
-        In a loop, compare the text representation of each file with all others
-        Save and return the scores in a list of Tuples.
-        """
-        listOfTuples = []
-        try:
-            logger.debug("Started calculating pair-wise similarity scores for all documents")
-            for docPair in allPairsList:
-                resultTuple = self.compareTwoArticles(docPair[0], docPair[1], compareThreshold=compareThreshold)
-                listOfTuples.append(resultTuple)
-        except Exception as e:
-            logger.error("Error comparing documents pair-wise: %s", e)
-        return(listOfTuples)
-
     def compareTwoArticles(self, doc1, doc2, compareThreshold=0.99, maxSizePercentDiff=0.20):
         """ Compare two articles using their text embeddings.
         If the similarity score is <compareThreshold> or more, then check size difference.
@@ -196,23 +161,28 @@ class mod_dedupe(basePlugin):
         similarityScore = 0.0
         resultTuple = None
         try:
-            # Calculate the similarity ofdoc1 vs. doc2
-            similarityScore = doc1.getTextEmbedding().similarity(doc2.getTextEmbedding())
-            smallerLen = min(doc1.getTextSize(), doc2.getTextSize())
-            biggerLen = max(doc1.getTextSize(), doc2.getTextSize())
-            percentDiff = (biggerLen-smallerLen)*1.0/biggerLen
-            # return set of tuples whose value of similarity score exceeds the threshold (i.e. compareThreshold)
-            # and percentage size difference is not more than 20%
-            # and both documents are from different publications
-            logger.debug("Similarity of doc 1 vs. 2 = %s, Percentage size diff = %s", similarityScore, percentDiff)        
-            if (similarityScore >= compareThreshold and percentDiff < maxSizePercentDiff and
-                    doc1.getModuleName() != doc2.getModuleName()):
-                # find older document and place it second so its deleted,
-                # or else, for same date, delete the smaller document
-                if doc1.getTextSize() > doc2.getTextSize():
-                    resultTuple = (similarityScore, doc1, doc2)
-                else:
-                    resultTuple = (similarityScore, doc2, doc1)
+            if doc1 is not None and doc2 is not None:
+                smallerLen = min(doc1.getTextSize(), doc2.getTextSize())
+                biggerLen = max(doc1.getTextSize(), doc2.getTextSize())
+                percentDiff = (biggerLen-smallerLen)*1.0/biggerLen
+                # Proceed with compute intensive similarity checking only if
+                # the percentage size difference is not more than maxSizePercentDiff
+                # and both documents are from different publications:
+                if (percentDiff <= maxSizePercentDiff and
+                        doc1.getModuleName() != doc2.getModuleName()):
+                    # Calculate the similarity score of doc1 vs. doc2:
+                    similarityScore = doc1.getTextEmbedding().similarity(doc2.getTextEmbedding())
+                    # return set of tuples whose value of similarity score exceeds the threshold (i.e. compareThreshold)
+                    logger.debug("Similarity of doc 1 vs. 2 = %s, Percentage size diff = %s", similarityScore, percentDiff)
+                    if similarityScore >= compareThreshold:
+                        # find older document and place it second in the tuple to indicate it will be deleted,
+                        # or else, for same date, delete the smaller document
+                        if doc1.getTextSize() > doc2.getTextSize():
+                            resultTuple = (similarityScore, doc1, doc2)
+                        else:
+                            resultTuple = (similarityScore, doc2, doc1)
+            else:
+                return(None)
         except Exception as e:
             logger.error("Error trying to calculate similarity of documents: %s", e)
         return(resultTuple)
@@ -221,14 +191,19 @@ class mod_dedupe(basePlugin):
         """ Calculate Text Embedding
         """
         document = None
+        minAcceptableTextLength = 30
         try:
-            document = NewsArticle()
-            # load data from fileName:
-            document.readFromJSON(fileName)
-            document.setFileName(fileName)
-            # logger.debug("Generating text representation of the document for file %s", fileName)
-            textEmbedding = self.nlpModel(document.getText())
-            document.setTextEmbedding(textEmbedding)
+            if os.path.isfile(fileName):
+                document = NewsArticle()
+                # load data from fileName:
+                document.readFromJSON(fileName)
+                document.setFileName(fileName)
+                if document.getTextSize() > minAcceptableTextLength:
+                    # logger.debug("Generating text representation of the document for file %s", fileName)
+                    textEmbedding = self.nlpModel(document.getText())
+                    document.setTextEmbedding(textEmbedding)
+                else:
+                    document = None
         except Exception as e:
             logger.error("Error trying to calculate similarity of URLs: %s", e)
         return(document)
@@ -268,5 +243,44 @@ class mod_dedupe(basePlugin):
                 counter = counter + 1
             if counter > printLimit:
                 break
+
+    def makeDocPairs(self, listOfFiles):
+        """ For each file in listOfFiles, make a unique pair with all other files.
+        Return this list of pair-wise tuples.
+        """
+        allDocuments = []
+        allPairsList = []
+        for fileName in listOfFiles:
+            try:
+                # load document data from fileName and compute its text embedding:
+                document = self.computeTextEmbeddingDoc(fileName)
+                if document is not None:
+                    allDocuments.append(document)
+            except Exception as e:
+                logger.error("Error calculating text embedding: %s, file: %s", e, fileName)
+        # make pairs of all files, remove duplicates since order does not matter
+        try:
+            allPairsList = [(allDocuments[i], allDocuments[j]) for i in range(len(allDocuments))
+                            for j in range(i+1, len(allDocuments))]
+        except Exception as e:
+            logger.error("Error making pairs of documents: %s", e)
+        return(allPairsList)
+
+    def compareAllDocsInList(self, allPairsList, compareThreshold=0.99):
+        """ For each file in allPairsList, load the document text.
+        Calculate text representation for this document.
+        In a loop, compare the text representation of each file with all others
+        Save and return the scores in a list of Tuples.
+        """
+        listOfTuples = []
+        try:
+            logger.debug("Started calculating pair-wise similarity scores for all documents")
+            for docPair in allPairsList:
+                resultTuple = self.compareTwoArticles(docPair[0], docPair[1], compareThreshold=compareThreshold)
+                listOfTuples.append(resultTuple)
+        except Exception as e:
+            logger.error("Error comparing documents pair-wise: %s", e)
+        return(listOfTuples)
+
 
 # # end of file ##
