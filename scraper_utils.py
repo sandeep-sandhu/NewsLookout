@@ -273,22 +273,22 @@ def cutStrBetweenTags(sourceStr, startTagStr, endTagStr):
 def checkAndParseDate(dateStr):
     """ Check and Parse Date String, set it to todays date if its in future
     """
+    runDate = datetime.now()
     logger.debug("Checking date string: %s", dateStr)
     try:
-        runDate = datetime.strptime(dateStr, '%Y-%m-%d')
-
+        if type(dateStr).__name__ == 'datetime':
+            runDate = dateStr
+        elif type(dateStr).__name__ == 'str':
+            runDate = datetime.strptime(dateStr, '%Y-%m-%d')
     except Exception as e:
         logger.error("Invalid date for retrieval (%s): %s; using todays date instead.",
                      dateStr, e)
-
     # get the current local date
     today = date.today()
-
     if runDate.date() > today:
         logger.error("Date for retrieval (%s) cannot be after today's date; using todays date instead.",
                      runDate.date())
         runDate = datetime.now()
-
     return(runDate)
 
 

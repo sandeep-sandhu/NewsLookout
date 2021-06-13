@@ -3,6 +3,15 @@
 
 """
 
+ File name: __init__.py
+ Application: The NewsLookout Web Scraping Application
+ Date: 2021-06-10
+ Purpose: Main module for the web scraping and news text processing application
+ Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
+
+ Usage:
+ python scraper_app.py -c <configfile> -d <rundate>
+
  Notice:
  This software is intended for demonstration and educational purposes only. This software is
  experimental and a work in progress. Under no circumstances should these files be used in
@@ -22,4 +31,14 @@
 
 """
 
-# from scraper_app import main
+import sys
+import os
+
+parentFolder = os.path.dirname(os.path.realpath(__file__))
+sys.path.append(parentFolder)
+sys.path.append(os.path.join(parentFolder, 'plugins'))
+sys.path.append(os.path.join(parentFolder, 'plugins_contrib'))
+
+os.chdir(parentFolder)
+
+from scraper_app import main

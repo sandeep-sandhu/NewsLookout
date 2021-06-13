@@ -6,6 +6,26 @@ The application is readily extended by adding custom modules via its 'plugin' ar
 
 ![Build Status](https://github.com/sandeep-sandhu/NewsLookout/actions/workflows/python-app.yml/badge.svg)
 
+## Features
+
+There already exist a number of python libraries for web-scraping, so why should you consider this application for web scraping news? The reason is that it has been specifically built for sourcing news and has several useful features. Some of the notable ones are:
+
+- [x] Multi-threaded for scraping several news sites in parallel
+- [x] Rigorously tested for the specific websites enabled in the plugins, handles several quirks and formatting problems caused by inconsistent and non-standard HTML code.
+- [x] Reduces the network traffic and consequently webserver load by pausing between network requests. High traffic load are usually detected and blocked. The application reduces network traffic to avoid overloading the news web servers.
+- [x] Keeps track of failures and history of sites scraped to avoid re-visiting them again
+- [x] Completely configurable functionality
+- [x] Works with proxy servers
+- [x] Enterprise ready functionality - configurable event logging, segregation of data store, etc.
+- [x] Runnable without a frontend, as a daemon.
+- [x] Extensible with custom plugins that can be rapidly written with minimal additional code to support additional news sources. Writing a new plugin does not need writing low level code to handle network traffic and HTTP protocols.
+- [x] Rigorous text cleaning
+- [x] Builtin NLP support for keyword extraction and compute document similarity
+- [x] Text de-duplicaiton using advanced NLP models
+- [x] Extensible data processing plugins to customize the data processing required after web scraping
+- [x] Enables web-scraping news archives to get news from previous dates for establishing history for analysis
+- [x] Saves present state and resumes unfinished URLs if the applicaiton is shut-down midway during web scraping
+
 
 ## Installation
 Create separate directory locations for:
@@ -37,7 +57,7 @@ Either use the nltk downloader:
 
 Or else, manually download these from the source location - https://github.com/nltk/nltk_data/tree/gh-pages/packages
 
-If these are not installed to one of the standard locations, you will need to set the NLTK_DATA environment variable to specify the location of this NLTK data.
+If these are not installed to one of the standard locations, you will need to set the NLTK_DATA environment variable to specify the location of this NLTK data. Refer to the NLTK website on downloading the data.
 
 
 ## Configuration
@@ -79,7 +99,7 @@ For a more detailed log of events, refer to the log file.
 
 ## Customizing and Writing your own Plugins
 
-You can extend the web scraper's functionality to add any additional website that you need scraped by using the template file 'template_for_plugin.py' and customising it.  Name your custom plugin file with the same name as the name of the class object. Place it in the 'plugins_contrib' folder and add the plugin's name in the configuration file. It will be picked up automatically and run when the  application is next run.
+You can extend the web scraper's functionality to add any additional website that you need scraped by using the template file `template_for_plugin.py` from the plugins_contrib folder and customising it.  Name your custom plugin file with the same name as the name of the class object. Place it in the 'plugins_contrib' folder and add the plugin's name in the configuration file. It will be picked up automatically and run when the  application is next run.
 
 Take a look at one of the already implemented plugins code for examples of how a plugin can be written.
 

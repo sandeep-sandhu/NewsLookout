@@ -335,6 +335,7 @@ class histDBWorker(threading.Thread):
                 print(statusBarText, '\b' * 100, end='')
                 for statusMessage in self.getStatusChange():
                     logger.info(statusMessage)
+            print(tqdm.format_meter(self.totalURLQueueSize, self.totalURLQueueSize, totalTimeElapsed, ncols=80, ascii=False))
             logger.info('History Database Thread: Finished saving a total of %s URLs in history database.',
                         totalCountWrittenToDB)
         except Exception as e:

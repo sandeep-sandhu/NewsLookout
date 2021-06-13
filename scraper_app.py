@@ -35,7 +35,7 @@
 
 ##########
 
-__version__ = "1.9.0"
+__version__ = "1.9.1"
 __author__ = "Sandeep Singh Sandhu"
 __copyright__ = "Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu"
 __credits__ = ["Sandeep Singh Sandhu"]
@@ -53,6 +53,7 @@ import logging.handlers
 from datetime import datetime
 from configparser import ConfigParser
 import getopt
+import tempfile
 
 # import web retrieval and text processing python libraries:
 import newspaper
@@ -74,10 +75,10 @@ class NewsLookout:
     Main class that runs the entire application.
     """
     configData = {
-                  'version': __version__, 'logLevelStr': 'INFO', 'rundate': datetime.now(),
-                  'logfile': os.path.join('logs', 'scraper.log'), 'configfile': os.path.join('conf', 'scraper.conf'),
-                  'pid_file': os.path.join('logs', 'scraper.pid'), 'newspaper_config': None,
-                  'data_dir': 'data', 'plugins_dir': 'plugins',
+                  'version': __version__, 'logLevelStr': 'INFO', 'rundate': datetime.now().strftime('%Y-%m-%d'),
+                  'logfile': os.path.join('logs', 'newslookout.log'), 'configfile': os.path.join('conf', 'newslookout.conf'),
+                  'pid_file': os.path.join('logs', 'newslookout.pid'), 'newspaper_config': None,
+                  'data_dir': 'data', 'plugins_dir': 'plugins', 'plugins_contributed_dir': 'plugins_contrib',
                   'master_data_dir': os.path.join('data', 'master_data'), 'proxy_url_http': '', 'proxy_url_https': '',
                   'recursion_level': 1, 'user_agent':
                   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML, like Gecko) Version/7.0.3",
@@ -104,37 +105,27 @@ class NewsLookout:
         self.readConfigOperations(configurObj)
         self.applyConfig()
 
+    def printUsageAndExit(self):
+        print('Usage: newslookout -c <configuration file> -d <run date as YYYY-MM-dd>')
+        sys.exit(1)
+
     def readArgs(self):
         """ Read command line arguments and parse them
         """
         try:
-            opts, args = getopt.getopt(sys.argv[1:],
-                                       "h:c:d:",
-                                       ["configfile = ", "rundate = "]
-                                       )
+            if len(sys.argv) < 3:
+                self.printUsageAndExit()
+            opts, args = getopt.getopt(sys.argv[1:], "h:c:d:", ["configfile = ", "rundate = "])
+            for opt, arg in opts:
+                if opt in ("-h", "--help"):
+                    self.printUsageAndExit()
+                elif opt in ("-c", "--configfile"):
+                    self.configData['configfile'] = arg
+                elif opt in ("-d", "--rundate"):
+                    self.configData['rundate'] = arg
         except getopt.GetoptError as e:
-            print("Error reading command line options: %s", e)
-            print('Usage: scraper_app.py -c <configuration file> -d <run date>')
-            sys.exit(2)
-        for opt, arg in opts:
-            if opt in ("-h", "--help"):
-                print('Usage: scraper_app.py -c <configuration file> -d <run date as YYYY-MM-dd>')
-                sys.exit(0)
-            elif opt in ("-c", "--configfile"):
-                self.configData['configfile'] = arg
-            elif opt in ("-d", "--rundate"):
-                self.configData['rundate'] = arg
-        try:
-            # check if config file exists, exit if it doesnt exist
-            if os.path.isfile(self.configData['configfile']):
-                print('Reading configuration settings from file:', self.configData['configfile'])
-            else:
-                print('ERROR: Configuration file (', self.configData['configfile'], ') not found')
-                sys.exit(1)
-
-        except Exception as e:
-            print('ERROR: Configuration file (', self.configData['configfile'], ') not found:', e)
-            sys.exit(1)
+            print("Error reading command line options:", e)
+            self.printUsageAndExit()
 
     def readConfigFile(self):
         """ Utility function to read the configuration file,
@@ -145,7 +136,7 @@ class NewsLookout:
             configur.read_file(open(self.configData['configfile'], encoding='utf-8'))
             self.configData['configReader'] = configur
         except Exception as e:
-            print('Error reading configuration file (', self.configData['configfile'], '):', e)
+            print(f'ERROR: Configuration file "{self.configData["configfile"]}" could not be read: {e}')
             sys.exit(1)
         return(configur)
 
@@ -185,13 +176,16 @@ class NewsLookout:
                 configur,
                 'installation',
                 'data_dir',
-                default=os.path.join(self.configData['install_prefix'], 'data')
+                default=None
                 )
             try:
                 # first check if data directory self.configData['data_dir'] of given date exists, or not
-                if os.path.isdir(self.configData['data_dir']) is False:
+                if self.configData['data_dir'] is not None and os.path.isdir(self.configData['data_dir']) is False:
                     # data dir does not exist, so try creating it:
                     os.mkdir(self.configData['data_dir'])
+                elif self.configData['data_dir'] is None:
+                    print('Error identifying data directory (', self.configData['data_dir'], '):')
+                    sys.exit(1)
             except Exception as theError:
                 print("Exception caught creating data directory",
                       self.configData['data_dir'], ": ", theError)
@@ -231,7 +225,7 @@ class NewsLookout:
                 configur,
                 'installation',
                 'pid_file',
-                default=os.path.join(self.configData['data_dir'], 'newslookout.pid')
+                default=os.path.join(tempfile.gettempdir(), 'newslookout.pid')
                 )
             self.configData['cookie_file'] = checkAndSanitizeConfigString(
                 configur,
@@ -424,6 +418,7 @@ def main():
     # add to root logger
     logging.getLogger('').addHandler(scraperLogFileHandler)
     print("Saving data to:", app_inst.configData['data_dir'])
+    print("Using PID file:", app_inst.configData['pid_file'])
     print("Logging events to file:", app_inst.configData['logfile'])
 
     # create PID file before starting the application:
