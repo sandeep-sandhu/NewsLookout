@@ -288,7 +288,7 @@ class basePlugin:
 
     def makeUniqueFileName(pluginName, baseDirName, uniqueID, URL=None):
         """ Create a Unique File Name for this article to be saved
-        It does not contain the extension - .json, this has to be appended.
+        It does not contain the extension .json, this has to be appended.
         """
         return(os.path.join(baseDirName, pluginName + "_" + str(uniqueID)))
 
@@ -386,6 +386,22 @@ class basePlugin:
                              e)
         self.listOfURLS = self.filterInvalidURLs(self.listOfURLS)
 
+    def extractArchiveURLLinksForDate(self, runDate):
+        """ Extracting archive URL links for given date """
+        resultSet = []
+        try:
+            if 'mainURLDateFormatted' in dir(self):
+                searchResultsURLForDate = runDate.strftime(self.mainURLDateFormatted)
+                URLsListForDate = self.extractLinksFromURLList(runDate, [searchResultsURLForDate])
+                if URLsListForDate is not None and len(URLsListForDate) > 0:
+                    resultSet = URLsListForDate
+                logger.debug("%s: Added URLs for current date from archive page at: %s",
+                             self.pluginName,
+                             searchResultsURLForDate)
+        except Exception as e:
+            logger.error("%s: Error extracting archive URL links for given date: %s", self.pluginName, e)
+        return(resultSet)
+
     def getURLsListForDate(self, runDate, completedURLs):
         """ Retrieve the URLs List for the given run date
         """
@@ -398,12 +414,6 @@ class basePlugin:
             self.listOfURLS = deDupeList(self.listOfURLS +
                                          self.extractArticleListFromMainURL(runDate) +
                                          completedURLs.retrieveTodoURLList(self.pluginName))
-            if 'mainURLDateFormatted' in dir(self):
-                searchResultsURLForDate = runDate.strftime(self.mainURLDateFormatted)
-                searchURLsForDate = self.extractLinksFromURLList(runDate, [searchResultsURLForDate])
-                if searchURLsForDate is not None and len(searchURLsForDate) > 0:
-                    self.listOfURLS = self.listOfURLS + searchURLsForDate
-                logger.debug("%s: Added search URL for current date:: %s", self.pluginName, searchResultsURLForDate)
         except Exception as e:
             logger.error("%s: Error retrieving list of URLs from main URL and pending table: %s", self.pluginName, e)
         try:
@@ -502,6 +512,7 @@ class basePlugin:
         try:
             urlsToBeExtracted = [self.mainURL] + self.nonContentURLs
             linksLevel1 = self.extractLinksFromURLList(runDate, urlsToBeExtracted)
+            linksLevel1 = linksLevel1 + self.extractArchiveURLLinksForDate(runDate)
         except Exception as e:
             logger.error("%s: When Extracting article list from main URL, error was: %s",
                          self.pluginName, e)

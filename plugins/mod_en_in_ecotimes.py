@@ -44,7 +44,7 @@
 
 # import standard python libraries:
 import logging
-
+from datetime import datetime
 # import web retrieval and text processing python libraries:
 from bs4 import BeautifulSoup
 # import lxml
@@ -357,6 +357,45 @@ class mod_en_in_ecotimes(basePlugin):
         self.articleDateRegexps.update(basePlugin.articleDateRegexps)
         self.urlUniqueRegexps = self.urlUniqueRegexps + super().urlUniqueRegexps
         super().__init__()
+
+    def extractArchiveURLLinksForDate(self, runDate):
+        """ Extracting archive URL links for given date
+        Day no is calculated using Excel logic, it is days since 31-Dec-1899
+        For example, the archive URL for 1 Jan, 2015 is:
+         https://economictimes.indiatimes.com/archivelist/year-2015,month-1,starttime-42005.cms
+        URL for 13 Oct, 2015 is:
+         https://economictimes.indiatimes.com/archivelist/year-2015,month-10,starttime-42290.cms
+        URL for 30-nov-2018 is:
+         https://economictimes.indiatimes.com/archivelist/year-2018,month-11,starttime-43434.cms
+        """
+        resultSet = []
+        searchResultsURLForDate = None
+        try:
+            startDate = datetime.strptime('1899-12-31', '%Y-%m-%d')
+            if type(runDate).__name__ == 'datetime':
+                dateDiff = runDate - startDate
+            elif type(runDate).__name__ == 'str':
+                runDate = datetime.strptime(runDate, '%Y-%m-%d')
+                dateDiff = runDate - startDate
+            else:
+                return([])
+            archiveDayNo = dateDiff.days + 1
+            yearNo = runDate.strftime('%Y')
+            monthNo = runDate.strftime('%m')
+            searchResultsURLForDate = ('https://economictimes.indiatimes.com/archivelist/year-' + str(yearNo) +
+                                       ',month-' + str(monthNo) +
+                                       ',starttime-' + str(archiveDayNo) +
+                                       '.cms')
+            URLsListForDate = self.extractLinksFromURLList(runDate, [searchResultsURLForDate])
+            if URLsListForDate is not None and len(URLsListForDate) > 0:
+                resultSet = URLsListForDate
+            logger.debug("%s: Added URLs for current date from archive page at: %s",
+                         self.pluginName,
+                         searchResultsURLForDate)
+        except Exception as e:
+            logger.error("%s: Error extracting archive URL links for given date %s: %s; URL = %s",
+                         self.pluginName, runDate, e, searchResultsURLForDate)
+        return(resultSet)
 
     def extractIndustries(self, uRLtoFetch, htmlText):
         """  Extract Industries from text and URL
