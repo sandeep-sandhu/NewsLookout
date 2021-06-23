@@ -7,7 +7,6 @@ Plugins can be added for a variety of tasks, including - for scraping additional
 
 ![Build Status](https://github.com/sandeep-sandhu/NewsLookout/actions/workflows/python-app.yml/badge.svg) ![GitHub release](https://img.shields.io/github/v/release/sandeep-sandhu/NewsLookout.svg)
 
-
 ## Features
 
 There already exist a number of python libraries for web-scraping, so why should you consider this application for web scraping news? The reason is that it has been specifically built for sourcing news and has several useful features. A few notable ones are:
@@ -145,7 +144,7 @@ For enterprise installations, log watch may be enabled for monitoring the operat
 
 The data folder should be monitored for growth in its size.
 
-### Keeping track of HTML code changes to news portals
+### HTML parsing code updates
 In case news portals change their structure,
  the web scraper code for their respective plugin will need to be updated to continue 
  retrieving information reliably.

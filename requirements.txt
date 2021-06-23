@@ -8,6 +8,9 @@ pandas
 requests
 tld
 urllib3
-tqdm
+enlighten
 numpy
 spacy
+sklearn
+numpy
+openpyxl
