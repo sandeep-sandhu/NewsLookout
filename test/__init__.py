@@ -3,7 +3,10 @@
 
 """
  File: Test modules for NewsLookout application
- Date: 2021-06-01
+ Application: The NewsLookout Web Scraping Application
+ Date: 2021-06-10
+ Purpose: Test module for the web scraping and news text processing application
+ Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
  Notice:
  This software is intended for demonstration and educational purposes only. This software is
@@ -28,8 +31,11 @@ import sys
 import os
 
 parentFolder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-sys.path.append(parentFolder)
-sys.path.append(os.path.join(parentFolder, 'plugins'))
-sys.path.append(os.path.join(parentFolder, 'plugins_contrib'))
+sourceFolder = os.path.join(parentFolder, 'src')
+sys.path.append(sourceFolder)
+sys.path.append(os.path.join(sourceFolder, 'plugins'))
+sys.path.append(os.path.join(sourceFolder, 'plugins_contrib'))
+
+os.chdir(parentFolder)
 
 # end of file #

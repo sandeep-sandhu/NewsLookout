@@ -1,0 +1,181 @@
+Test Strings for Trigger words:
+------------------------------
+
+there was a labour strike or a labor strike at the organisation.
+A labour unrest or labor unrest was reported at the organisation.
+The strikes turned violent.
+There was violence due to the strike at the company
+The company has reported manpower problems.
+the company faces widespread employee attrition
+the companies problems include recalcitrant labor.
+Due to the accident, the company was fined 10,000 rupees.
+It faces union problems
+the labor union has filed petitions in the court where complaint has been filed
+labor has been asked to stay away from work.
+the companies labor supply has been disrupted
+the company has been shut down due to labor protests
+the union has petitioned the authorities filed
+The employees of the firm are on strike.
+
+
+most of their employees have quit, and they face more manpower problems.
+Employee Quit,manpower problem |
+the attrition problem has increased to to high employee turnover.
+attrition of employee s
+the company is plagued by attrition due to employees quitting en masse.
+there has been widespread layoffs reported in the local news
+
+
+the director has been reappointed.
+a new director has been appointed.
+the appointment of a new director at the company signals a change in senior management.
+there has been a change of director at the organisation.
+
+
+Reappoints |Reappointment |appoints |appointment
+the company was fined rs 10 lakh for violations.
+A fine of rs 1 lak was imposed on the company.
+the tribunal imposed a fine of rs 1 lakh.
+a penalty was imposed on the company.
+
+
+the director of the firm has resigned.
+It has been reported that the managing director is stepping down.
+the director of the company has stepped down from his post.
+there are unconfirmed reports of the director quitting the firm.
+Mr. soandso who was the independent director has quit the company.
+Mr. soandso has withdrawn from his position as director
+director has withdrawn from his position.
+the director has retired, has announced his retirement.
+director of the company has announced that he would stand aside.
+director of the company has announced that he would bow out
+director has announced cessation of his duties at the company
+director has quit from his position.
+
+
+customers have expressed dissatisfaction with the company
+customers are dis-satisfied with their services.
+
+
+duty on the products has been hikeed.
+government announced a hike in duty over fuel oil.
+regulatory impact|regulation change|impact of regulat
+an increase in duty has been announced
+
+
+company has reported losses due to obsolescence of its flagship product.
+The product has been made obsolete by technology changes.
+Their product models are now outdated.
+
+
+there have been fraud allegations reported agains tthe firm.
+company directors were suspected of fraudulant practices.
+They are accused of defrauding their investors
+fraud has been reported at the company.
+funds were diverted illegally.
+funds were allegedly siphoned off to third party accounts.
+the company alleges that the director had siphoned off funds illegally
+the director had allegedly diverted funds.
+the bank has suspected money laundering activities by the firm
+accused of allegedly siphoning off funds.
+large scale fraud was revealed in the audit.
+the investors accuse the promoters of defrauding them.
+the bank has filed a complaint of loan fraud
+bank directors have engaged in mass swindling of funds
+the company's auditor had suspected illegal activities.
+forensic audit has been demanded
+red flagged account
+
+
+the company offices were raided by the tax authorities.
+A penalty was imposed by the government
+A sanction was imposed by the government
+the government imposed sanction on the company.
+the company faces punitive action by the regulators.
+The tax authorities have served a notice on the company.
+A notice was served by the government
+The bid guarantee was forfeited by the government.
+the firm is under trial by the courts.
+The penalty has been imposed by the court government or authorities
+the court has sanctioned the firm.
+the authorities have seized assets in raid
+The local authorities have confiscated the illegal material in a raid
+punishment has been awarded by the court
+There is an ongoing trial in the court.
+The promoters have been sentenced in the district court for the offence.
+
+
+The firm has delayed payment of statutory dues.
+the firm was fined since its payment of statutary dues were delayed
+The firm received a notice since it delayed statutory payments again.
+
+
+the company faces another loss of customer due to delay in product launch.
+The firm experienced loss of its customer base.
+customers cancelled their orders.
+
+
+another firm has been incorporated.
+The firm has completed acquisition of a small operator in the industry.
+The company has acquired M/s somfirm yesterday.
+The two firms completed a merger.
+the firms have merged to form a joint entity.
+the organisation has launched a joint venture
+The key opportunities in this area
+additional costs faced by the firm
+the firm faces unforeseen costs in manufacturing that product.
+The auto maker has issued a recall of all models manufactured from 2014.
+ban order was issued on the company
+the firm is looking towards business expansion in this segment
+the firm is looking towards inorganic growth to expand its footprint.
+organic growth in their industry segment
+diversification of its business
+business expansion in non core areas
+diversify non-core business
+
+
+there have been disputes among the promoters.
+there have been disputes among the senior management.
+the news has reported an ongoing dispute among the partners
+the news has reported an ongoing dispute among the senior management
+infighting within the company
+a conflict has arisen among the promoters.
+the news has reported an ongoing conflict among the senior management
+there have been disputes among the partners.
+
+
+the company's recent consignment it exported has been rejected.
+The product has been rejected by its key customers
+the company's brand value has diminished
+the firm faced continuing withdrawal of goods from the market
+
+
+M/s ABCD has taken charge as statutary auditors of the firm in place of existing auditors
+the statutory auditors for the firm have changed form this financial year onwards.
+The auditors of the firm have changed.
+
+
+balance sheet shows that funds available for project have declined.
+the firm does not have the funds available for continuing this project.
+the firm no longer has the funds available for this project.
+its funds have been withdrawn
+The company has proceeded towards fresh disinvestment.
+the company has withdrawn from all other projects.
+the company will be withdrawing from the projects in this consortium.
+The firm has reported a delay in receipt of subsidy.
+subsidy for the firm has stopped.
+the firm is facing low capacity utilization 
+the company's capacity expansion has been put on hold.
+the company's capacity expansion has been stopped.
+
+
+the electricity board observed violations at the factory.
+The water supply authorities have shut down their supply due to violations noted at the manufacturing plant.
+the pollution control board has observed numerous  violations.
+the utility has been disrupted
+the firm has lost its water supply.
+the firm has experience loss of power supply.
+
+
+the bank noted that the promoter has taken up large personal loans
+the director has taken up personal loans

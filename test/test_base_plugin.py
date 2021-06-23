@@ -42,11 +42,10 @@ def testPluginClass():
     """
     # parentFolder = '..\\'
     parentFolder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    sys.path.append(parentFolder)
-    sys.path.append(os.path.join(parentFolder, 'plugins'))
-    sys.path.append(os.path.join(parentFolder, 'plugins_contrib'))
+    sourceFolder = os.path.join(parentFolder, 'src')
+    sys.path.append(sourceFolder)
 
-    from mod_en_in_ecotimes import mod_en_in_ecotimes
+    from plugins.mod_en_in_ecotimes import mod_en_in_ecotimes
     pluginClassInst = mod_en_in_ecotimes()
     print(type(pluginClassInst).__name__)
     assert type(pluginClassInst).__name__ == "mod_en_in_ecotimes", "mod_en_in_ecotimes Plugin is not initialising correctly"

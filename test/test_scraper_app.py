@@ -40,13 +40,13 @@ import os
 def test_appInit():
     # parentFolder = '..\\'
     parentFolder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    sys.path.append(parentFolder)
-    sys.path.append(os.path.join(parentFolder, 'plugins'))
-    sys.path.append(os.path.join(parentFolder, 'plugins_contrib'))
+    sourceFolder = os.path.join(parentFolder, 'src')
+    sys.path.append(sourceFolder)
+
     from scraper_app import NewsLookout
     app_inst = NewsLookout()
-    print(app_inst.configData['recursion_level'])
-    assert app_inst.configData['recursion_level'] == 1, 'Main app default recursion level is not set to 1'
+    print('Uninitialised app_config =', app_inst.app_config)
+    assert app_inst.app_config == None, 'Main app default config is not set to None'
 
 
 if __name__ == "__main__":
