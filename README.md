@@ -5,7 +5,8 @@ The application is readily extended by adding custom modules via its 'plugin' ar
 Plugins can be added for a variety of tasks, including - for scraping additional news sources, perform custom data pre-processing and run NLP based news text analytics such as - entity recognition, negative event classification, economy trends, industry trends, etc.
 
 
-![Build Status](https://github.com/sandeep-sandhu/NewsLookout/actions/workflows/python-app.yml/badge.svg) ![GitHub release](https://img.shields.io/github/v/release/sandeep-sandhu/NewsLookout.svg) [![Coverage Status](https://coveralls.io/repos/github/sandeep-sandhu/NewsLookout/badge.svg?branch=main)](https://coveralls.io/github/sandeep-sandhu/NewsLookout?branch=main)
+![Build Status](https://github.com/sandeep-sandhu/NewsLookout/actions/workflows/python-app.yml/badge.svg) ![GitHub release](https://img.shields.io/github/v/release/sandeep-sandhu/NewsLookout.svg) [![Coverage Status](https://coveralls.io/repos/github/sandeep-sandhu/NewsLookout/badge.svg?branch=main)](https://coveralls.io/github/sandeep-sandhu/NewsLookout?branch=main) [![Pypi Release](https://img.shields.io/pypi/v/newslookout.svg?style=flat-square&label=PyPI)](https://pypi.org/project/newslookout/)
+[![Python Versions](https://img.shields.io/pypi/pyversions/newslookout.svg?style=flat-square&label=Python%20Versions)](https://pypi.org/project/newslookout/)
 
 
 ## Features
