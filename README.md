@@ -5,27 +5,31 @@ The application is readily extended by adding custom modules via its 'plugin' ar
 Plugins can be added for a variety of tasks, including - for scraping additional news sources, perform custom data pre-processing and run NLP based news text analytics such as - entity recognition, negative event classification, economy trends, industry trends, etc.
 
 
-![Build Status](https://github.com/sandeep-sandhu/NewsLookout/actions/workflows/python-app.yml/badge.svg) ![GitHub release](https://img.shields.io/github/v/release/sandeep-sandhu/NewsLookout.svg)
+![Build Status](https://github.com/sandeep-sandhu/NewsLookout/actions/workflows/python-app.yml/badge.svg) ![GitHub release](https://img.shields.io/github/v/release/sandeep-sandhu/NewsLookout.svg) [![Coverage Status](https://coveralls.io/repos/github/sandeep-sandhu/NewsLookout/badge.svg?branch=main)](https://coveralls.io/github/sandeep-sandhu/NewsLookout?branch=main)
+
 
 ## Features
 
 There already exist a number of python libraries for web-scraping, so why should you consider this application for web scraping news? The reason is that it has been specifically built for sourcing news and has several useful features. A few notable ones are:
 
 - [x] Multi-threaded for scraping several news sites in parallel
+- [x] Includes data processing pipeline configurable by defining the execution order of the data-processing plugins
+- [x] Performs data processing on multiple news/data in parallel to speed up processing for thousands of news items
+- [x] Extensible with custom plugins that can be rapidly written with minimal additional code to support additional news sources. Writing a new plugin does not need writing low level code to handle network traffic and HTTP protocols.
 - [x] Rigorously tested for the specific websites enabled in the plugins, handles several quirks and formatting problems caused by inconsistent and non-standard HTML code.
+- [x] Rigorous text cleaning tested for each of the sites implemented
 - [x] Reduces the network traffic and consequently webserver load by pausing between network requests. High traffic load are usually detected and blocked. The application reduces network traffic to avoid overloading the news web servers.
 - [x] Keeps track of failures and history of sites scraped to avoid re-visiting them again
 - [x] Completely configurable functionality
 - [x] Works with proxy servers
-- [x] Enterprise ready functionality - configurable event logging, segregation of data store, etc.
-- [x] Runnable without a frontend, as a daemon.
-- [x] Extensible with custom plugins that can be rapidly written with minimal additional code to support additional news sources. Writing a new plugin does not need writing low level code to handle network traffic and HTTP protocols.
-- [x] Rigorous text cleaning
-- [x] Builtin NLP support for keyword extraction and compute document similarity
-- [x] Text de-duplication using advanced NLP models
+- [x] Enterprise ready functionality - configurable event logging, segregation of data storage locations vs. program executables, minimum permissions to run the executable, etc.
+- [x] Runnable without a frontend, as a daemon service.
+- [x] Built-in NLP models for keyword extraction
+- [x] Text de-duplication using deep-learning NLP model
+- [x] Text tone classification using deep learning NLP model to indicate positive, neutral or negative news
 - [x] Extensible data processing plugins to customize the data processing required after web scraping
 - [x] Enables web-scraping news archives to get news from previous dates for establishing history for analysis
-- [x] Saves present state and resumes unfinished URLs if the application is shut-down midway during web scraping
+- [x] Saves the current session state and resumes downloading unfinished URLs in case the application is shut-down midway during web scraping
 
 
 ## Installation
@@ -50,6 +54,7 @@ Set these parameters in the configuration file.
 Download the spacy model using this command:
 > python -m spacy download en_core_web_lg
 
+Refer to the NLTK website on downloading the data - https://www.nltk.org/data.html. 
 For NLTK, download the following data:
   1. reuters
   1. universal_treebanks_v20
@@ -63,7 +68,7 @@ Either use the nltk downloader:
 
 Or else, manually download these from the source location - https://github.com/nltk/nltk_data/tree/gh-pages/packages
 
-If these are not installed to one of the standard locations, you will need to set the NLTK_DATA environment variable to specify the location of this NLTK data. Refer to the NLTK website on downloading the data - https://www.nltk.org/data.html.
+If these are not installed to one of the standard locations, you will need to set the NLTK_DATA environment variable to specify the location of this NLTK data.
 
 
 ## Configuration
@@ -88,7 +93,7 @@ This invokes the main method of the application and should be passed the two req
 For example:
 >     newslookout -c myconfigfile.conf -d 2020-01-01
 
-In addition to this, 2 scripts are provided for UNIX-like and Windows OS.
+In addition to this, a shell script has been provided for UNIX-like OS and a batch command script for Windows OS.
 For convenience, you may run these shell scripts to start the application, it automatically generates the current date and supplies it as an argument to the python application.
 Its best advised to run the scripts or command line by scheduling it via the UNIX cron scheduler or the Microsoft Windows Task Scheduler for automated scheduling for small setups.
 In large enterprise environments, batch job coordination software such as Ctrl-M, IBM Tivoli, or any job scheduling framework may be configured to run it for reliable and automated execution.
