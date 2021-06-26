@@ -38,9 +38,8 @@ jobs:
       run: |
         coverage run --source=src/ --branch -m pytest test/
         coverage report -m
-        ls -al /home/runner/work/NewsLookout/NewsLookout/
     - name: Coveralls GitHub Action
       uses: coverallsapp/github-action@v1.1.2
       with:
         github-token: ${{ secrets.GITHUB_TOKEN }}
-        path-to-lcov: ./coverage/lcov.info
+        path-to-lcov: .coverage
