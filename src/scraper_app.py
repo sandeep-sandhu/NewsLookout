@@ -86,13 +86,13 @@ class NewsLookout:
         print('Usage: newslookout -c <configuration file> -d <run date as YYYY-MM-dd>')
         sys.exit(1)
 
-    def readArgs(self):
+    def readArgs(self, sysargs):
         """ Read command line arguments and parse them
         """
         try:
-            if len(sys.argv) < 3:
+            if len(sysargs) < 3:
                 self.printUsageAndExit()
-            opts, args = getopt.getopt(sys.argv[1:], "h:c:d:", ["configfile = ", "rundate = "])
+            opts, args = getopt.getopt(sysargs[1:], "h:c:d:", ["configfile = ", "rundate = "])
             for opt, arg in opts:
                 if opt in ("-h", "--help"):
                     self.printUsageAndExit()
@@ -126,13 +126,15 @@ class NewsLookout:
         logging.info(f'Started retrieving data for run date: {self.run_date} ---')
         checkAndGetNLTKData()
         self.app_queue_manager.config(self.app_config)
+        # load and initialize all the plugins after everything has been configured.
+        self.app_queue_manager.initPlugins()
         self.app_queue_manager.runAllJobs()
         self.app_queue_manager.finishAllTasks()
 
-    def config(self):
-        self.readArgs()
+    def config(self, sys_argv):
+        self.readArgs(sys_argv)
         # initialise the queue manager:
-        print(f'Run date: {app_inst.run_date}')
+        print(f'Run date: {self.run_date}')
         self.app_queue_manager = QueueManager()
         # read and setup the configuration:
         print(f'Reading configuration from: {self.config_file}')
@@ -160,15 +162,15 @@ class NewsLookout:
 
     def remove_pid_file(self):
         # After completion of run(), close down everything, remove the pid file:
-        if os.path.isfile(app_inst.app_config.pid_file):
+        if os.path.isfile(self.app_config.pid_file):
             try:
-                os.remove(app_inst.app_config.pid_file)
+                os.remove(self.app_config.pid_file)
             except Exception as e:
-                logging.error("Error deleting PID file %s: %s", app_inst.app_config.pid_file, e)
+                logging.error("Error deleting PID file %s: %s", self.app_config.pid_file, e)
                 sys.exit(1)
         else:
             logging.info("PID file %s does not exist, so unable to delete it when shutting down.",
-                         app_inst.app_config.pid_file)
+                         self.app_config.pid_file)
 
     def setupLogger(self):
         # setup logger with DEBUG level as default
@@ -202,7 +204,7 @@ def main():
     global app_inst
     # instantiate the main application class
     app_inst = NewsLookout()
-    app_inst.config()
+    app_inst.config(sys.argv)
 
     app_inst.set_pid_file()
     print(f'Using PID file: {app_inst.app_config.pid_file}')

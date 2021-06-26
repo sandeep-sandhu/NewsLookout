@@ -134,10 +134,6 @@ class QueueManager:
             self
             )
         self.sessionHistoryDB.printDBStats()
-        # self.sessionHistoryDB.setDataProcInputQueue(self.dataProcQueue)
-        # self.sessionHistoryDB.setDataProcOutputQueue(self.dataProcCompletedQueue)
-        # load and initialize all the plugins after everything has been configured.
-        self.initPlugins()
 
     def getFetchResultFromQueue(self, block=True, timeout=30):
         resultObj = self.fetchCompletedQueue.get(block=block,
