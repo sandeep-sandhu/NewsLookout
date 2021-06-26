@@ -30,12 +30,15 @@
 import sys
 import os
 
-parentFolder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+testfolder = os.path.dirname(os.path.realpath(__file__))
+parentFolder = os.path.dirname(testfolder)
 sourceFolder = os.path.join(parentFolder, 'src')
 sys.path.append(sourceFolder)
 sys.path.append(os.path.join(sourceFolder, 'plugins'))
 sys.path.append(os.path.join(sourceFolder, 'plugins_contrib'))
 
 os.chdir(parentFolder)
+
+__version__ = '1.9.9'
 
 # end of file #

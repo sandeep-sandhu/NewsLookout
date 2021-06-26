@@ -33,24 +33,75 @@
 # import standard python libraries:
 import sys
 import os
+import logging
+from datetime import datetime
 
 # ###################################
 
-
-def test_appInit():
-    # parentFolder = '..\\'
-    parentFolder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+def getMockAppInstance():
+    testfolder = os.path.dirname(os.path.realpath(__file__))
+    parentFolder = os.path.dirname(testfolder)
     sourceFolder = os.path.join(parentFolder, 'src')
     sys.path.append(sourceFolder)
 
     from scraper_app import NewsLookout
+    mock_sys_argv = ['python.exe', '-c', os.path.join(parentFolder, 'conf', 'newslookout_win.conf'),
+                     '-d', '2021-06-10']
+    # instantiate the main application class
     app_inst = NewsLookout()
-    print('Uninitialised app_config =', app_inst.app_config)
-    assert app_inst.app_config == None, 'Main app default config is not set to None'
+    app_inst.config(mock_sys_argv)
+    return(app_inst)
 
+def test_appInitRunDate():
+    app_inst = getMockAppInstance()
+    print('Initialised application config =', app_inst.app_config)
+    assert app_inst.app_config.rundate == datetime.strptime('2021-06-10', '%Y-%m-%d'), 'The rundate not set correctly'
+
+def test_appInitConfigFile():
+    app_inst = getMockAppInstance()
+    print('Initialised application config =', app_inst.app_config)
+    assert app_inst.app_config.config_file.endswith(os.path.join('conf', 'newslookout_win.conf')), 'The config file was not setup correctly'
+
+def test_isqueuemanager_initialised():
+    from queue_manager import QueueManager
+    app_inst = getMockAppInstance()
+    assert isinstance(app_inst.app_queue_manager, QueueManager), 'The queue manager was not initialised correctly'
+
+def test_isqueuemanager_config():
+    app_inst = getMockAppInstance()
+    app_inst.app_queue_manager.config(app_inst.app_config)
+    from session_hist import SessionHistory
+    assert isinstance(app_inst.app_queue_manager.sessionHistoryDB, SessionHistory),\
+        'The session history was not initialised correctly'
+
+def test_fetchCycleTime_config():
+    app_inst = getMockAppInstance()
+    app_inst.app_queue_manager.config(app_inst.app_config)
+    assert app_inst.app_queue_manager.fetchCycleTime > 60, 'Queue manager: fetchCycleTime was not configured correctly.'
+
+def test_pidfile_add():
+    app_inst = getMockAppInstance()
+    app_inst.remove_pid_file()
+    app_inst.set_pid_file()
+    assert os.path.isfile(app_inst.app_config.pid_file)==True, 'The PID file was not created.'
+    app_inst.remove_pid_file()
+
+def test_pidfile_remove():
+    app_inst = getMockAppInstance()
+    app_inst.set_pid_file()
+    app_inst.remove_pid_file()
+    assert os.path.isfile(app_inst.app_config.pid_file)==False, 'The PID file was not removed.'
+
+def checkModLoaded():
+    # TODO: implement this
+    pass
+    # app_inst.app_queue_manager.initPlugins()
+    # isinstance(app_inst.app_queue_manager.pluginNameToObjMap, dict)
+    #testMod = app_inst.app_queue_manager.pluginNameToObjMap['mod_in_gdelt']
 
 if __name__ == "__main__":
     # run all tests
-    test_appInit()
+    test_appInitRunDate()
+    test_appInitConfigFile()
 
 # end of file
