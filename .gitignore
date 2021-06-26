@@ -1,0 +1,18 @@
+# ignore any logs
+*.log
+.coverage
+.coveragerc
+.pydevproject
+.project
+# ignore following directories:
+coverage_report
+dist
+build
+temp
+logs
+NewsLookout.egg-info
+# ignore batch scripts:
+make_build.cmd
+run_flake8_pytest.cmd
+upload-to-pypi.cmd
+run_scraper_multiple_dates.cmd
