@@ -45,7 +45,7 @@ def getMockAppInstance():
     sys.path.append(sourceFolder)
 
     from scraper_app import NewsLookout
-    mock_sys_argv = ['python.exe', '-c', os.path.join(parentFolder, 'conf', 'newslookout_win.conf'),
+    mock_sys_argv = ['python.exe', '-c', os.path.join(parentFolder, 'conf', 'newslookout.conf'),
                      '-d', '2021-06-10']
     # instantiate the main application class
     app_inst = NewsLookout()
@@ -59,8 +59,8 @@ def test_appInitRunDate():
 
 def test_appInitConfigFile():
     app_inst = getMockAppInstance()
-    print('Initialised application config =', app_inst.app_config)
-    assert app_inst.app_config.config_file.endswith(os.path.join('conf', 'newslookout_win.conf')), 'The config file was not setup correctly'
+    print('Initialised application config file =', app_inst.app_config.config_file)
+    assert app_inst.app_config.config_file.endswith('newslookout.conf'), 'The config file was not setup correctly'
 
 def test_isqueuemanager_initialised():
     from queue_manager import QueueManager
