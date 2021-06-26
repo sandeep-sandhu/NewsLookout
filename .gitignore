@@ -6,9 +6,11 @@
 .project
 # ignore following directories:
 coverage_report
+htmlcov
 dist
 build
 temp
+test-data
 logs
 NewsLookout.egg-info
 # ignore batch scripts:
