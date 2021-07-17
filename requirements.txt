@@ -11,6 +11,8 @@ urllib3
 enlighten
 numpy
 spacy
+torch
+pytorch_pretrained_bert
 sklearn
 numpy
 openpyxl
