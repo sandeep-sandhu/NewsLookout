@@ -137,7 +137,7 @@ def test_fetchDataFromURL():
     assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
     assert resultVal.publishDate == '2021-07-08', 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.textSize == 7374, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.savedDataFileName == './data\\2021-07-08\\mod_en_in_forbes_73837853', \
+    assert resultVal.savedDataFileName == os.path.join('./data', '2021-07-08', 'mod_en_in_forbes_73837853'), \
         'fetchDataFromURL() not saving parsed data correctly.'
     assert len(resultVal.additionalLinks) == 111, 'fetchDataFromURL() not extracting additional links correctly.'
     if os.path.isfile(resultVal.savedDataFileName + ".json"):

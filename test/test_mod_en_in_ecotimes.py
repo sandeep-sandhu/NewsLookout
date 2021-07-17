@@ -121,7 +121,7 @@ def test_fetchDataFromURL():
     assert resultVal.publishDate == '2020-02-01', 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.articleID == '73837853', 'fetchDataFromURL() not identifying unique ID correctly.'
     assert resultVal.textSize == 2687, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.savedDataFileName == './data\\2020-02-01\\mod_en_in_ecotimes_73837853', \
+    assert resultVal.savedDataFileName == os.path.join('./data', '2020-02-01', 'mod_en_in_ecotimes_73837853'), \
         'fetchDataFromURL() not saving parsed data correctly.'
     assert len(resultVal.additionalLinks) == 40, 'fetchDataFromURL() not extracting additional links correctly.'
     if os.path.isfile(resultVal.savedDataFileName + ".json"):
