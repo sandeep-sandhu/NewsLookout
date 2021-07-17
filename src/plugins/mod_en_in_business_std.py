@@ -141,8 +141,9 @@ class mod_en_in_business_std(BasePlugin):
     invalidTextStrings = ['Support quality journalism and subscribe to Business Standard',
                           'Business Standard has always strived hard to provide up-to-date information'
                           ]
-    subStringsToFilter = ['(Only the headline and picture of this report may have been reworked by the Business Standard' +
-                          ' staff; the rest of the content is auto-generated from a syndicated feed.)']
+    subStringsToFilter = ['(Only the headline and picture of this report may have been reworked' +
+                          ' by the Business Standard staff;' +
+                          ' the rest of the content is auto-generated from a syndicated feed.)']
     allowedDomains = ['www.business-standard.com']
 
     articleIndustryRegexps = []

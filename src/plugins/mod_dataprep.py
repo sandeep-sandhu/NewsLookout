@@ -76,16 +76,21 @@ class mod_dataprep(BasePlugin):
         :param newsEventObj: The NewsEvent object to be processed.
         :type dataObj: NewsEvent
         """
-        runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')
-        logger.info("Started data pre-processing for news event data in: %s for date: %s",
-                    newsEventObj.getFileName(), runDate)
-        newsEventObj.setText(
-            self.cleanText(newsEventObj.getText())
-            )
-        # prepare filename:
-        fileNameWOExt = newsEventObj.getFileName().replace('.json','')
-        # save document to file:
-        newsEventObj.writeFiles(fileNameWOExt, '', saveHTMLFile=False)
+        try:
+            assert type(newsEventObj) == NewsEvent
+            # TODO: lock file to avoid conflicting writes, release lock at the end of the method
+            runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')
+            logger.debug("Started data pre-processing for news event data in: %s for date: %s",
+                         newsEventObj.getFileName(), runDate)
+            newsEventObj.setText(
+                self.cleanText(newsEventObj.getText())
+                )
+            # prepare filename:
+            fileNameWOExt = newsEventObj.getFileName().replace('.json', '')
+            # save document to file:
+            newsEventObj.writeFiles(fileNameWOExt, '', saveHTMLFile=False)
+        except Exception as e:
+            logger.error(f'Error processing data: {e}')
 
     def cleanText(self, inputText):
         """
@@ -97,7 +102,7 @@ class mod_dataprep(BasePlugin):
         :rtype: str
         """
         # TODO: apply text cleaning logic
-        outputText = inputText
+        outputText = inputText.strip()
         return(outputText)
 
 # # end of file ##

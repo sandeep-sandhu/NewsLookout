@@ -56,7 +56,7 @@ class mod_en_in_inexp_business(BasePlugin):
 
     mainURL = 'https://www.newindianexpress.com/business/'
 
-    all_rss_feeds = ["https://www.newindianexpress.com/Nation/rssfeed/?id=170&getXmlFeed=true"]
+    all_rss_feeds = ["https://www.newindianexpress.com/Nation/rssfeed/?id=170"]
 
     # fetch only URLs containing the following substrings:
     validURLStringsToCheck = ['https://www.newindianexpress.com/nation/',
@@ -65,7 +65,8 @@ class mod_en_in_inexp_business(BasePlugin):
                               'https://www.newindianexpress.com/world/',
                               'https://indianexpress.com/']
 
-    nonContentStrings = ['https://www.newindianexpress.com/opinions/']
+    nonContentStrings = ['www.newindianexpress.com/opinions/',
+                         'www.newindianexpress.com/business']
 
     # get URL links from these URLs but done fetch content from them:
     nonContentURLs = ['https://www.newindianexpress.com/opinions/editorials',

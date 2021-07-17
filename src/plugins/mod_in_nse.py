@@ -44,7 +44,7 @@ import requests
 
 # import this project's python libraries:
 from base_plugin import BasePlugin
-from scraper_utils import getPreviousDaysDate, calculateCRC32
+from scraper_utils import getPreviousDaysDate
 from data_structs import Types, ExecutionResult
 from news_event import NewsEvent
 
@@ -64,16 +64,17 @@ class mod_in_nse(BasePlugin):
     mainURL = 'https://www1.nseindia.com/archives/equities/bhavcopy/pr/PR'
     mainURL_suffix = ".zip"
 
-    masterData = {'mod_in_nse_EQUITY_L.csv': 'https://archives.nseindia.com/content/equities/EQUITY_L.csv',
-                  'mod_in_nse_SME_EQUITY_L.csv': 'https://archives.nseindia.com/emerge/corporates/content/SME_EQUITY_L.csv',
-                  'mod_in_nse_eq_etfseclist.csv': 'https://archives.nseindia.com/content/equities/eq_etfseclist.csv',
-                  'mod_in_nse_PREF.csv': 'https://archives.nseindia.com/content/equities/PREF.csv',
-                  'mod_in_nse_namechange.csv': 'https://archives.nseindia.com/content/equities/namechange.csv',
-                  'mod_in_nse_symbolchange.csv': 'https://archives.nseindia.com/content/equities/symbolchange.csv',
-                  'mod_in_nse_WARRANT.csv': 'https://archives.nseindia.com/content/equities/WARRANT.csv',
-                  'mod_in_nse_DEBT.csv': 'https://archives.nseindia.com/content/equities/DEBT.csv',
-                  'mod_in_nse_Redmn_Def_Web.csv': 'https://archives.nseindia.com/content/debt/Redmn_Def_Web.csv'
-                  }
+    masterData = {
+        'mod_in_nse_EQUITY_L.csv': 'https://archives.nseindia.com/content/equities/EQUITY_L.csv',
+        'mod_in_nse_SME_EQUITY_L.csv': 'https://archives.nseindia.com/emerge/corporates/content/SME_EQUITY_L.csv',
+        'mod_in_nse_eq_etfseclist.csv': 'https://archives.nseindia.com/content/equities/eq_etfseclist.csv',
+        'mod_in_nse_PREF.csv': 'https://archives.nseindia.com/content/equities/PREF.csv',
+        'mod_in_nse_namechange.csv': 'https://archives.nseindia.com/content/equities/namechange.csv',
+        'mod_in_nse_symbolchange.csv': 'https://archives.nseindia.com/content/equities/symbolchange.csv',
+        'mod_in_nse_WARRANT.csv': 'https://archives.nseindia.com/content/equities/WARRANT.csv',
+        'mod_in_nse_DEBT.csv': 'https://archives.nseindia.com/content/equities/DEBT.csv',
+        'mod_in_nse_Redmn_Def_Web.csv': 'https://archives.nseindia.com/content/debt/Redmn_Def_Web.csv'
+        }
     master_data_dir = None
     masterDataExtractedFlag = False
 
@@ -99,12 +100,13 @@ class mod_in_nse(BasePlugin):
         """
         self.pledgesDataExtractedFlag = False
         self.count_history_to_fetch = 1
+        self.pluginState = Types.STATE_GET_URL_LIST
         super().__init__()
 
     def getURLsListForDate(self, runDate, sessionHistoryDB):
         """ Retrieve the URLs List For a given Date
         """
-        self.listOfURLS = []
+        listOfURLS = []
         try:
             # set dates for retrieval based on recursion level in configuration file:
             if self.app_config.recursion_level == 2:
@@ -121,15 +123,15 @@ class mod_in_nse(BasePlugin):
                 # decrement dates one by one
                 businessDate = getPreviousDaysDate(businessDate)
                 urlForDate = self.mainURL + businessDate.strftime("%d%m%y") + self.mainURL_suffix
-                self.listOfURLS.append(urlForDate)
+                listOfURLS.append(urlForDate)
             # remove already retrieved URLs:
-            self.listOfURLS = sessionHistoryDB.removeAlreadyFetchedURLs(self.listOfURLS, self.pluginName)
-            self.addURLsListToQueue(self.listOfURLS)
+            listOfURLS = sessionHistoryDB.removeAlreadyFetchedURLs(listOfURLS, self.pluginName)
             logger.info("Total count of valid articles to be retrieved = %s for business date: %s",
-                        self.getQueueSize(), businessDate.strftime("%Y-%m-%d"))
+                        len(listOfURLS), businessDate.strftime("%Y-%m-%d"))
         except Exception as e:
             logger.error("Error trying to retrieve URL list at recursion level %s: %s",
                          self.app_config.recursion_level, e)
+        return(listOfURLS)
 
     def fetchDataFromURL(self, uRLtoFetch, WorkerID):
         """ Fetch data From given URL
@@ -174,7 +176,10 @@ class mod_in_nse(BasePlugin):
                     logger.debug("Wrote %s bytes to file: %s", n, fullPathName)
                     fp.close()
                 # save master data:
-                sizeOfDataDownloaded = self.fetchMasterData(uRLtoFetch, self.master_data_dir, WorkerID, sizeOfDataDownloaded)
+                sizeOfDataDownloaded = self.fetchMasterData(uRLtoFetch,
+                                                            self.master_data_dir,
+                                                            WorkerID,
+                                                            sizeOfDataDownloaded)
                 # save pledges data:
                 # sizeOfDataDownloaded = sizeOfDataDownloaded + self.fetchPledgesData(self.master_data_dir, publishDate)
                 uncompressSize = self.parseFetchedData(str(publishDate.strftime("%Y%m%d")),
@@ -249,7 +254,8 @@ class mod_in_nse(BasePlugin):
             if self.pledgesDataExtractedFlag is False:
                 with requests.Session() as sess:
                     sess.proxies.update(self.app_config.proxies)
-                    sess.headers.update({'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="90", "Microsoft Edge";v="90"'})
+                    sess.headers.update({'sec-ch-ua': '" Not A;Brand";v="99", "Chromium";v="90",' +
+                                                      '"Microsoft Edge";v="90"'})
                     sess.headers.update({'sec-ch-ua-mobile': '?0'})
                     sess.headers.update({'Sec-Fetch-Dest': 'empty'})
                     sess.headers.update({'Sec-Fetch-Site': 'none'})
@@ -268,12 +274,11 @@ class mod_in_nse(BasePlugin):
                     if httpsResp is not None:
                         with open(pledgesPathName, 'wb') as fp:
                             nFileWriteBytesCount = fp.write(httpsResp.content)
-                            logger.debug("Wrote %s bytes data to pledges file: %s", nFileWriteBytesCount, pledgesPathName)
+                            logger.debug(f"Wrote {nFileWriteBytesCount} bytes data to pledges file: {pledgesPathName}")
                             fp.close()
                     self.pledgesDataExtractedFlag = True
             else:
-                logger.info("Already downloaded the pledges data as of date %s, hence, not repeating download.",
-                            publishDateStr)
+                logger.info(f"Already downloaded the pledges data as of date {publishDateStr}, hence not repeating.")
         except Exception as e:
             logger.error("Error saving pledges data: %s", e)
         return(nFileWriteBytesCount)

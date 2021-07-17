@@ -164,7 +164,6 @@ class mod_en_in_timesofindia(BasePlugin):
     allowedDomains = ["timesofindia.indiatimes.com"]
     listOfURLS = []
     uRLdata = dict()
-    urlMatchPatterns = []
 
     def __init__(self):
         """ Initialize the object
@@ -181,6 +180,7 @@ class mod_en_in_timesofindia(BasePlugin):
                  data-articlemsid="143505"
         """
         uniqueString = ""
+        result = None
         crcValue = "zzz-zzz-zzz"
         try:
             # calculate CRC string if url are not usable:
@@ -194,7 +194,10 @@ class mod_en_in_timesofindia(BasePlugin):
         if len(htmlContent) > self.minArticleLengthInChars:
             uniquePattern = re.compile(r"(data\-articlemsid=\")([0-9]{3,})(\")")
             try:
-                result = uniquePattern.search(htmlContent.decode('UTF-8'))
+                if type(htmlContent) == str:
+                    result = uniquePattern.search(htmlContent)
+                elif type(htmlContent) == bytes:
+                    result = uniquePattern.search(htmlContent.decode('UTF-8'))
                 if result is not None:
                     uniqueString = result.group(2)
             except Exception as e:
@@ -223,7 +226,6 @@ class mod_en_in_timesofindia(BasePlugin):
                 paragraphs = body_root[0].find_all("p")
                 for para in paragraphs:
                     for child in para.children:
-                        print(child)
                         body_text = body_text + child.strip()
         except Exception as e:
             logger.error("Error extracting article content: %s", e)
@@ -260,15 +262,13 @@ class mod_en_in_timesofindia(BasePlugin):
         """ Check and clean article text
         """
         cleanedText = inputText
-        invalidFlag = False
         try:
+            # ignore the newspaper extracted text, the alternate method text is more accurate:
+            cleanedText = self.extractArticleBody(rawData)
             for badString in self.invalidTextStrings:
                 if cleanedText.find(badString) >= 0:
                     logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
-                    invalidFlag = True
-            # check if article content is not valid or is too little
-            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
-                cleanedText = self.extractArticleBody(rawData)
+                    return(None)
             # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
             cleanedText = filterRepeatedchars(cleanedText,
                                               deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))

@@ -95,7 +95,8 @@ class mod_en_in_trak(BasePlugin):
                       'https://trak.in/Tags/Business/category/india-business-opportunities-services-making-money/news/',
                       'https://trak.in/Tags/Business/category/india-business-opportunities-services-making-money/' +
                       'indi-business-news-everything-you-want-to-know-about-india/',
-                      'https://trak.in/Tags/Business/category/india-business-opportunities-services-making-money/aviation-2/',
+                      'https://trak.in/Tags/Business/category/india-business-opportunities-services-making-money/' +
+                      'aviation-2/',
                       'https://trak.in/Tags/Business/category/india-business-opportunities-services-making-money/auto/',
                       'https://trak.in/Tags/Business/category/buzzing-indian-news/',
                       'https://trak.in/disclaimer/'
@@ -140,7 +141,7 @@ class mod_en_in_trak(BasePlugin):
         super().__init__()
 
     # Special function for this plugin
-    def extractUniqueIDFromContent(self, htmlContent, URLToFetch):
+    def extractUniqueIDFromContent(self, htmlContent: str, URLToFetch: str) -> str:
         """ Identify Unique ID From content
         Pattern: <link rel='shortlink' href='https://trak.in/?p=119415' />
         """
@@ -197,8 +198,8 @@ class mod_en_in_trak(BasePlugin):
                          industryPattern)
         return(industries)
 
-    def extractAuthors(self, htmlText):
-        """ extract the author from the html content
+    def extractAuthors(self, htmlText: str) -> list:
+        """ Extract the author from the html content
         """
         authors = []
         authorStr = ""
@@ -218,7 +219,7 @@ class mod_en_in_trak(BasePlugin):
                              e, authorStr, self.URLToFetch)
         return(authors)
 
-    def extractArticleBody(self, htmlContent):
+    def extractArticleBody(self, htmlContent: str) -> str:
         """ extract the text body of the article
         """
         body_text = ""
@@ -226,7 +227,7 @@ class mod_en_in_trak(BasePlugin):
             htmlContent = htmlContent.decode('UTF-8')
         return(body_text)
 
-    def checkAndCleanText(self, inputText, rawData):
+    def checkAndCleanText(self, inputText: str, htmlContent: str) -> str:
         """ Check and clean article text
         """
         cleanedText = inputText
@@ -238,7 +239,7 @@ class mod_en_in_trak(BasePlugin):
                     invalidFlag = True
             # check if article content is not valid or is too little
             if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
-                cleanedText = self.extractArticleBody(rawData)
+                cleanedText = self.extractArticleBody(htmlContent)
             # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
             cleanedText = filterRepeatedchars(cleanedText,
                                               deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))

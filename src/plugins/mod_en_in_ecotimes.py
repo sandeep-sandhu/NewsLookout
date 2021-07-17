@@ -84,8 +84,8 @@ class mod_en_in_ecotimes(BasePlugin):
     # never fetch URLs containing these strings:
     invalidURLSubStrings = ['//www.indiatimes.com/',
                             '//timesofindia.indiatimes.com/',
-                            '//economictimes.indiatimes.com/et-search/',
-                            '//economictimes.indiatimes.com/hindi',
+                            'economictimes.indiatimes.com/et-search/',
+                            'economictimes.indiatimes.com/hindi',
                             '/videoshow/',
                             '/slideshow/',
                             '/podcast/',
@@ -98,12 +98,70 @@ class mod_en_in_ecotimes(BasePlugin):
                             '/slideshowlist/',
                             '/news/elections/',
                             'www.facebook.com/',
-                            'economictimes.indiatimes.com/privacyacceptance.cms'
+                            'twitter.com/',
+                            'www.linkedin.com/',
+                            'economictimes.indiatimes.com/privacyacceptance.cms',
+                            'https://www.punemirror.in/',
+                            'https://www.bangaloremirror.com/',
+                            'https://www.ahmedabadmirror.com/',
+                            'http://www.itsmyascent.com/',
+                            'https://www.educationtimes.com/',
+                            'https://brandcapital.co.in/',
+                            'https://www.mumbaimirror.com/',
+                            'https://www.timesnow.tv/',
+                            'https://www.indiatimes.com/',
+                            'https://maharashtratimes.indiatimes.com/',
+                            'https://vijaykarnataka.indiatimes.com/',
+                            'https://gogreenindia.co.in',
+                            'http://www.adageindia.in/',
+                            'https://eisamay.indiatimes.com/',
+                            'https://in.ign.com/',
+                            'https://www.iamgujarat.com/',
+                            'https://timesofindia.indiatimes.com/',
+                            'https://tamil.samayam.com/',
+                            'https://telugu.samayam.com/',
+                            'https://www.misskyra.com/',
+                            'https://www.bombaytimes.com/',
+                            'https://www.filmipop.com/',
+                            'https://www.mxplayer.in/',
+                            'https://subscribe.timesgroup.com/subscription',
+                            'https://timesprime.com/',
+                            'https://www.colombiaonline.com/',
+                            'https://navbharattimes.indiatimes.com/navbharatgold',
+                            'https://eisamay.indiatimes.com/eisamaygold',
+                            'https://mxsharekaro.onelink.me/xABK/8feed773',
+                            'https://mxtakatak.onelink.me/vQZT/c3a98cd2',
+                            'http://www.timesinternet.in',
+                            'https://economictimes.indiatimes.com/plans.cms?utm_source=economictimes.indiatimes.com' +
+                            '&utm_medium=Footer&utm_campaign=ETPrimedistribution',
+                            'https://www.ads.timesinternet.in/expresso/selfservice/loginSelfService.htm',
+                            'http://advertise.indiatimes.com/',
+                            'https://longwalks.onelink.me/OzWN/longwalksapp',
+                            'https://www.facebook.com/EconomicTimes',
+                            'https://twitter.com/economictimes',
+                            'https://www.linkedin.com/company/economictimes',
+                            'http://itunes.apple.com/us/app/the-economic-times/id474766725?ls=1&t=8apple.com/us',
+                            'http://timescontent.com/',
+                            'https://www.mediawire.in',
+                            'https://economictimes.indiatimes.com/subscription',
+                            'http://epaperlive.timesofindia.com/',
+                            'https://www.coursera.org/?intenttarget=no&utm_source=ET&utm_medium=TIL&' +
+                            'utm_campaign=More_Nav',
+                            'http://www.etintelligence.com/etig/login/home.jsp',
+                            'https://market.android.com/details?id=com.et.reader.activities',
+                            'http://itunes.apple.com/us/app/the-economic-times/id474766725?ls=1&mt=8',
+                            'http://itunes.apple.com/us/app/the-economic-times-for-ipad/id479227473?ls=1&mt=8',
+                            'https://play.google.com/store/apps/details?id=com.et.wealth&hl=en',
+                            'http://appworld.blackberry.com/webstore/content/54009?lang=en',
+                            'http://store.ovi.com/content/243333',
+                            'https://play.google.com/store/apps/details?id=com.et.market&hl=en',
+                            'https://itunes.apple.com/in/app/et-markets/id895812527?mt=8'
                             ]
 
     # get URL links from URLs containing these strings, but don't fetch content from them:
     nonContentStrings = ['economictimes.indiatimes.com/marketstats/pid-',
                          '/indexsummary/indexid-',
+                         'economictimes.indiatimes.com/commoditysummary/'
                          'economictimes.indiatimes.com/news/elections/',
                          'economictimes.indiatimes.com/primearticlelist/',
                          '/articlelist/',
@@ -120,12 +178,13 @@ class mod_en_in_ecotimes(BasePlugin):
                       'https://economictimes.indiatimes.com/etlatestnews.cms?track404=1',
                       'https://economictimes.indiatimes.com/mostcommented.cms?track404=1',
                       'https://economictimes.indiatimes.com/mostemailed.cms?track404=1',
-                      'https://economictimes.indiatimes.com/marketstats/'
-                      + 'duration-1d,marketcap-largecap,pageno-1,pid-0,sort-intraday,sortby-percentchange,sortorder-desc.cms',
-                      'https://economictimes.indiatimes.com/marketstats/'
-                      + 'pid-40,exchange-nse,sortby-value,sortorder-desc.cms',
-                      'https://economictimes.indiatimes.com/marketstats/'
-                      + 'pid-0,pageno-1,sortby-percentchange,sortorder-desc,sort-intraday.cms',
+                      'https://economictimes.indiatimes.com/marketstats/' +
+                      'duration-1d,marketcap-largecap,pageno-1,pid-0,sort-intraday,sortby-percentchange,' +
+                      'sortorder-desc.cms',
+                      'https://economictimes.indiatimes.com/marketstats/' +
+                      'pid-40,exchange-nse,sortby-value,sortorder-desc.cms',
+                      'https://economictimes.indiatimes.com/marketstats/' +
+                      'pid-0,pageno-1,sortby-percentchange,sortorder-desc,sort-intraday.cms',
                       'https://economictimes.indiatimes.com/topic/restrictions',
                       'https://economictimes.indiatimes.com/topic/Indian-equity-market',
                       'https://economictimes.indiatimes.com/et500',
@@ -281,7 +340,8 @@ class mod_en_in_ecotimes(BasePlugin):
                       'https://economictimes.indiatimes.com/industry/indl-goods/svs/chem-/-fertilisers',
                       'https://economictimes.indiatimes.com/industry/indl-goods/svs/metals-mining',
                       'https://economictimes.indiatimes.com/industry/indl-goods/svs/packaging',
-                      'https://economictimes.indiatimes.com/industry/indl-goods/svs/paper-/-wood-/-glass/-plastic/-marbles',
+                      'https://economictimes.indiatimes.com/industry/indl-goods/svs/' +
+                      'paper-/-wood-/-glass/-plastic/-marbles',
                       'https://economictimes.indiatimes.com/industry/indl-goods/svs/petrochem',
                       'https://economictimes.indiatimes.com/industry/indl-goods/svs/steel',
                       'https://economictimes.indiatimes.com/industry/healthcare-/-biotech/biotech',
@@ -315,7 +375,106 @@ class mod_en_in_ecotimes(BasePlugin):
                       'https://timesofindia.indiatimes.com/blogs/author/manoj-joshi/',
                       'https://timesofindia.indiatimes.com/blogs/author/vinitadawranangia/',
                       'https://timesofindia.indiatimes.com/blogs/author/chetanbhagat/',
-                      'https://timesofindia.indiatimes.com/blogs/author/ruchirsharma/'
+                      'https://timesofindia.indiatimes.com/blogs/author/ruchirsharma/',
+                      'https://auto.economictimes.indiatimes.com',
+                      'https://b2b.economictimes.indiatimes.com',
+                      'https://bfsi.economictimes.indiatimes.com',
+                      'https://brandequity.economictimes.indiatimes.com',
+                      'https://cfo.economictimes.indiatimes.com',
+                      'https://cio.economictimes.indiatimes.com',
+                      'https://ciso.economictimes.indiatimes.com',
+                      'https://economictimes.indiatimes.com/codeofconduct.cms',
+                      'https://economictimes.indiatimes.com/prime?' +
+                      'utm_source=economictimes.indiatimes.com&utm_medium=footer&utm_campaign=ETPrimedistribution',
+                      'https://economictimes.indiatimes.com/privacyacceptance.cms',
+                      'https://economictimes.indiatimes.com/privacypolicy.cms',
+                      'https://economictimes.indiatimes.com/rss.cms',
+                      'https://economictimes.indiatimes.com/terms-conditions',
+                      'https://energy.economictimes.indiatimes.com',
+                      'https://government.economictimes.indiatimes.com',
+                      'https://health.economictimes.indiatimes.com',
+                      'https://hospitality.economictimes.indiatimes.com',
+                      'https://hr.economictimes.indiatimes.com',
+                      'https://infra.economictimes.indiatimes.com',
+                      'https://legal.economictimes.indiatimes.com',
+                      'https://realty.economictimes.indiatimes.com',
+                      'https://realty.economictimes.indiatimes.com/',
+                      'https://realty.economictimes.indiatimes.com/cookie_policy.php',
+                      'https://realty.economictimes.indiatimes.com/eu/privacy_policy.php',
+                      'https://realty.economictimes.indiatimes.com/news/commercial',
+                      'https://realty.economictimes.indiatimes.com/news/hospitality',
+                      'https://realty.economictimes.indiatimes.com/news/regulatory'
+                      'https://realty.economictimes.indiatimes.com/news/residential',
+                      'https://realty.economictimes.indiatimes.com/news/retail',
+                      'https://realty.economictimes.indiatimes.com/privacy_policy.php',
+                      'https://realty.economictimes.indiatimes.com/terms_conditions.php',
+                      'https://retail.economictimes.indiatimes.com',
+                      'https://tech.economictimes.indiatimes.com',
+                      'https://telecom.economictimes.indiatimes.com',
+                      'https://travel.economictimes.indiatimes.com',
+                      'https://economictimes.indiatimes.com/spotlight/etceoroundtable',
+                      'https://economictimes.indiatimes.com/spotlight/nightofideas.cms',
+                      'https://economictimes.indiatimes.com/spotlight/ibmreshapetomorrow',
+                      'https://economictimes.indiatimes.com/spotlight/digitalpaymentsforum.cms',
+                      'https://economictimes.indiatimes.com/spotlight/etstartupawards.cms',
+                      'https://economictimes.indiatimes.com/spotlight/corninggorillaglass.cms',
+                      'https://economictimes.indiatimes.com/etcampusstars',
+                      'https://economictimes.indiatimes.com/spotlight/tyho',
+                      'https://economictimes.indiatimes.com/spotlight/etpwla2020/home',
+                      'https://economictimes.indiatimes.com/spotlight/etboardroom?utm_source=web&utm_medium=referral&' +
+                      'utm_campaign=know_more',
+                      'https://economictimes.indiatimes.com/markets/stocks',
+                      'https://economictimes.indiatimes.com/markets/stocks/news',
+                      'https://economictimes.indiatimes.com/markets/stocks/recos',
+                      'https://economictimes.indiatimes.com/markets/stocks/stock-screener',
+                      'https://economictimes.indiatimes.com/markets/expert-view',
+                      'https://economictimes.indiatimes.com/markets/commodities/views',
+                      'https://economictimes.indiatimes.com/markets/commodities/news',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-SILVERMIC.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-GOLDM.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-GOLD.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-SILVERM.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-GOLDPETAL.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-GOLDGUINEA.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-SILVER.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-MENTHAOIL.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-NATURALGAS.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-CRUDEOIL.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-CPO.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-CASTORSEED.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-PEPPER.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-CARDAMOM.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-COTTON.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-RUBBER.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-KAPAS.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-COPPER.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-ZINC.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-LEAD.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-NICKEL.cms',
+                      'https://economictimes.indiatimes.com/commoditysummary/symbol-ALUMINIUM.cms',
+                      'https://economictimes.indiatimes.com/markets/forex/currency-converter',
+                      'https://economictimes.indiatimes.com/mutual-fund-screener/top-tax-saver-funds',
+                      'https://economictimes.indiatimes.com/mutual-fund-screener/better-than-fixed-deposits',
+                      'https://economictimes.indiatimes.com/mutual-fund-screener/low-cost-high-return',
+                      'https://economictimes.indiatimes.com/mutual-fund-screener/best-hybrid-funds',
+                      'https://economictimes.indiatimes.com/mutual-fund-screener/best-large-cap-funds',
+                      'https://economictimes.indiatimes.com/mutual-fund-screener/sip-starting-rs-500',
+                      'https://economictimes.indiatimes.com/mutual-fund-screener/top-performing-mid-cap-funds',
+                      'https://economictimes.indiatimes.com/mutual-fund-screener/promising-multi-cap-funds',
+                      'https://economictimes.indiatimes.com/mutual-fund-screener/top-rated-funds',
+                      'https://economictimes.indiatimes.com/markets/ipo-allotment-status',
+                      'https://economictimes.indiatimes.com/topic/rupee-vs-dollar',
+                      'https://economictimes.indiatimes.com/topic/finance',
+                      'https://economictimes.indiatimes.com/topic/fiscal-deficit',
+                      'https://economictimes.indiatimes.com/topic/Swaminathan-Aiyar',
+                      'https://economictimes.indiatimes.com/topic/budget-reactions',
+                      'https://economictimes.indiatimes.com/definition/Fiscal-Deficit',
+                      'https://economictimes.indiatimes.com/definition/markets',
+                      'https://economictimes.indiatimes.com/markets',
+                      'https://economictimes.indiatimes.com/budget',
+                      'https://economictimes.indiatimes.com/news',
+                      'https://economictimes.indiatimes.com/small-biz',
+                      'https://economictimes.indiatimes.com/news/politics-nation'
                       ]
 
     urlUniqueRegexps = [r"(http.+\/economictimes\.indiatimes\.com)(.*\/)([0-9]+)(\.cms)",
@@ -345,23 +504,26 @@ class mod_en_in_ecotimes(BasePlugin):
 
     urlMatchPatterns = []
 
-    invalidTextStrings = ["If you choose to ignore this message, we'll assume that you are happy to receive all cookies"]
+    invalidTextStrings = ["If you choose to ignore this message," +
+                          " we'll assume that you are happy to receive all cookies"]
 
     subStringsToFilter = []
 
-    allowedDomains = ['economictimes.indiatimes.com',
-                      'health.economictimes.indiatimes.com',
-                      'auto.economictimes.indiatimes.com',
-                      'ciso.economictimes.indiatimes.com',
-                      'telecom.economictimes.indiatimes.com',
+    allowedDomains = ['auto.economictimes.indiatimes.com',
                       'brandequity.economictimes.indiatimes.com',
-                      'energy.economictimes.indiatimes.com',
-                      'realty.economictimes.indiatimes.com',
                       'cfo.economictimes.indiatimes.com',
-                      'retail.economictimes.indiatimes.com',
+                      'chartmantra.economictimes.indiatimes.com'
                       'cio.economictimes.indiatimes.com',
+                      'ciso.economictimes.indiatimes.com',
+                      'economictimes.indiatimes.com',
+                      'energy.economictimes.indiatimes.com',
+                      'health.economictimes.indiatimes.com',
+                      'hospitality.economictimes.indiatimes.com',
+                      'hr.economictimes.indiatimes.com'
                       'prime.economictimes.indiatimes.com',
-                      'chartmantra.economictimes.indiatimes.com']
+                      'realty.economictimes.indiatimes.com',
+                      'retail.economictimes.indiatimes.com',
+                      'telecom.economictimes.indiatimes.com']
     listOfURLS = []
     uRLdata = dict()
 
@@ -401,7 +563,7 @@ class mod_en_in_ecotimes(BasePlugin):
                                        ',month-' + str(monthNo) +
                                        ',starttime-' + str(archiveDayNo) +
                                        '.cms')
-            URLsListForDate = self.extractLinksFromURLList(runDate, [searchResultsURLForDate])
+            URLsListForDate = self.extr_links_from_urls_list(runDate, [searchResultsURLForDate])
             if URLsListForDate is not None and len(URLsListForDate) > 0:
                 resultSet = URLsListForDate
             logger.info("Added %s URLs from news archives for date: %s",

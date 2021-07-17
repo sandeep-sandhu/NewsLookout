@@ -145,21 +145,22 @@ class mod_en_in_indiakanoon(BasePlugin):
                         r'(https:\/\/)(indiankanoon.org\/.+)([0-9]{5,})(\.html)'
                         ]
 
-    articleDateRegexps = {r'(on )([0-9]+ [a-zA-Z]{3}, [0-9]{4})(<\/TITLE>)': '%d %b, %Y',
-                          r'(on )([0-9]+ [a-zA-Z]{3,}, [0-9]{4})(<\/TITLE>)': '%d %B, %Y',
-                          r'(Date: )([0-9]{2}\/[0-9]{2}\/20[0-9]{2})': '%d/%m/%Y',
-                          r'(.)([0-9]{1,2} [January|February|March|April|May|June|July|August|September|October|November' +
-                          r'|December]{3,}, [2|1][0-9]{2})': '%d %B, %Y',
-                          r'(.)([0-9]{1,2}th DAY OF [January|February|March|April|May|June|July|August|September|October' +
-                          r'|November|December]{3,}, [2|1][0-9]{2})': '%dth DAY OF %B, %Y',
-                          r'(.)([0-9]{1,2}th [January|February|March|April|May|June|July|August|September|October|November' +
-                          r'|December]{3,} [2|1][0-9]{2})': '%dth %B %Y',
-                          r'(.)([0-9]{1,2}st [January|February|March|April|May|June|July|August|September|October|November' +
-                          r'|December]{3,} [2|1][0-9]{2})': '%dst %B %Y',
-                          r'(.)([0-9]{1,2}nd [January|February|March|April|May|June|July|August|September|October|November' +
-                          r'|December]{3,} [2|1][0-9]{2})': '%dnd %B %Y'
-                          # TODO: 11th April, 1944
-                          }
+    articleDateRegexps = {
+        r'(on )([0-9]+ [a-zA-Z]{3}, [0-9]{4})(<\/TITLE>)': '%d %b, %Y',
+        r'(on )([0-9]+ [a-zA-Z]{3,}, [0-9]{4})(<\/TITLE>)': '%d %B, %Y',
+        r'(Date: )([0-9]{2}\/[0-9]{2}\/20[0-9]{2})': '%d/%m/%Y',
+        r'(.)([0-9]{1,2} [January|February|March|April|May|June|July|August|September|October|November' +
+        r'|December]{3,}, [2|1][0-9]{2})': '%d %B, %Y',
+        r'(.)([0-9]{1,2}th DAY OF [January|February|March|April|May|June|July|August|September|October' +
+        r'|November|December]{3,}, [2|1][0-9]{2})': '%dth DAY OF %B, %Y',
+        r'(.)([0-9]{1,2}th [January|February|March|April|May|June|July|August|September|October|November' +
+        r'|December]{3,} [2|1][0-9]{2})': '%dth %B %Y',
+        r'(.)([0-9]{1,2}st [January|February|March|April|May|June|July|August|September|October|November' +
+        r'|December]{3,} [2|1][0-9]{2})': '%dst %B %Y',
+        r'(.)([0-9]{1,2}nd [January|February|March|April|May|June|July|August|September|October|November' +
+        r'|December]{3,} [2|1][0-9]{2})': '%dnd %B %Y'
+        # TODO: 11th April, 1944
+        }
 
     invalidTextStrings = ['Try out our Premium Member services']
     subStringsToFilter = ['<p>Try out our <b>Premium Member</b> services: <b>Virtual Legal Assistant</b>,  ' +
@@ -212,33 +213,40 @@ class mod_en_in_indiakanoon(BasePlugin):
         """ Extract the text body of this article
         """
         allText = []
-        body_text = " "
+        body_text = ""
         htmlContent = htmlContent.decode('UTF-8') if type(htmlContent) == bytes else htmlContent
         try:
             result_tag = BeautifulSoup(htmlContent, 'lxml').find_all("div", attrs={"class": "docsource_main"})
-            if result_tag is not None:
-                # FIXME: list index out of range - 'https://indiankanoon.org/browse/jodhpur/'
-                for member in result_tag[0].parent.children:
-                    if isinstance(member, bs4.NavigableString):
-                        allText.append(str(member).replace("\n", " "))
-                    elif type(member) == bs4.element.Tag and (
-                            not (member.has_attr('class') and "ad_doc" in member.attrs['class']) and (
-                                member is not None) and (len(member.contents) > 1)
-                            ):
-                        subItemText = "\n"
-                        for subItem in member.contents:
-                            if type(subItem) == bs4.element.Tag:
-                                subItemText = subItemText + " \n " + subItem.text
-                            elif subItem is not None:
-                                subItemText = subItemText + " \n " + subItem.string
-                        allText.append(subItemText)
-                    else:
-                        allText = allText + member.contents
+            if result_tag is not None and len(result_tag) > 0:
+                allText = self.get_child_tags(result_tag[0])
             for item in allText:
                 body_text = body_text + " " + str(item).strip()
         except Exception as e:
             logger.error("Error retrieving content of article: %s, URL = %s", e, self.URLToFetch)
         return(body_text)
+
+    def get_child_tags(self, parent_tag):
+        allText = []
+        try:
+            for member in parent_tag .parent.children:
+                if isinstance(member, bs4.NavigableString):
+                    allText.append(str(member).replace("\n", " "))
+                elif type(member) == bs4.element.Tag and (
+                        not (member.has_attr('class') and "ad_doc" in member.attrs['class']) and (
+                        member is not None) and (len(member.contents) > 1)
+                ):
+                    subItemText = "\n"
+                    for subItem in member.contents:
+                        if type(subItem) == bs4.element.Tag:
+                            subItemText = subItemText + " \n " + subItem.text
+                        elif subItem is not None:
+                            subItemText = subItemText + " \n " + subItem.string
+                    allText.append(subItemText)
+                else:
+                    allText = allText + member.contents
+        except Exception as e:
+            logger.error(f"Error retrieving child tags from parent: {e}", e)
+        return(allText)
 
     def checkAndCleanText(self, inputText, rawData):
         """ Check and clean article text

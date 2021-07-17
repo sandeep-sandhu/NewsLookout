@@ -113,7 +113,12 @@ class mod_en_in_forbes(BasePlugin):
 
     invalidTextStrings = []
     subStringsToFilter = []
-    articleDateRegexps = {}
+    articleDateRegexps = {
+        # "datePublished": "05:52:14 PM IST Jul 11, 2021"
+        r"(\"datePublished\": \"[0-9]{1,2}:[0-9]{2}:[0-9]{2} [AMP]{2} IST )([a-zA-Z]{3} [0-9]{1,2}, [0-9]{4})(\")":
+        "%b %d, %Y"
+        # Published:<small>  Jul 11, 2021 05:52:14 PM  IST </small>
+        }
     authorRegexps = []
     dateMatchPatterns = dict()
     urlMatchPatterns = []
@@ -145,6 +150,7 @@ class mod_en_in_forbes(BasePlugin):
 
     def extractAuthors(self, htmlText):
         """ extract Authors/Agency/Source from html"""
+        # TODO: replace with baseplugin method using regex
         authors = []
         try:
             strNewsAgent = cutStrBetweenTags(htmlText, '<span class = "author_des">By', '</span></span>')

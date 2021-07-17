@@ -75,7 +75,9 @@ class mod_en_in_ndtv(BasePlugin):
                          'www.ndtv.com/budget?pfrom',
                          'www.ndtv.com/webstories/celeb',
                          'www.ndtv.com/jobs/',
-                         'www.ndtv.com/business/hindi'
+                         'www.ndtv.com/business/hindi',
+                         'www.ndtv.com/page/apps',
+                         'www.ndtv.com/soli'
                          ]
 
     # this list of URLs will be visited to get links for articles,
@@ -154,7 +156,15 @@ class mod_en_in_ndtv(BasePlugin):
                       'https://www.ndtv.com/topic/telangana-pot-of-gold',
                       'https://www.ndtv.com/topic/gold-ornaments',
                       'https://www.ndtv.com/electons',
-                      'https://www.ndtv.com/education/exam-notifications'
+                      'https://www.ndtv.com/education/exam-notifications',
+                      'https://www.ndtv.com//?pfrom=ndtv-globalnav',
+                      'https://www.ndtv.com/beeps/?pfrom=ndtv-globalnav',
+                      'https://www.ndtv.com/shopping/?pfrom=ndtv-globalnav',
+                      'https://www.ndtv.com/business/economy',
+                      'https://www.ndtv.com/indian-railway/live-train-status',
+                      'https://www.ndtv.com/indian-railway/pnr-status',
+                      'https://www.ndtv.com/convergence/ndtv/corporatepage/investors.aspx?pfrom=home-footer',
+                      'https://www.ndtv.com/convergence/ndtv/new/termsofusage.aspx?pfrom=home-footer'
                       ]
 
     # never fetch URLs containing these strings:
@@ -219,27 +229,28 @@ class mod_en_in_ndtv(BasePlugin):
         self.urlUniqueRegexps = self.urlUniqueRegexps + super().urlUniqueRegexps
         super().__init__()
 
-    def getArticlesListFromRSS(self):
+    def getArticlesListFromRSS(self, all_rss_feeds):
         """ Extract Article listing using the BeautifulSoup library
         to identify the list from its RSS feed
         """
+        listOfURLS = []
         # <item>
         # <link><![CDATA[https://www.ndtv.com/business/sbi-readies-mutual-fund-venture-for-ipo-2379481]]></link>
-        for thisFeedURL in self.all_rss_feeds:
+        for thisFeedURL in all_rss_feeds:
             try:
                 rawData = self.networkHelper.fetchRawDataFromURL(thisFeedURL, self.pluginName)
                 rss_feed_xml = BeautifulSoup(rawData, 'lxml-xml')
                 for item in rss_feed_xml.channel:
                     if item.name == "item":
                         link_contents = item.link.contents[0]
-                        self.listOfURLS.append(link_contents)
+                        listOfURLS.append(link_contents)
             except Exception as e:
                 logger.error("%s: Error getting urls listing from RSS feed %s: %s",
                              self.pluginName,
                              thisFeedURL,
                              e)
-        self.listOfURLS = retainValidArticles(self.listOfURLS,
-                                              self.validURLStringsToCheck)
+        listOfURLS = retainValidArticles(listOfURLS, self.validURLStringsToCheck)
+        return(listOfURLS)
 
     def extractArticleBody(self, htmlContent):
         """ Extract article's text using the Beautiful Soup library
@@ -248,7 +259,9 @@ class mod_en_in_ndtv(BasePlugin):
         try:
             # get article text data by parsing specific tags:
             docRoot = BeautifulSoup(htmlContent, 'lxml')
-            section = docRoot.find_all(class_=['ins_storybody', 'content_text row description', 'fullstoryCtrl_fulldetails'])
+            section = docRoot.find_all(class_=['ins_storybody',
+                                               'content_text row description',
+                                               'fullstoryCtrl_fulldetails'])
             paragraphList = []
             for node in section:
                 paragraphList = paragraphList + node.find_all('p', text=True)

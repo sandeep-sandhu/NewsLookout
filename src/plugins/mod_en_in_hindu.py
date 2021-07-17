@@ -100,17 +100,30 @@ class mod_en_in_hindu(BasePlugin):
 
     invalidTextStrings = []
     subStringsToFilter = []
+
     articleDateRegexps = {
-        r"(<meta name=\"publish-date\" content=\")(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\+05:30\")":
+        r"(<meta name=\"publish-date\" content=\")" +
+        r"(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\+05:30\")":
         "%Y-%m-%dT%H:%M:%S",
         # January 22, 2015 15:30 IST
         r"(<none>\n)([a-zA-Z]{3,} [0-9]{1,2}, 20[0-9]{2} [0-9]{1,2}:[0-9]{2})( IST)":
         "%B %d, %Y %H:%M"}
-    authorRegexps = []
+
+    # tp.push(["setContentAuthor", "Special Correspondent"])
+    # 'Author':'Special Correspondent',
+    # 'authorName' : 'Special Correspondent'
+    # <meta property="article:author" content="Special Correspondent" />
+    # <a href="#" class="mobile-auth-nm no-lnk">
+    # Special Correspondent
+    # </a>
+    authorRegexps = [r"(tp.push\(\[\"setContentAuthor\", \")([a-zA-Z.\- ]{3,})(\"\]\))",
+                     r"(<meta property=\"article:author\" content=\")([a-zA-Z_\-.\ ]{3,})(\" \/>)",
+                     r"('Author':')([a-zA-Z_\-.\ ]{3,})(',)",
+                     r"('authorName' : ')([a-zA-Z.\- ]{3,})(')"
+                     ]
     dateMatchPatterns = dict()
     urlMatchPatterns = []
     authorMatchPatterns = []
-
     allowedDomains = ["www.thehindu.com"]
     listOfURLS = []
     uRLdata = dict()
@@ -141,18 +154,24 @@ class mod_en_in_hindu(BasePlugin):
         return(industries)
 
     def extractAuthors(self, htmlText):
-        """ extract Authors/Agency/Source from html
+        """ Extract Authors/Agency/Source of the article from its raw html code
         """
         authors = []
-        try:
-            if type(htmlText) == bytes:
-                htmlText = htmlText.decode('UTF-8')
-            authorPat = re.compile(r"(<meta property=\"article:author\" content=\")([a-zA-Z_\-.\ ]{3,})(\" \/>)")
-            matchRes = authorPat.search(htmlText)
-            if matchRes is not None:
-                authors.append(matchRes.group(2))
-        except Exception as e:
-            logger.error("Error identifying authors of article: %s", e)
+        authorStr = None
+        for authorMatch in self.authorMatchPatterns:
+            logger.debug("Trying match pattern: %s", authorMatch)
+            try:
+                result = authorMatch.search(htmlText)
+                if result is not None:
+                    authorStr = result.group(2)
+                    authors = authorStr.split(',')
+                    # At this point, the text was correctly extracted, so exit the loop
+                    break
+            except Exception as e:
+                logger.debug("Unable to identify the article authors using regex: %s; string to parse: %s, URL: %s",
+                             e, authorStr, self.URLToFetch)
+        if authorStr is None or authorStr == '':
+            authors = []
         return(authors)
 
     def extractArticleBody(self, htmlContent):

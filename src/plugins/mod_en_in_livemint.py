@@ -67,29 +67,33 @@ class mod_en_in_livemint(BasePlugin):
     validURLStringsToCheck = ['www.livemint.com']
 
     # never fetch URLs containing these strings:
-    invalidURLSubStrings = ['https://www.livemint.com/politics/news/',
-                            'https://www.livemint.com/sports/',
-                            'https://www.livemint.com/videos/',
-                            'https://www.livemint.com/food/',
-                            'https://www.livemint.com/how-to-lounge/art-culture/',
-                            'https://www.livemint.com/food/cook/',
-                            'https://www.livemint.com/how-to-lounge/',
-                            'https://www.livemint.com/relationships/',
+    invalidURLSubStrings = ['www.livemint.com/politics/news/',
+                            'www.livemint.com/sports/',
+                            'www.livemint.com/videos/',
+                            'www.livemint.com/food/',
+                            'www.livemint.com/how-to-lounge/art-culture/',
+                            'www.livemint.com/food/cook/',
+                            'www.livemint.com/how-to-lounge/',
+                            'www.livemint.com/relationships/',
                             'livemint.com/fashion/',
                             'livemint.com/smart-living/',
                             'livemint.com/food/discover/',
-                            'https://www.livemint.com/static/code-of-ethics',
-                            'https://www.livemint.com/static/disclaimer',
-                            'https://www.livemint.com/static/subscriber-tnc',
+                            'www.livemint.com/static/code-of-ethics',
+                            'www.livemint.com/static/disclaimer',
+                            'www.livemint.com/static/subscriber-tnc',
                             '/termsofuse.html',
                             '/contactus.html',
                             '/aboutus.html',
                             'mintiphone.page.link',
                             'mailto:',
-                            'api.whatsapp.com'
+                            'api.whatsapp.com',
+                            '/privacypolicy.html'
                             ]
 
-    nonContentStrings = ['/sitemapweb.html', '/Search/Link/Author/']
+    nonContentStrings = ['/sitemapweb.html',
+                         '/Search/Link/Author/'
+                         '/privacypolicy.html',
+                         '/mintcode.html']
 
     # this list of URLs will be visited to get links for articles,
     # but their content will not be scraped to pick up news content
@@ -181,7 +185,23 @@ class mod_en_in_livemint(BasePlugin):
                       'https://www.livemint.com/topic/why-not-mint-money'
                       'https://www.livemint.com/topic',
                       'https://www.livemint.com/topic/coronavirus',
-                      'https://www.livemint.com/topic/long-story'
+                      'https://www.livemint.com/topic/long-story',
+                      'https://www.livemint.com/',
+                      'https://www.livemint.com/podcasts',
+                      'https://www.livemint.com/news',
+                      'https://www.livemint.com/companies',
+                      'https://www.livemint.com/insurance',
+                      'https://www.livemint.com/opinion',
+                      'https://www.livemint.com/topic/budget-videos',
+                      'https://www.livemint.com/sports',
+                      'https://www.livemint.com/industry',
+                      'https://www.livemint.com/videos',
+                      'https://www.livemint.com/topic/india-investment-summit',
+                      'https://www.livemint.com/topic/why-not-mint-money',
+                      'https://www.livemint.com/static/cookie-policy',
+                      'https://www.livemint.com/topic/coronavirus-vaccine-tracker',
+                      'https://www.livemint.com/Money',
+                      'https://www.livemint.com/Money/Personal-Finance'
                       ]
 
     # write regexps in three groups ()()() so that the third group

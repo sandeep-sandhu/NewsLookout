@@ -39,8 +39,6 @@ from __future__ import print_function, division
 
 # import standard python libraries:
 import logging
-import os
-from datetime import datetime
 
 # import this project's python libraries:
 from base_plugin import BasePlugin
@@ -48,20 +46,13 @@ from data_structs import Types
 from news_event import NewsEvent
 
 # nlp libraries:
-# import nltk
-# from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from nltk.tokenize import sent_tokenize
-
 import pandas as pd
 import numpy as np
-import openpyxl
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.optim import lr_scheduler
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
 from pytorch_pretrained_bert import BertTokenizer, BertModel, BertConfig
 
 ##########
@@ -101,7 +92,7 @@ class mod_eventclass(BasePlugin):
         self.pretuned_modelfile = self.app_config.checkAndSanitizeConfigString('plugins', 'mod_eventclass_modelfile')
         self.model_weights_path = self.app_config.checkAndSanitizeConfigString('plugins', 'mod_eventclass_weightspath')
         self.vocab_path = self.app_config.checkAndSanitizeConfigString('plugins', 'mod_eventclass_vocab_path')
-        self.labels = {0:'neutral', 1:'positive',2:'negative'}
+        self.labels = {0: 'neutral', 1: 'positive', 2: 'negative'}
         # TODO: fix model load error:
         self.setupModel()
         self.sentencesRec = pd.DataFrame(
@@ -113,9 +104,9 @@ class mod_eventclass(BasePlugin):
     def setupModel(self):
         """ Load the classification model.
         """
-        num_labels= len(self.labels)
+        num_labels = len(self.labels)
         vocab_type = "finance-uncased"
-        self.max_seq_length=256
+        self.max_seq_length = 256
         if torch.cuda.is_available():
             self.device = torch.device("cuda")
         else:
@@ -139,16 +130,19 @@ class mod_eventclass(BasePlugin):
         :param newsEventObj: The NewsEvent object to be classified.
         :type newsEventObj: NewsEvent
         """
-        runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')
-        logger.info(f"Started news event classification for data in: {newsEventObj.getFileName()}")
-        classificationObj = self.classifyText(newsEventObj.getText(), newsEventObj.getURL())
-        # put classification field in NewsEvent document:
-        newsEventObj.setClassification(classificationObj)
-        # prepare filename:
-        fileNameWOExt = newsEventObj.getFileName().replace('.json','')
-        # save document to file:
-        newsEventObj.writeFiles(fileNameWOExt, '', saveHTMLFile=False)
-        logger.info(f"Wrote news event classification for data in: {fileNameWOExt} as: {classificationObj}")
+        assert type(newsEventObj) == NewsEvent
+        # Do not proceed if the articles has already been classified, i.e. contains scores
+        if newsEventObj.getClassification() is None:
+            # TODO: lock file to avoid conflicting writes, release lock at the end of the method
+            logger.debug(f"Started news event classification for data in: {newsEventObj.getFileName()}")
+            classificationObj = self.classifyText(newsEventObj.getText(), newsEventObj.getURL())
+            # put classification field in NewsEvent document:
+            newsEventObj.setClassification(classificationObj)
+            # prepare filename:
+            fileNameWOExt = newsEventObj.getFileName().replace('.json', '')
+            # save document to file:
+            newsEventObj.writeFiles(fileNameWOExt, '', saveHTMLFile=False)
+            logger.info(f"Completed classifying news event in: {fileNameWOExt} as: {classificationObj}")
 
     def classifyText(self, textValue, url):
         """
@@ -165,25 +159,25 @@ class mod_eventclass(BasePlugin):
             logger.debug(f'Classifying using finbert model for text of length {len(textValue)}')
             if len(textValue) > self.minArticleLengthInChars:
                 thisRec = self.sentencesRec.copy(deep=True)
-                thisRec['url']=url
+                thisRec['url'] = url
                 sentences = sent_tokenize(textValue.lower())
                 self.model.eval()
                 for index, sent in enumerate(sentences):
-                    thisRec['sentence']=sent
-                    thisRec['sentence_no']=index
+                    thisRec['sentence'] = sent
+                    thisRec['sentence_no'] = index
                     # apply model on the sentence to get classification scores
                     [neutralProb, positiveProb, negativeProb] = self.classifySentences(sent)
-                    thisRec['neutral_prob']=neutralProb
-                    thisRec['positive_prob']=positiveProb
-                    thisRec['negative_prob']=negativeProb
+                    thisRec['neutral_prob'] = neutralProb
+                    thisRec['positive_prob'] = positiveProb
+                    thisRec['negative_prob'] = negativeProb
                     if sentenceDF is None:
                         sentenceDF = thisRec
                     else:
                         sentenceDF = sentenceDF.append(thisRec)
                 aggscores = sentenceDF.groupby('url').agg({
-                    'neutral_prob':'sum',
-                    'positive_prob':'sum',
-                    'negative_prob':'sum'})
+                    'neutral_prob': 'sum',
+                    'positive_prob': 'sum',
+                    'negative_prob': 'sum'})
                 classificationScores = {'positive': aggscores['positive_prob'][0],
                                         'neutral': aggscores['neutral_prob'][0],
                                         'negative': aggscores['negative_prob'][0]
@@ -198,19 +192,19 @@ class mod_eventclass(BasePlugin):
         tokenized_sent = self.tokenizer.tokenize(sent)
         if len(tokenized_sent) > self.max_seq_length:
             tokenized_sent = tokenized_sent[:self.max_seq_length]
-        ids_review  = self.tokenizer.convert_tokens_to_ids(tokenized_sent)
+        ids_review = self.tokenizer.convert_tokens_to_ids(tokenized_sent)
         mask_input = [1]*len(ids_review)
         padding = [0] * (self.max_seq_length - len(ids_review))
         ids_review += padding
         mask_input += padding
         input_type = [0]*self.max_seq_length
         input_ids = torch.tensor(ids_review).to(self.device).reshape(-1, 256)
-        attention_mask =  torch.tensor(mask_input).to(self.device).reshape(-1, 256)
+        attention_mask = torch.tensor(mask_input).to(self.device).reshape(-1, 256)
         token_type_ids = torch.tensor(input_type).to(self.device).reshape(-1, 256)
         with torch.set_grad_enabled(False):
             outputs = self.model(input_ids, token_type_ids, attention_mask)
-            outputs = F.softmax(outputs,dim=1)
-            #print('\n FinBERT predicted sentiment: ', labels[torch.argmax(outputs).item()])
+            outputs = F.softmax(outputs, dim=1)
+            # print('\n FinBERT predicted sentiment: ', labels[torch.argmax(outputs).item()])
             return([i.item() for i in outputs.data[0]])
 
 
@@ -225,7 +219,11 @@ class BertClassification(nn.Module):
         self.vocab = vocab
 
         self.bert = BertModel.from_pretrained(weight_path)
-        self.config = BertConfig(vocab_size_or_config_json_file=30873, hidden_size=768, num_hidden_layers=12, num_attention_heads=12, intermediate_size=3072)
+        self.config = BertConfig(vocab_size_or_config_json_file=30873,
+                                 hidden_size=768,
+                                 num_hidden_layers=12,
+                                 num_attention_heads=12,
+                                 intermediate_size=3072)
 
         self.dropout = nn.Dropout(self.config.hidden_dropout_prob)
         self.classifier = nn.Linear(self.config.hidden_size, num_labels)
@@ -237,15 +235,16 @@ class BertClassification(nn.Module):
         logits = self.classifier(pooled_output)
         return logits
 
+
 class dense_opt():
     def __init__(self, model):
         super(dense_opt, self).__init__()
         self.lrlast = .001
         self.lrmain = .00001
         self.optim = optim.Adam(
-            [ {"params":model.bert.parameters(),"lr": self.lrmain},
-              {"params":model.classifier.parameters(), "lr": self.lrlast},
-              ])
+            [{"params": model.bert.parameters(), "lr": self.lrmain},
+             {"params": model.classifier.parameters(), "lr": self.lrlast},
+             ])
 
     def get_optim(self):
         return self.optim

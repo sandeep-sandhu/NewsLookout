@@ -78,12 +78,16 @@ class mod_en_in_moneycontrol(BasePlugin):
                             'whatsapp.com/',
                             't.me/moneycontrolcom',
                             'plus.google.com/share',
-                            'www.linkedin.com/share'
+                            'www.linkedin.com/share',
+                            'calendar.yahoo.com/',
+                            'www.google.com'
                             ]
 
     # this list of URLs will be visited to get links for articles,
     # but their content will not be scraped to pick up news content
     nonContentURLs = [mainURL,
+                      'https://www.moneycontrol.com/',
+                      'https://www.moneycontrol.com/msite/smart-innovations-driving-consumer-goods/',
                       'https://www.moneycontrol.com/india/bestportfoliomanager/investment-tool',
                       'https://www.moneycontrol.com/news/mcminis/',
                       'https://www.moneycontrol.com/news/technology/',
@@ -337,7 +341,15 @@ class mod_en_in_moneycontrol(BasePlugin):
                          'www.moneycontrol.com/gamechangers/swingtrader-india?',
                          'www.moneycontrol.com/msite/decoding-the-world-of-etf/?'
                          'www.moneycontrol.com/mcplus/portfolio/logout.php?',
-                         'www.moneycontrol.com/msite/hdfc-life-insurance-plans?'
+                         'www.moneycontrol.com/msite/hdfc-life-insurance-plans?',
+                         'www.moneycontrol.com/news/tags/',
+                         'www.moneycontrol.com/stock-charts/',
+                         'www.moneycontrol.com/india/fnoquote/',
+                         'www.moneycontrol.com/stocks/company_info/pricechart.php',
+                         'www.moneycontrol.com/msite/decoding-the-world-of-etf',
+                         'www.moneycontrol.com/india/newsarticle/news_email.php',
+                         'www.moneycontrol.com/mcplus/portfolio/logout.php',
+                         'www.moneycontrol.com/mcplus/portfolio/loginportfolio.php'
                          ]
 
     urlUniqueRegexps = [r"(^https\:\/\/www.moneycontrol.com\/.+)(_)([0-9]{6,})(\.html$)",
@@ -347,8 +359,9 @@ class mod_en_in_moneycontrol(BasePlugin):
     subStringsToFilter = []
 
     articleDateRegexps = {
-        r'(<input type=\"hidden\" id=\"to_timestamp\" value=\")(20[0-9]{2}[0-9]{2}[0-9]{2}[0-9]{2}[0-9]{2}[0-9]{2})(\">)':
-        '%Y%m%d%H%M%S'  # <div class="date_time">Dec 29, 04:12</div>
+        r'(<input type=\"hidden\" id=\"to_timestamp\" value=\")' +
+        r'(20[0-9]{2}[0-9]{2}[0-9]{2}[0-9]{2}[0-9]{2}[0-9]{2})(\">)': '%Y%m%d%H%M%S'
+        # <div class="date_time">Dec 29, 04:12</div>
         }
     authorRegexps = []
     dateMatchPatterns = dict()

@@ -33,6 +33,7 @@ import logging
 
 # import web retrieval and text processing python libraries:
 import os
+from datetime import datetime
 
 import pandas as pd
 import zipfile
@@ -41,9 +42,10 @@ from io import BytesIO
 import scraper_utils
 from data_structs import Types
 from base_plugin import BasePlugin
-from scraper_utils import filterRepeatedchars, deDupeList
+from scraper_utils import deDupeList
 
 ##########
+from session_hist import SessionHistory
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +116,7 @@ class mod_in_gdelt(BasePlugin):
         self.urlUniqueRegexps = self.urlUniqueRegexps + super().urlUniqueRegexps
         super().__init__()
 
-    def getURLsListForDate(self, runDate, sessionHistoryDB):
+    def getURLsListForDate(self, runDate: datetime, sessionHistoryDB: SessionHistory) -> list:
         """ Extract article list from the main URL.
         Since this is only a news aggregator, sets the plugin state to Types.STATE_STOPPED
          at the end of this method.
@@ -123,36 +125,20 @@ class mod_in_gdelt(BasePlugin):
         :param runDate: Given query date for which news article URLs are to be retrieved
         :type runDate: datetime.datetime
         :return: List of URLs identified from this news source
-        :rtype: list[str]
+        :rtype: list
         """
         urlList = []
-        searchResultsURLForDate = None
         try:
-            prevDay = scraper_utils.getPreviousDaysDate(runDate)
-            prevToPrevDay = scraper_utils.getPreviousDaysDate(prevDay)
-            dataDirForDate = BasePlugin.identifyDataPathForRunDate(self.app_config.data_dir,
-                                                                   prevToPrevDay)
-            if 'mainURLDateFormatted' in dir(self) and self.mainURLDateFormatted is not None:
-                searchResultsURLForDate = prevToPrevDay.strftime(self.mainURLDateFormatted)
+            searchResultsURLForDate, dataDirForDate = self.prepare_url_datadir_for_date(runDate)
+            if searchResultsURLForDate is not None:
                 logger.debug('Downloading file from URL: %s', searchResultsURLForDate)
                 csv_zip = self.downloadDataArchive(searchResultsURLForDate, self.pluginName)
-                filebytes = BytesIO(csv_zip)
-                zipDatafile = zipfile.ZipFile(filebytes, mode='r')
-                # unzip csv data, write to file:
-                for memberZipInfo in zipDatafile.infolist():
-                    zipDatafile.extract(memberZipInfo, path=dataDirForDate)
-                    csv_filename = os.path.join(dataDirForDate, memberZipInfo.filename)
+                csv_files = mod_in_gdelt.extract_csvlist_from_archive(csv_zip, dataDirForDate)
+                for csv_filename in csv_files:
                     logger.debug("Expanded the fetched Zip archive to: %s", csv_filename)
-                    # load csv file in pandas:
-                    # Columns (14,24) have mixed types. Specify dtype option on import or set low_memory=False.
-                    urlDF = pd.read_csv(csv_filename, delimiter='\t', header=None, low_memory=False)
-                    # filter and identify URLs for india:
-                    # column 51 is country, column 57 is URL
-                    for item in urlDF[urlDF.iloc[: , 51] == 'IN'].iloc[:,57].values:
-                        # put urls into list:
-                        urlList.append(item.strip())
-                    # delete csv file:
-                    os.remove(csv_filename)
+                    url_items = mod_in_gdelt.extract_urls_from_csv(csv_filename, country_code='IN')
+                    urlList = urlList + url_items
+                urlList = deDupeList(urlList)
             logger.info("Added %s URLs from aggregated news from %s", len(urlList), searchResultsURLForDate)
         except Exception as e:
             logger.error("%s: When Extracting URL list from main URL, error was: %s",
@@ -160,28 +146,61 @@ class mod_in_gdelt(BasePlugin):
         self.pluginState = Types.STATE_STOPPED
         return(urlList)
 
-    # *** MANDATORY to implement ***
-    def checkAndCleanText(self, inputText, rawData):
-        """ Check and clean article text
+    def prepare_url_datadir_for_date(self, rundate_obj: datetime) -> str:
+        """ Prepare URL from given Date.
+
+        :param date_obj: Date for the URL
+        :return:
         """
-        cleanedText = inputText
-        invalidFlag = False
-        try:
-            for badString in self.invalidTextStrings:
-                if cleanedText.find(badString) >= 0:
-                    logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
-                    invalidFlag = True
-            # check if article content is not valid or is too little
-            if invalidFlag is True or len(cleanedText) < self.minArticleLengthInChars:
-                cleanedText = self.extractArticleBody(rawData)
-            # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
-            cleanedText = filterRepeatedchars(cleanedText,
-                                              deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
-            # remove invalid substrings:
-            for stringToFilter in deDupeList(self.subStringsToFilter):
-                cleanedText = cleanedText.replace(stringToFilter, " ")
-        except Exception as e:
-            logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        url_prepared_for_date = None
+        prevDay = scraper_utils.getPreviousDaysDate(rundate_obj)
+        prevToPrevDay = scraper_utils.getPreviousDaysDate(prevDay)
+        if 'mainURLDateFormatted' in dir(self) and self.mainURLDateFormatted is not None:
+            url_prepared_for_date = prevToPrevDay.strftime(self.mainURLDateFormatted)
+        dataDirForDate = BasePlugin.identifyDataPathForRunDate(self.app_config.data_dir,
+                                                               prevToPrevDay)
+        return(url_prepared_for_date, dataDirForDate)
+
+    @staticmethod
+    def extract_csvlist_from_archive(archive_bytes: bytes, dataDirForDate: str) -> list:
+        """ Extract CSV file from compressed archive file
+
+        :param archive_file: Filename of the compressed archive downloaded from the website
+        :param dataDirForDate: Data directory where archive would be expanded into
+        :return: a list of CSV filenames extracted from the archive
+        """
+        list_of_files = []
+        filebytes = BytesIO(archive_bytes)
+        zipDatafile = zipfile.ZipFile(filebytes, mode='r')
+        # unzip csv data, write to file:
+        for memberZipInfo in zipDatafile.infolist():
+            zipDatafile.extract(memberZipInfo, path=dataDirForDate)
+            csv_filename = os.path.join(dataDirForDate, memberZipInfo.filename)
+            logger.debug(f"Expanded the Zip archive to file: {csv_filename}")
+            list_of_files.append(csv_filename)
+        zipDatafile.close()
+        return(list_of_files)
+
+    @staticmethod
+    def extract_urls_from_csv(csv_filename: str, country_code='IN') -> list:
+        """ Extract URL list from CSV file
+
+        :param csv_filename: file to read from
+        :param country_code: ISO 2-character country code to filter news
+        :return: List of relevant URLs extracted from CSV file
+        """
+        urlList = []
+        # load csv file in pandas:
+        # Columns (14,24) have mixed types. Specify dtype option on import or set low_memory=False.
+        urlDF = pd.read_csv(csv_filename, delimiter='\t', header=None, low_memory=False)
+        # filter and identify URLs for india:
+        # column 51 is country, column 57 is URL
+        for item in urlDF[urlDF.iloc[:, 51] == country_code].iloc[:, 57].values:
+            # put urls into list:
+            urlList.append(item.strip())
+        # delete csv file:
+        os.remove(csv_filename)
+        return(deDupeList(urlList))
+
 
 # # end of file ##

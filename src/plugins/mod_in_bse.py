@@ -81,13 +81,15 @@ class mod_in_bse(BasePlugin):
     def __init__(self):
         """ Initialize the object
         """
-        self.count_history_to_fetch = 10
+        self.pledgesDataExtractedFlag = False
+        self.count_history_to_fetch = 1
+        self.pluginState = Types.STATE_GET_URL_LIST
         super().__init__()
 
     def getURLsListForDate(self, runDate, sessionHistoryDB):
         """ Retrieve the URLs List For a given Date
         """
-        self.listOfURLS = []
+        listOfURLS = []
         try:
             # set dates for retrieval based on recursion level in configuration file:
             if self.app_config.recursion_level == 2:
@@ -104,15 +106,15 @@ class mod_in_bse(BasePlugin):
                 # decrement dates one by one
                 businessDate = getPreviousDaysDate(businessDate)
                 urlForDate = self.mainURL + businessDate.strftime("%d%m%y") + self.mainURL_suffix
-                self.listOfURLS.append(urlForDate)
+                listOfURLS.append(urlForDate)
             # remove already retrieved URLs:
-            self.listOfURLS = sessionHistoryDB.removeAlreadyFetchedURLs(self.listOfURLS, self.pluginName)
-            self.addURLsListToQueue(self.listOfURLS)
+            listOfURLS = sessionHistoryDB.removeAlreadyFetchedURLs(listOfURLS, self.pluginName)
             logger.info("Total count of valid articles to be retrieved = %s for business date: %s",
-                        self.getQueueSize(), businessDate.strftime("%Y-%m-%d"))
+                        len(listOfURLS), businessDate.strftime("%Y-%m-%d"))
         except Exception as e:
             logger.error("Error trying to retrieve URL list at recursion level %s: %s",
                          self.app_config.recursion_level, e)
+        return(listOfURLS)
 
     def fetchDataFromURL(self, uRLtoFetch, WorkerID):
         """ Fetch data From given URL

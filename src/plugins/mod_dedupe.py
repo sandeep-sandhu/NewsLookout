@@ -55,13 +55,16 @@ class mod_dedupe(BasePlugin):
     """
     minArticleLengthInChars = 400
     pluginType = Types.MODULE_DATA_PROCESSOR  # implies data post-processor
-
+    sizeDiff = 0.0
+    similarPct = 1.0
     listOfFiles = []
     uRLdata = dict()
 
     def __init__(self):
         """ Initialize the object
         """
+        self.sizeDiff = 0.15
+        self.similarPct = 0.99
         super().__init__()
 
     def additionalConfig(self, sessionHistoryObj):
@@ -95,18 +98,19 @@ class mod_dedupe(BasePlugin):
         :param runDate: The business date for which the text needs to be processed.
         :type runDate: datetime.datetime
         """
+        # TODO: lock file to avoid conflicting writes, release lock at the end of the method
         runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')
-        logger.info("Started data de-duplication for data in file: %s, for date: %s",
-                    newsEventObj.getFileName(), runDate)
+        logger.debug("Started data de-duplication for data in file: %s, for date: %s",
+                     newsEventObj.getFileName(), runDate)
         # find list of articles newly fetched:
         listOfFiles = self.identifyFilesForDate(self.app_config.data_dir, runDate)
-        logger.info("Identified %s files to be checked for similarity for date: %s",
-                    len(listOfFiles)-1, runDate.strftime('%Y-%m-%d'))
+        logger.debug("Identified %s files to be checked for similarity for date: %s",
+                     len(listOfFiles)-1, runDate.strftime('%Y-%m-%d'))
         # load each article one by one, and compare with other articles:
         deletedCount = 0
         currCounter = 1
         startTime = time.time()
-        totalComparisonCount = len(listOfFiles)-1
+        # totalComparisonCount = len(listOfFiles)-1
         totalTime = 0.0
         # if this is valid data, then compute its text embedding:
         if newsEventObj is not None:
@@ -120,19 +124,19 @@ class mod_dedupe(BasePlugin):
                         timeDiff = stopTime - startTime
                         totalTime = totalTime + timeDiff
                         startTime = time.time()
-                        logger.debug('Checking similarity of: %s -> %s', newsEventObj.getFileName(), file2)
+                        logger.debug(f'Checking similarity of: {newsEventObj.getFileName()} -> {file2}')
                         resultTuple = self.compareTwoArticles(document1,
                                                               file2,
-                                                              compareThreshold=0.99,
-                                                              maxSizePercentDiff=0.20)
+                                                              compareThreshold=self.similarPct,
+                                                              maxSizePercentDiff=self.sizeDiff)
                         # check that first article's file exist, only then delete the second article:
                         if resultTuple is not None and os.path.isfile(resultTuple[1].getFileName()):
                             self.removeArticle(resultTuple[2])
                             deletedCount = deletedCount + 1
                 except Exception as e:
-                    logger.error(f"Error comparing files: {newsEventObj.getFileName()} vs. {file2}")
+                    logger.error(f"Error comparing files: {newsEventObj.getFileName()} vs. {file2}: {e}")
         if deletedCount > 0:
-            logger.info(f'Deleted {deletedCount} duplicate news events.')
+            logger.debug(f'Deleted {deletedCount} duplicate news events.')
 
     def processAllDataFiles(self, runDate):
         """ Process data for runDate.
@@ -141,7 +145,7 @@ class mod_dedupe(BasePlugin):
         :type runDate: datetime.datetime
         """
         logging.captureWarnings(True)
-        print("Data de-duplication progress:")
+        # print("Data de-duplication progress:")
         # find list of articles newly fetched:
         listOfFiles = self.identifyFilesForDate(self.app_config.data_dir, runDate)
         logger.info("Identified %s files to be de-duplicated for date: %s",
@@ -150,7 +154,7 @@ class mod_dedupe(BasePlugin):
         deletedCount = 0
         currCounter = 1
         startTime = time.time()
-        totalComparisonCount = len(listOfFiles) * (len(listOfFiles)-1.0)/2.0
+        # totalComparisonCount = len(listOfFiles) * (len(listOfFiles)-1.0)/2.0
         totalTime = 0.0
         for fileIndex1, file1 in enumerate(listOfFiles):
             try:
@@ -163,16 +167,12 @@ class mod_dedupe(BasePlugin):
                         stopTime = time.time()
                         timeDiff = stopTime - startTime
                         totalTime = totalTime + timeDiff
-                        # statusBarText = tqdm.format_meter(currCounter,
-                        #                                   totalComparisonCount,
-                        #                                   totalTime,
-                        #                                   ncols=80,
-                        #                                   ascii=False)
-                        # print(statusBarText, '\b' * 100, end='')
                         startTime = time.time()
-                        logger.debug('de-dupe %s -> %s', file1, listOfFiles[fileIndex2])
-                        resultTuple = self.compareTwoArticles(document1, listOfFiles[fileIndex2],
-                                                              compareThreshold=0.99, maxSizePercentDiff=0.20)
+                        logger.debug(f'De-dupe: {file1} -> {listOfFiles[fileIndex2]}')
+                        resultTuple = self.compareTwoArticles(document1,
+                                                              listOfFiles[fileIndex2],
+                                                              compareThreshold=self.similarPct,
+                                                              maxSizePercentDiff=self.sizeDiff)
                         # check that first article's file exist, only then delete the second article:
                         if resultTuple is not None and os.path.isfile(resultTuple[1].getFileName()):
                             self.removeArticle(resultTuple[2])
@@ -218,7 +218,7 @@ class mod_dedupe(BasePlugin):
                     # Calculate the similarity score of doc1 vs. doc2:
                     similarityScore = doc1.getTextEmbedding().similarity(doc2.getTextEmbedding())
                     # return set of tuples whose value of similarity score exceeds the threshold (i.e. compareThreshold)
-                    logger.debug("Similarity of doc 1 vs. 2 = %s, Percentage size diff = %s", similarityScore, percentDiff)
+                    logger.debug(f"Similarity of doc 1 vs. 2 = {similarityScore}, Percentage size diff = {percentDiff}")
                     if similarityScore >= compareThreshold:
                         # find older document and place it second in the tuple to indicate it will be deleted,
                         # or else, for same date, delete the smaller document
@@ -229,7 +229,7 @@ class mod_dedupe(BasePlugin):
             else:
                 return(None)
         except Exception as e:
-            logger.error("Error trying to calculate similarity of documents: %s", e)
+            logger.error(f"Error trying to calculate similarity of documents: {e}")
         return(resultTuple)
 
     def computeTextEmbeddingDoc(self, document):
@@ -244,7 +244,7 @@ class mod_dedupe(BasePlugin):
             else:
                 document = None
         except Exception as e:
-            logger.error("Error trying to calculate similarity of URLs: %s", e)
+            logger.error(f"Error trying to calculate similarity of URLs: {e}")
         return(document)
 
     def removeArticle(self, articleObject):
@@ -266,10 +266,10 @@ class mod_dedupe(BasePlugin):
             # calculate .html.bz2 filename, check if exists, delete it:
             htmlFileName = articleObject.getFileName().replace('.json', '.html.bz2')
             if os.path.isfile(htmlFileName):
-                logger.debug("Deleting duplicate article's HTML file: %s", htmlFileName)
+                logger.debug(f"Deleting duplicate article's HTML file: {htmlFileName}")
                 os.remove(htmlFileName)
         except Exception as e:
-            logger.error("Error: %s", e)
+            logger.error(f"Error Deleting duplicate article: {e}")
 
 
 # # end of file ##
