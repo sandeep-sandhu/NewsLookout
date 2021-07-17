@@ -52,9 +52,11 @@ import threading
 import queue
 
 # import this project's python libraries:
+import data_structs
 from data_structs import Types
+from data_structs import QueueStatus
 from session_hist import SessionHistory
-from worker import worker
+from worker import PluginWorker
 from worker import ProgressWatcher
 from worker import DataProcessor
 
@@ -74,6 +76,7 @@ class QueueManager:
     fetchCycleTime = 120
     fetchCompletedCount = 0
     totalPluginsURLSrcCount = 0
+    q_status = None
 
     # Map object with the following structure:
     # { "plugin1name": <plugin1 class instance>,  "plugin2name": <plugin2 class instance>}
@@ -110,6 +113,7 @@ class QueueManager:
         self.fetchCompletedQueue = queue.Queue()
         self.dataProcQueue = queue.Queue()
         self.dataProcCompletedQueue = queue.Queue()
+        self.q_status = QueueStatus(self)
 
     def config(self, app_config):
         """ Read and apply the configuration data passed by the main application
@@ -130,9 +134,7 @@ class QueueManager:
         # Initialize object that reads and writes session history of completed URLs into a database
         self.sessionHistoryDB = SessionHistory(
             self.app_config.completed_urls_datafile,
-            self.dbAccessSemaphore,
-            self
-            )
+            self.dbAccessSemaphore)
         self.sessionHistoryDB.printDBStats()
 
     def getFetchResultFromQueue(self, block=True, timeout=30):
@@ -163,7 +165,11 @@ class QueueManager:
         self.dataProcQueue.task_done()
         return(resultObj)
 
-    def addToDataProcessedQueue(self, fetchResult):
+    def addToDataProcessedQueue(self, fetchResult: data_structs.ExecutionResult):
+        """ Add ExecutionResult to data processed Queue
+
+        :param fetchResult: ExecutionResult from URL fetch attempt.
+        """
         try:
             self.dataProcCompletedQueue.put(fetchResult)
             logger.debug("Added object to completed data processing queue: %s", fetchResult.savedDataFileName)
@@ -173,57 +179,17 @@ class QueueManager:
     def getTotalSrcPluginCount(self):
         return(self.totalPluginsURLSrcCount)
 
-    def getQueueStatus(self):
-        """
-        Reads the URLFrontier, the plugin queues and the data processing queues.
-        Returns a tuple with following structure:
-          - Count of plugins in URL sourcing state
-          - Dictionary map with plugin names as the keys and their current queue sizes as the values.
-          - Dictionary map with plugin names as the keys and their total queue sizes as values.
-          - Data fetch/scrape completed queue size
-          - Total fetch completed size
-          - Data process input queue Size
-          - Data process completed queue size
-          - Total count of all URLs attempted in this session
-          - Flag indicating if any plugin is still fetching data over network (source URL list or content)
-
-        :return: A tuple with the relevant contents
-        :rtype: tuple
-        """
-        qsizeMap = {}
-        totalQsizeMap = {}
-        currentState = {}
-        totalURLCount = 0
-        countOfPluginsInURLSrcState = 0
-        isPluginStillFetchingoverNetwork = False
-        for pluginName in self.URL_frontier.keys():
-            qsizeMap.update({pluginName: self.URL_frontier[pluginName].qsize()})
-            totalQsizeMap[pluginName] = self.pluginNameToObjMap[pluginName].urlQueueTotalSize
-            totalURLCount = totalURLCount + self.pluginNameToObjMap[pluginName].urlQueueTotalSize
-            isPluginStillFetchingoverNetwork = isPluginStillFetchingoverNetwork or (
-                self.pluginNameToObjMap[pluginName].pluginState in [Types.STATE_GET_URL_LIST, Types.STATE_FETCH_CONTENT]
-                )
-            currentState.update(
-                {pluginName: Types.decodeNameFromIntVal(self.pluginNameToObjMap[pluginName].pluginState)}
-                )
-            if self.pluginNameToObjMap[pluginName].pluginState == Types.STATE_GET_URL_LIST:
-                countOfPluginsInURLSrcState = countOfPluginsInURLSrcState + 1
-        return((countOfPluginsInURLSrcState,
-                qsizeMap,
-                totalQsizeMap,
-                self.fetchCompletedQueue.qsize(),
-                self.fetchCompletedCount,
-                self.getCompletedQueueSize(),
-                self.getDataProcessedQueueSize(),
-                totalURLCount,
-                isPluginStillFetchingoverNetwork,
-                currentState
-                ))
-
     @staticmethod
-    def loadPlugins(app_dir, plugins_dir, contrib_plugins_dir, enabledPluginNames):
+    def loadPlugins(app_dir: str, plugins_dir: str, contrib_plugins_dir: str, enabledPluginNames: list) -> dict:
         """ Load only enabled plugins from the modules in the plugins directory.
         The class names of plugins are expected to be the same as their module names.
+
+        :param app_dir: Root directory of the application
+        :param plugins_dir: Plugins directory
+        :param contrib_plugins_dir: Contributed plugins directory
+        :param enabledPluginNames: List of plugins that are enabled in the configuraiton file.
+         Only these modules are loaded and instantiated.
+        :return:
         """
         pluginsDict = dict()
         # add paths to load python files
@@ -244,7 +210,7 @@ class QueueManager:
                 # The class names of plugins are the same as their module names
                 className = modName
                 try:
-                    #logger.debug("Importing web-scraping plugin class: %s", modName)
+                    # logger.debug("Importing web-scraping plugin class: %s", modName)
                     classObj = getattr(importlib.import_module(modName, package=modulesPackageName), className)
                     pluginsDict[modName] = classObj()
                     pluginPriority = enabledPluginNames[modName]
@@ -257,9 +223,12 @@ class QueueManager:
         return(pluginsDict)
 
     @staticmethod
-    def loadPluginsContrib(contrib_plugins_dir, enabledPluginNames):
-        """
-        load the contributed plugins for web-scraping
+    def loadPluginsContrib(contrib_plugins_dir: str, enabledPluginNames: list):
+        """ Load the contributed plugins for web-scraping
+
+        :param contrib_plugins_dir:
+        :param enabledPluginNames:
+        :return:
         """
         pluginsDict = dict()
         sys.path.append(contrib_plugins_dir)
@@ -306,22 +275,22 @@ class QueueManager:
             elif self.pluginNameToObjMap[keyitem].pluginType == Types.MODULE_DATA_PROCESSOR:
                 self.pluginNameToObjMap[keyitem].config(self.app_config)
                 self.pluginNameToObjMap[keyitem].additionalConfig(self.sessionHistoryDB)
-        # make map with .allowedDomains -> pluginName from plugins:
-        # for keyitem in self.pluginNameToObjMap.keys():
+            # make map with .allowedDomains -> pluginName from plugins:
             if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_NEWS_CONTENT,
-                                                              Types.MODULE_NEWS_AGGREGATOR,
-                                                              Types.MODULE_DATA_CONTENT,
-                                                              Types.MODULE_NEWS_API]:
+                                                               Types.MODULE_NEWS_AGGREGATOR,
+                                                               Types.MODULE_DATA_CONTENT,
+                                                               Types.MODULE_NEWS_API]:
                 self.totalPluginsURLSrcCount = self.totalPluginsURLSrcCount + 1
                 modname = self.pluginNameToObjMap[keyitem].pluginName
                 domains = self.pluginNameToObjMap[keyitem].allowedDomains
                 for dom in domains:
                     self.domainToPluginMap[dom] = modname
         logger.info("Completed initialising %s plugins.", len(self.pluginNameToObjMap))
+        self.q_status.updateStatus()
 
     def initURLSourcingWorkers(self):
-        """ Initialize all worker threads that run the URL sourcing function of all news/data plugins to identify URLs
-        and, also initialise the worker thread that reports progress and saves to history database.
+        """ Initialize all worker threads that run the URL sourcing function of all news/data plugins to identify URLs.
+        Also, initialise the worker thread that reports progress and saves to history database.
         """
         logger.debug("Initializing the worker threads to identify URLs.")
         workerNumber = 0
@@ -331,7 +300,7 @@ class QueueManager:
                                                                Types.MODULE_DATA_CONTENT,
                                                                Types.MODULE_NEWS_AGGREGATOR]:
                 workerNumber = workerNumber + 1
-                self.urlSrcWorkers[workerNumber] = worker(
+                self.urlSrcWorkers[workerNumber] = PluginWorker(
                     self.pluginNameToObjMap[keyitem],
                     Types.TASK_GET_URL_LIST,
                     self.sessionHistoryDB,
@@ -343,15 +312,8 @@ class QueueManager:
             if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_NEWS_AGGREGATOR]:
                 self.urlSrcWorkers[workerNumber].setDomainMapAndPlugins(self.domainToPluginMap,
                                                                         self.pluginNameToObjMap)
-        # after this, the self.urlSrcWorkers dict has the structure: workers[1] = <instantiated worker object>
-        logger.info("%s worker threads available to identify URLs to scrape.", len(self.urlSrcWorkers))
-        # intialize the progress Watch worker thread:
-        self.progressWatchThread = ProgressWatcher(self.pluginNameToObjMap,
-                                                   self.sessionHistoryDB,
-                                                   self,
-                                                   self.app_config.progressRefreshInt,
-                                                   name='1',
-                                                   daemon=False)
+        # after this, the self.urlSrcWorkers dict has the structure: workers[1] = <instantiated PluginWorker object>
+        logger.info(f"{len(self.urlSrcWorkers)} worker threads available to identify URLs to scrape.")
 
     def initContentFetchWorkers(self):
         """ Initialize all worker threads
@@ -363,15 +325,15 @@ class QueueManager:
                                                                Types.MODULE_NEWS_API,
                                                                Types.MODULE_DATA_CONTENT]:
                 workerNumber = workerNumber + 1
-                self.contentFetchWorkers[workerNumber] = worker(self.pluginNameToObjMap[keyitem],
-                                                                Types.TASK_GET_DATA,
-                                                                self.sessionHistoryDB,
-                                                                self,
-                                                                name=str(workerNumber + len(self.urlSrcWorkers)),
-                                                                daemon=False)
+                self.contentFetchWorkers[workerNumber] = PluginWorker(self.pluginNameToObjMap[keyitem],
+                                                                      Types.TASK_GET_DATA,
+                                                                      self.sessionHistoryDB,
+                                                                      self,
+                                                                      name=str(workerNumber + len(self.urlSrcWorkers)),
+                                                                      daemon=False)
                 self.contentFetchWorkers[workerNumber].setRunDate(self.runDate)
                 # after this, the self.contentFetchWorkers dict has the structure:
-                # workers[1] = <instantiated worker object>
+                # workers[1] = <instantiated PluginWorker object>
         logger.info("%s worker threads available to fetch content.", len(self.contentFetchWorkers))
 
     def initDataProcWorkers(self):
@@ -385,9 +347,8 @@ class QueueManager:
         try:
             # convert plupginMap to structure: priority -> pluginObj for all data processing plugins
             for keyitem in self.pluginNameToObjMap.keys():
-                logger.debug('Checking data proc plugin for: %s, Type = %s',
-                            self.pluginNameToObjMap[keyitem],
-                            self.pluginNameToObjMap[keyitem].pluginType)
+                logger.debug(f'Checking data proc plugin for: {self.pluginNameToObjMap[keyitem]},' +
+                             f' Type = {self.pluginNameToObjMap[keyitem].pluginType}')
                 if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_DATA_PROCESSOR]:
                     priorityVal = self.pluginNameToObjMap[keyitem].executionPriority
                     allPriorityValues.append(priorityVal)
@@ -398,26 +359,28 @@ class QueueManager:
                     self.dataProcPluginsMap,
                     sortedPriorityKeys,
                     self,
+                    self.q_status,
                     name=str(index + 100),  # make unique worker names
                     daemon=False))
-            # # intialize the single data processing queue consumer worker:
-            # self.singleDataProcessor = DataProcessor(
-            #     self.dataProcPluginsMap,
-            #     sortedPriorityKeys,
-            #     self,
-            #     name='100',  # make unique worker names
-            #     daemon=False)
         except Exception as e:
             logger.error("Exiting: When Initializing the data processing worker thread with plugins, error was: %s",
                          e)
             sys.exit(2)
-        # after this, the self.singleDataProcessor is the thread that contains instantiated data processing plugins
-        logger.info("%s worker threads initialised to process data for %s plugins.",
-                    len(self.dataProcessWorkerList), len(self.dataProcPluginsMap))
+        # after this, the threads contain instantiated data processing plugins
+        logger.info(f"{len(self.dataProcessWorkerList)} worker threads initialised for {len(self.dataProcPluginsMap)}" +
+                    " data processing plugins.")
 
     def runAllJobs(self):
         """ Process Queue to run all web source (URL) identification jobs
         """
+        # intialize the progress Watch PluginWorker thread:
+        self.progressWatchThread = ProgressWatcher(self.pluginNameToObjMap,
+                                                   self.sessionHistoryDB,
+                                                   self,
+                                                   self.q_status,
+                                                   self.app_config.progressRefreshInt,
+                                                   name='1',
+                                                   daemon=False)
         # To begin with, initialize the URL identifying workers
         self.initURLSourcingWorkers()
         # Next, initialize the URL content-fetching workers
@@ -428,8 +391,8 @@ class QueueManager:
             for keyitem in self.urlSrcWorkers.keys():
                 self.urlSrcWorkers[keyitem].start()
 
-            # logger.debug("Waiting for %s seconds to start content fetching worker threads.", self.fetchCycleTime)
-            # time.sleep(self.fetchCycleTime)
+            # start PluginWorker thread that saves history.
+            self.progressWatchThread.start()
 
             # loop through workers, and start their threads:
             for keyitem in self.contentFetchWorkers.keys():
@@ -440,8 +403,6 @@ class QueueManager:
             # loop through workers, and start their threads:
             for dat_worker in self.dataProcessWorkerList:
                 dat_worker.start()
-            # start worker thread that saves history.
-            self.progressWatchThread.start()
 
             # wait for urlSrcWorkers to finish
             for keyitem in self.urlSrcWorkers.keys():
@@ -455,11 +416,11 @@ class QueueManager:
             for dat_worker in self.dataProcessWorkerList:
                 dat_worker.join()
 
-            # wait for progress watcher/history db worker thread to finish
+            # wait for progress watcher/history db PluginWorker thread to finish
             self.progressWatchThread.join()
             logger.debug("Worker thread that saves history finished running now.")
             # save any remaining list of URLs retrieved to the history database
-            self.sessionHistoryDB.writeQueueToDB()
+            # self.sessionHistoryDB.writeQueueToDB()
 
             # serially perform any data processing required on entire dataset for given day:
             # self.processDataSerially(self.runDate)

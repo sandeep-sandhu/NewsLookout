@@ -94,9 +94,11 @@ class ExecutionResult:
     textSize = 0
     publishDate = None
     pluginName = None
+    articleID = None
+    additionalLinks = []
 
     def __init__(self, sURL, htmlContentLen, textContentLen, publishDate, pluginName,
-                 dataFileName=None, rawDataFile=None, success=False):
+                 dataFileName=None, rawDataFile=None, success=False, additionalLinks=[]):
         self.URL = sURL
         self.rawDataFileName = rawDataFile
         self.savedDataFileName = dataFileName
@@ -105,43 +107,127 @@ class ExecutionResult:
         self.publishDate = publishDate
         self.pluginName = pluginName
         self.wasSuccessful = success
+        self.additionalLinks = additionalLinks
 
     def getAsTuple(self):
         return((self.URL, self.pluginName, self.publishDate, self.rawDataSize, self.textSize))
 
 
 class QueueStatus:
+    """ This object gets the status of all the plugins and the queues of the application
+     and updates its corresponding attributes
+
+    """
     queue_mgr = None
-    qsizeMap = {}
-    totalQsizeMap = {}
-    currentState = {}
+    # - Dictionary map with plugin names as the keys and their current queue sizes as the values.
+    qsizeMap = dict()
+    # - Count of plugins in URL sourcing state
+    fetchPendingCount = 0
+    # - Dictionary map with plugin names as the keys and their total queue sizes as values.
+    totalQsizeMap = dict()
+    # - Dictionary map with plugin names as the keys and their current plugin state as values.
+    currentState = dict()
+    # - Total count of all URLs attempted in this session
     totalURLCount = 0
     countOfPluginsInURLSrcState = 0
+    totalPluginsURLSourcing = 0
+    # - Flag indicating if any plugin is still fetching data over network (source URL list or content)
     isPluginStillFetchingoverNetwork = False
+    areAllPluginsStopped = False
+    # - Data fetch/scrape completed queue size
     fetchCompletQsize = 0
+    # - Total fetch completed size
     fetchCompletCount = 0
+    # - Data process input queue Size
     dataInputQsize = 0
+    # - Data process completed queue size
     dataOutputQsize = 0
 
     def __init__(self, queue_manager):
+        """ Instantiate the Queue status object.
+
+        :param queue_manager: The QueueManager instance
+        """
         self.queue_mgr = queue_manager
+        self.totalPluginsURLSourcing = self.queue_mgr.totalPluginsURLSrcCount
+
+    def get_plugin_state(self, plugin_name):
+        """ Get the state of the queried plugin
+
+        :param plugin_name: Name of the plugin being queried
+        :param plugin_name: str
+        :return: pluginState value expressed as a Types attribute value
+        :rtype: int
+        """
+        pluginStateInt = self.queue_mgr.pluginNameToObjMap[plugin_name].pluginState
+        return(Types.decodeNameFromIntVal(pluginStateInt))
+
+    def any_newsagg_isactive(self):
+        """ Check if any news aggregator is still actively fetching URL listing.
+        Specifically, check if any plugin that is of news aggregator type is in URL listing state.
+
+        :return: True if any news aggregator is still actively fetching list of URLs
+        :rtype: bool
+        """
+        result = False
+        for pluginName in self.queue_mgr.pluginNameToObjMap.keys():
+            if self.queue_mgr.pluginNameToObjMap[pluginName].pluginType == Types.MODULE_NEWS_AGGREGATOR:
+                result = result or self.queue_mgr.pluginNameToObjMap[pluginName].pluginState == Types.STATE_GET_URL_LIST
+        return(result)
+
+    @staticmethod
+    def getStatusChange(previousState, currentState):
+        """ Format the status change detected from comparing the previous state of plugins to its current state
+        and output these are a list of messages to be logged into the event log.
+        """
+        statusMessages = []
+        # logger.debug(f'Comparing previous state: {previousState}')
+        # logger.debug(f'      with current state: {currentState}')
+        # current status is: self.currentState, previous status is: self.previousState
+        for pluginName in currentState.keys():
+            try:
+                # for each key in current status, check and compare value in previous state
+                if pluginName in previousState and currentState[pluginName] != previousState[pluginName]:
+                    # print For plugin z, status changed from x to y
+                    statusMessages.append(
+                        str(pluginName) +
+                        ' changed state to -> ' +
+                        currentState[pluginName].replace('STATE_', '').replace('_', ' '))
+            except Exception as e:
+                logger.error("Progress watcher thread: Error comparing previous state of plugin: %s", e)
+        return(statusMessages)
 
     def updateStatus(self):
-        # update
+        """ Update the queue status
+        """
+        self.fetchPendingCount = 0
+        self.areAllPluginsStopped = False
+        self.isPluginStillFetchingoverNetwork = False
+        self.countOfPluginsInURLSrcState = 0
+        self.totalURLCount = 0
+        self.totalPluginsURLSourcing = self.queue_mgr.totalPluginsURLSrcCount
         for pluginName in self.queue_mgr.pluginNameToObjMap.keys():
             self.qsizeMap.update({pluginName: self.queue_mgr.pluginNameToObjMap[pluginName].getQueueSize()})
+            self.fetchPendingCount = (
+                    self.fetchPendingCount +
+                    self.queue_mgr.pluginNameToObjMap[pluginName].getQueueSize()
+                )
             self.totalQsizeMap[pluginName] = self.queue_mgr.pluginNameToObjMap[pluginName].urlQueueTotalSize
             self.totalURLCount = self.totalURLCount + self.queue_mgr.pluginNameToObjMap[pluginName].urlQueueTotalSize
-            self.isPluginStillFetchingoverNetwork = self.isPluginStillFetchingoverNetwork or (
-                    self.queue_mgr.pluginNameToObjMap[pluginName].pluginState in [
-                Types.STATE_GET_URL_LIST, Types.STATE_FETCH_CONTENT]
-            )
-            self.currentState.update(
-                {pluginName: Types.decodeNameFromIntVal(self.queue_mgr.pluginNameToObjMap[pluginName].pluginState)}
-            )
+            self.isPluginStillFetchingoverNetwork = (
+                self.isPluginStillFetchingoverNetwork or
+                self.queue_mgr.pluginNameToObjMap[pluginName].pluginState in [
+                    Types.STATE_GET_URL_LIST, Types.STATE_FETCH_CONTENT]
+                )
+            self.areAllPluginsStopped = (
+                self.areAllPluginsStopped and
+                self.queue_mgr.pluginNameToObjMap[pluginName].pluginState == Types.STATE_STOPPED)
+            self.currentState[pluginName] = Types.decodeNameFromIntVal(
+                self.queue_mgr.pluginNameToObjMap[pluginName].pluginState
+                )
             if self.queue_mgr.pluginNameToObjMap[pluginName].pluginState == Types.STATE_GET_URL_LIST:
                 self.countOfPluginsInURLSrcState = self.countOfPluginsInURLSrcState + 1
-        # update other queue parameters
+        # update other queue parameters from the queue manager object
         self.fetchCompletQsize = self.queue_mgr.fetchCompletedQueue.qsize()
         self.fetchCompletCount = self.queue_mgr.fetchCompletedCount
         self.dataInputQsize = self.queue_mgr.getCompletedQueueSize()

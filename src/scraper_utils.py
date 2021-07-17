@@ -53,8 +53,6 @@
 # #########################################################################################################
 
 # import standard python libraries:
-import sys
-import os
 import importlib
 import importlib.resources
 from datetime import date, datetime, timedelta
@@ -67,6 +65,7 @@ import logging
 
 # import web retrieval and text processing python libraries:
 import nltk
+
 from tld import get_tld
 
 
@@ -76,15 +75,17 @@ logger = logging.getLogger(__name__)
 ##########
 
 
-def retainValidArticles(articleList, validURLPatternsList):
+def retainValidArticles(articleList: list, validURLPatternsList: list) -> list:
     """ Retain only valid URLs
+
+    :param articleList: URL list to be scanned and filtered.
+    :param validURLPatternsList: List of valid URLs to be checked against.
+    :return:
     """
     valid_articles = []
-    if len(validURLPatternsList) < 1:
+    if len(validURLPatternsList) < 1 or len(articleList) < 1:
         return(articleList)
     else:
-        # TODO: explore using list comprehension with filter:
-        # valid_articles = [i for i in articleList if i in validURLPatternsList]
         for article in articleList:
             # only keep following URLs which contain strings matching pattern
             for strCheck in validURLPatternsList:
@@ -100,16 +101,18 @@ def retainValidArticles(articleList, validURLPatternsList):
                             break
                 except Exception as e:
                     logger.error("ERROR retaining valid article list: %s", e)
-    logger.debug("Retaining valid articles: Count of valid articles remaining = %s", len(valid_articles))
+    logger.debug(f"Filtered to retain valid articles, count after filtering = {len(valid_articles)}")
     return(valid_articles)
 
 
-def removeInValidArticles(articleList, invalidURLPatternsList):
-    """ Remove InValid Articles
+def removeInValidArticles(articleList: list, invalidURLPatternsList: list) -> list:
+    """ Remove InValid Articles after checking against invalid string patterns
+
+    :param articleList: URL list to be scanned and filtered.
+    :param invalidURLPatternsList: List of valid URLs to be checked against.
+    :return:
     """
     valid_articles = []
-    # TODO: explore using list comprehension with filter:
-    # valid_articles = [i for i in articleList if i not in invalidURLPatternsList]
     for article in articleList:
         try:
             # delete URLs which contain any of the strings matching pattern
@@ -126,7 +129,22 @@ def removeInValidArticles(articleList, invalidURLPatternsList):
     return(valid_articles)
 
 
-def removeStartTrailQuotes(textString):
+def clean_non_utf8(input_text) -> str:
+    output_text = input_text
+    # remove non utf-8 characters
+    try:
+        if input_text is None:
+            output_text = ''
+        if type(input_text) == bytes:
+            output_text = input_text.decode('utf-8', errors='replace')
+        elif type(input_text) == str:
+            output_text = input_text.encode('utf-8', errors="replace").decode('utf-8', errors='replace')
+    except Exception as err:
+        logger.error(f"Error encoding-decoding UTF-8: {err}, for content type: {type(input_text)}")
+    return(output_text)
+
+
+def removeStartTrailQuotes(textString: str) -> str:
     """ Remove starting and or trailing quotes from strings """
     resultString = ""
     resultString = textString.strip('\"').strip("'")
@@ -141,10 +159,8 @@ def decodeSecret(encodedText, keyValue):
         base64_bytes = encodedText.encode('ascii')
         decoded_bytes = base64.b64decode(base64_bytes)
         decodedText = decoded_bytes.decode('utf-8')
-
     except Exception as e:
         logger.error("Error decoding secret: %s", e)
-
     return(decodedText)
 
 
@@ -250,16 +266,16 @@ def filterRepeatedchars(baseText, charList):
     return(cleanText)
 
 
-def cutStrFromTag(sourceStr, startTagStr):
-    """ Cut part of the source String starting from substring from Tag till its end """
-    resultStr = ""
-    try:
-        start_pos = sourceStr.find(startTagStr) + len(startTagStr)
-        if start_pos > -1:
-            resultStr = sourceStr[start_pos:]
-    except Exception as e:
-        logger.error("ERROR extracting string starting from tags: %s", e)
-    return(resultStr)
+# def cutStrFromTag(sourceStr, startTagStr):
+#     """ Cut part of the source String starting from substring from Tag till its end """
+#     resultStr = ""
+#     try:
+#         start_pos = sourceStr.find(startTagStr) + len(startTagStr)
+#         if start_pos > -1:
+#             resultStr = sourceStr[start_pos:]
+#     except Exception as e:
+#         logger.error("ERROR extracting string starting from tags: %s", e)
+#     return(resultStr)
 
 
 def cutStrBetweenTags(sourceStr, startTagStr, endTagStr):
@@ -366,13 +382,19 @@ def getNetworkLocFromURL(URLStr):
     return(res.parsed_url.netloc)
 
 
-def checkIfURLIsValid(urlString):
-    """ Check if URL is Valid """
+def is_valid_url(url_to_check: str) -> bool:
+    """ Checks whether this is a valid URL
+
+    :param url_to_check: URL string to be checked
+    :return: True if this is a valid URL, False otherwise.
+    """
     try:
-        get_tld(urlString, as_object=True)
+        if url_to_check is None or url_to_check == '':
+            return(False)
+        get_tld(url_to_check, as_object=True)
         return(True)
     except Exception as e:
-        logger.debug("Invalid URL %s: %s", urlString, e)
+        logger.debug(f'Error when checking is_valid_url: {e}')
         return(False)
 
 
@@ -393,8 +415,8 @@ def sameURLWithoutQueryParams(url1, url2):
         else:
             comparisonDecision = False
     except Exception as e:
-        logger.debug("While comparing whether two URLs are the same, got exception: %s", e)
-        logger.debug("url1 = %s, url2 = %s", url1, url2)
+        logger.debug(f"While comparing whether two URLs are the same, got exception: {e}")
+        logger.debug(f"Comparing URL #1 = {url1} with URL #2 = {url2}")
     return(comparisonDecision)
 
 
@@ -413,16 +435,25 @@ def extractLinks(url, docRoot):
                     linkValue = tag['href']
                     if linkValue.startswith('/'):
                         # convert to proper URL using network-location of the contianing page's url
-                        allLinks.append(
-                                        rootTLDObj.parsed_url.scheme
-                                        + '://'
-                                        + rootTLDObj.parsed_url.netloc
-                                        + linkValue)
-                    elif (linkValue.startswith("javascript:") is False and linkValue.startswith('mailto:') is False and
-                          linkValue.startswith('#') is False and linkValue.startswith('?') is False and
+                        properLink = rootTLDObj.parsed_url.scheme\
+                                     + '://'\
+                                     + rootTLDObj.parsed_url.netloc\
+                                     + linkValue
+                        if is_valid_url(properLink):
+                            allLinks.append(properLink)
+                    elif (linkValue.startswith("javascript:") is False and
+                          linkValue.startswith('JavaScript:') is False and
+                          linkValue.startswith('mailto:') is False and
+                          linkValue.startswith('#') is False and
+                          linkValue.startswith('?') is False and
                           linkValue.startswith('../') is False and
-                          linkValue.startswith('http://http://') is False and linkValue.startswith('whatsapp:') is False):
-                        allLinks.append(linkValue)
+                          linkValue.startswith('tel:') is False and
+                          linkValue.startswith('{{link}}') is False and
+                          linkValue.startswith('{{showcmturl}}') is False and
+                          linkValue.startswith('http://http://') is False and
+                          linkValue.startswith('whatsapp:') is False):
+                        if is_valid_url(linkValue):
+                            allLinks.append(linkValue)
     except Exception as e:
         logger.error("Error extracting all Links from html document: %s", e)
     return(allLinks)

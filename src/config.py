@@ -160,6 +160,23 @@ class ConfigManager:
             runDate = datetime.now()
         return(runDate)
 
+    def processItemInSection(self, key, item):
+        if key.startswith('plugin'):
+            name_priority = removeStartTrailQuotes(item.strip()).split('|')
+            pluginName = name_priority[0].strip()
+            priorityVal = 999
+            if name_priority is not None and len(name_priority) > 1:
+                try:
+                    priorityVal = int(name_priority[1].strip())
+                except Exception as e:
+                    logger.error('When reading plugin priority as an integer: %s', e)
+            logger.debug('Adding %s with priority %s to the list of enabled plugins.',
+                         pluginName, priorityVal)
+            try:
+                self.enabledPluginNames[pluginName] = priorityVal
+            except Exception as e:
+                logger.error('When adding plugin name and priority to Map: %s', e)
+
     def readPluginNames(self):
         """ Read the list of plugins enabled in the configuration file
         """
@@ -169,22 +186,7 @@ class ConfigManager:
                 section = self.config_parser['plugins']
                 if section.name == 'plugins':
                     for key, item in section.items():
-                        # TODO : sort the list it so that priority is used
-                        if key.startswith('plugin'):
-                            name_priority = removeStartTrailQuotes(item.strip()).split('|')
-                            pluginName = name_priority[0].strip()
-                            priorityVal = 999
-                            if name_priority is not None and len(name_priority)>1:
-                                try:
-                                    priorityVal = int(name_priority[1].strip())
-                                except Exception as e:
-                                    logger.error('When reading plugin priority as an integer: %s', e)
-                            logger.debug('Adding %s with priority %s to the list of enabled plugins.',
-                                         pluginName, priorityVal)
-                            try:
-                                self.enabledPluginNames[pluginName] = priorityVal
-                            except Exception as e:
-                                logger.error('When adding plugin name and priority to Map: %s', e)
+                        self.processItemInSection(key, item)
         except Exception as e:
             logger.error("Error reading names of enabled plugins: %s", e)
 
@@ -379,7 +381,7 @@ class ConfigManager:
                 os.environ['HTTP_PROXY'] = self.proxy_url_http
                 os.environ['HTTPS_PROXY'] = self.proxy_url_https
                 self.proxies = {"http": self.proxy_url_http,
-                                              "https": self.proxy_url_https}
+                                "https": self.proxy_url_https}
             else:
                 os.environ['HTTP_PROXY'] = ''
                 os.environ['HTTPS_PROXY'] = ''

@@ -100,11 +100,17 @@ class NetworkFetcher:
         except Exception as e:
             logger.error("Exception when configuring the network manager: %s", e)
 
+    @functools.lru_cache(maxsize=100)
     def NewsPpr_get_html_2XX_only(url, config=None, response=None):
         """ Replacement for method: newspaper.network.get_html_2XX_only()
         Consolidated logic for http requests from newspaper. Handles error cases:
         - Attempt to find encoding of the html by using HTTP header. Fallback to 'ISO-8859-1' if not provided.
         - Error out if a non 2XX HTTP response code is returned.
+
+        :param url: URL to fetch
+        :param config: newspaper.config object with HTTP protocol request options such as proxy, timeouts, etc.
+        :param response: HTTP Response object to extract data from.
+        :return:
         """
         logger.debug("Newspaper library retrieving URL: %s", url)
         config = config or newspaper.network.Configuration()
@@ -125,17 +131,29 @@ class NetworkFetcher:
             response.raise_for_status()
         return html
 
-    def sleepBeforeNextFetch(self):
-        """ Sleep random time before the next HTTP(S) fetch
-        """
-        pauseTime = self.retryWaitFixed + random.randint(
-            self.retry_wait_rand_min_sec, self.retry_wait_rand_max_sec)
-        logger.debug("Pausing web retrieval for %s seconds.", pauseTime)
-        time.sleep(pauseTime)
+    @staticmethod
+    def sleepBeforeNextFetch(fix_sec: int = 3, min_rand_sec: int = 3, max_rand_sec: int = 7):
+        """ Sleep for a random time period before the next HTTP(S) fetch.
+        In addition to a fixed time period, a random integer is generated
+         which has a range of min_rand_sec to max_rand_sec, this is added to the fixed time period.
 
-    @functools.lru_cache(maxsize=1000)
-    def fetchRawDataFromURL(self, uRLtoFetch, pluginName, getBytes=False):
-        """ Fetch raw content From given URL
+        :param fix_sec: Fixed time period in seconds to wait for (default = 3)
+        :param min_rand_sec: Minimum time period in seconds for the random additional wait time (default = 3)
+        :param max_rand_sec: Maximum time period in seconds for the random additional wait time (default = 7)
+        :return:
+        """
+        pause_time_seconds = fix_sec + random.randint(min_rand_sec, max_rand_sec)
+        logger.debug("Pausing web retrieval for %s seconds.", pause_time_seconds)
+        time.sleep(pause_time_seconds)
+
+    @functools.lru_cache(maxsize=300)
+    def fetchRawDataFromURL(self, uRLtoFetch: str, pluginName: str, getBytes: bool = False) -> object:
+        """ Fetch raw HTML content from the given URL.
+
+        :param uRLtoFetch: URL to be fetched over HTTP(s) GET Protocol
+        :param pluginName: Name of the plugin for which the URL is to be fetched.
+        :param getBytes: If set to True, will return content in bytes
+        :return:
         """
         httpsResponse = None
         if uRLtoFetch is not None and len(uRLtoFetch) > 11:
@@ -144,7 +162,8 @@ class NetworkFetcher:
                              retryCounter, uRLtoFetch.encode('ascii', "ignore"))
                 try:
                     self.customHeader = {'user-agent': self.userAgentStrList[self.userAgentIndex]}
-                    # self.requestOpener = urllib3.request.build_opener(urllib.request.HTTPCookieProcessor(self.cookieJar))
+                    # self.requestOpener = urllib3.request.build_opener(
+                    #   urllib.request.HTTPCookieProcessor(self.cookieJar))
                     # response = self.requestOpener.open(uRLtoFetch)
                     httpsResponse = requests.get(
                         uRLtoFetch,
@@ -154,7 +173,7 @@ class NetworkFetcher:
                         verify=self.verify_ca_cert  # warning: if set to false, disables checking SSL certs!
                         # verify=self.proxy_ca_certfile   # provides CA cert
                         )
-                    # since, all completed without error, so don't retry again.
+                    # since this request completed without error, so don't try again, exit the loop.
                     break
                 except requests.Timeout as timeoutExp:
                     logger.error("%s: Request timeout (retry count = %s) downloading raw data From URL %s: %s",
@@ -194,12 +213,18 @@ class NetworkFetcher:
                         self.userAgentIndex = 0
                     else:
                         self.userAgentIndex = self.userAgentIndex + 1
-                    # wait for some time
-                    self.sleepBeforeNextFetch()
+                    # wait for a random time period
+                    NetworkFetcher.sleepBeforeNextFetch(fix_sec=self.retryWaitFixed,
+                                                        min_rand_sec=self.retry_wait_rand_min_sec,
+                                                        max_rand_sec=self.retry_wait_rand_max_sec)
         return(self.getDataFromHTTPResponse(httpsResponse, getBytes))
 
-    def getDataFromHTTPResponse(self, httpsResponse, getBytes):
-        """ Get data From HTTP response
+    def getDataFromHTTPResponse(self, httpsResponse: requests.Response, getBytes: bool) -> str:
+        """ Get data From HTTP response.
+
+        :param httpsResponse:
+        :param getBytes:
+        :return:
         """
         if httpsResponse is not None and httpsResponse.encoding != 'ISO-8859-1' and getBytes is False:
             return(httpsResponse.text)
@@ -216,8 +241,11 @@ class NetworkFetcher:
         else:
             return(None)
 
-    def loadAndSetCookies(self, cookieFileName):
-        """ load and Set Cookies from file
+    def loadAndSetCookies(self, cookieFileName: str) -> object:
+        """ Load and Set Cookies from text file
+
+        :param cookieFileName: Text file to read the previously saved cookies
+        :return: CookieJar instantiated with cookie data form file.
         """
         cookieJar = None
         try:
@@ -226,8 +254,12 @@ class NetworkFetcher:
             logger.error("Exception caught opening cookie file: %s", theError)
         return(cookieJar)
 
-    def getCookiePolicy(self, listOfAllowedDomains):
-        """ """
+    def getCookiePolicy(self, listOfAllowedDomains: list) -> object:
+        """ Prepare a cookie jar policy to be used in HTTP requests and sessions.
+
+        :param listOfAllowedDomains: List of domain names permitted for this plugin.
+        :return: CookiePolicy
+        """
         thisCookiePolicy = None
         try:
             thisCookiePolicy = http.cookiejar.DefaultCookiePolicy(
@@ -245,11 +277,17 @@ class NetworkFetcher:
                 strict_ns_set_path=False)
             thisCookiePolicy.set_allowed_domains(listOfAllowedDomains)
         except Exception as e:
-            logger.error("Error setting cookie policy: %s", e)
+            logger.error("Error preparing cookie policy: %s", e)
         return(thisCookiePolicy)
 
-    def getHTTPData(self, uRLtoFetch, postHeaders=None, pluginName=None):
-        """ Get HTTP(s) data, send back response object
+    def getHTTPData(self, uRLtoFetch: str, postHeaders: dict = None, pluginName: str = None) -> requests.Response:
+        """Fetch data using HTTP(s) GET Method, send back response object.
+        Uses custom agent, proxy and timeouts configured for the network Fetcher object
+
+        :param uRLtoFetch: URL to fetch
+        :param postHeaders: Dictionary of key-value pairs to set custom headers in the request
+        :param pluginName: Name of the plugin
+        :return: HTTP Response object
         """
         httpsResponse = None
         for retryCounter in range(self.retryCount):
@@ -270,22 +308,33 @@ class NetworkFetcher:
                     )
                 break  # completed without error, so don't retry again.
             except Exception as e:
-                logger.error("%s: Stopping the download, general error (retry count = %s) for http get on URL %s Error: %s",
-                             pluginName,
-                             retryCounter,
-                             uRLtoFetch,
-                             e)
+                logger.error(f"{pluginName}: Stopping the download, general error (retry count = {retryCounter})" +
+                             f" for http GET on URL {uRLtoFetch} Error: {e}")
                 break  # stop retrying again for this error
             finally:
                 if (self.userAgentIndex + 1) == len(self.userAgentStrList):
                     self.userAgentIndex = 0
                 else:
                     self.userAgentIndex = self.userAgentIndex + 1
-                self.sleepBeforeNextFetch()  # wait for some time
+                # wait for a random time period
+                NetworkFetcher.sleepBeforeNextFetch(fix_sec=self.retryWaitFixed,
+                                                    min_rand_sec=self.retry_wait_rand_min_sec,
+                                                    max_rand_sec=self.retry_wait_rand_max_sec)
         return(httpsResponse)
 
-    def postHTTPData(self, uRLtoFetch, payload, jsonBody=None, postHeaders=None, pluginName=None):
-        """ Fetch raw content by posting HTTP data to given URL
+    def postHTTPData(self, uRLtoFetch: str,
+                     payload: str,
+                     jsonBody: str = None,
+                     postHeaders: dict = None,
+                     pluginName: str = None) -> bytes:
+        """ Fetch data content by POSTing HTTP request to the given URL.
+
+        :param uRLtoFetch: URL to fetch
+        :param postHeaders: Dictionary of key-value pairs to set custom headers in the request
+        :param payload:
+        :param jsonBody:
+        :param pluginName: Name of of the plugin
+        :return: Content (in bytes) extracted from the HTTP Response.
         """
         rawDataContent = b""
         for retryCounter in range(self.retryCount):
@@ -309,19 +358,18 @@ class NetworkFetcher:
                 rawDataContent = httpsResponse.content
                 break  # all done without error, so don't retry again.
             except Exception as e:
-                logger.error("%s: Stopping the download, general error (retry count = %s) on http POST URL %s Error: %s",
-                             pluginName,
-                             retryCounter,
-                             uRLtoFetch,
-                             e)
+                logger.error(f"{pluginName}: Stopping download, general error (retry count = {retryCounter})" +
+                             f" on http POST URL {uRLtoFetch}; Error: {e}")
                 break  # stop retrying again for this error
             finally:
                 if (self.userAgentIndex + 1) == len(self.userAgentStrList):
                     self.userAgentIndex = 0
                 else:
                     self.userAgentIndex = self.userAgentIndex + 1
-                # wait for some time
-                self.sleepBeforeNextFetch()
+                # wait for a random time period
+                NetworkFetcher.sleepBeforeNextFetch(fix_sec=self.retryWaitFixed,
+                                                    min_rand_sec=self.retry_wait_rand_min_sec,
+                                                    max_rand_sec=self.retry_wait_rand_max_sec)
         return(rawDataContent)
 
     def getDataInSession(self, urlList):

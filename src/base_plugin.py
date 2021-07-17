@@ -24,8 +24,8 @@
 #        extractPublishedDate                                                                             #
 #        getArticlesListFromRSS                                                                           #
 #        getURLsListForDate                                                                               #
-#        extractArticleListFromMainURL                                                                    #
-#        extractLinksFromURLList                                                                          #
+#        extr_links_from_main_noncont                                                                    #
+#        extr_links_from_urls_list                                                                          #
 #        extractUniqueIDFromURL                                                                           #
 #        downloadDataArchive                                                                              #
 #        fetchDataFromURL                                                                                 #
@@ -69,9 +69,11 @@ from network import NetworkFetcher
 from data_structs import Types, ScrapeError, ExecutionResult
 from news_event import NewsEvent
 
+import scraper_utils
 from scraper_utils import normalizeURL, extractLinks, calculateCRC32, getPreviousDaysDate, getNextDaysDate
+from scraper_utils import is_valid_url
 from scraper_utils import retainValidArticles, removeInValidArticles
-from scraper_utils import sameURLWithoutQueryParams, deDupeList
+from scraper_utils import sameURLWithoutQueryParams
 
 ##########
 
@@ -83,6 +85,7 @@ class BasePlugin:
     It implements several methods for basic common functionality.
     """
 
+    pluginName = "BasePlugin"
     executionPriority = 999
     historicURLs = 0
     app_config = None
@@ -95,7 +98,7 @@ class BasePlugin:
     invalidURLSubStrings = []
     validURLStringsToCheck = []
     minArticleLengthInChars = 400
-    urlMatchPatterns =[]
+    urlMatchPatterns = []
     authorRegexps = []
     authorMatchPatterns = []
     dateMatchPatterns = {}
@@ -152,9 +155,11 @@ class BasePlugin:
          + r"([a-zA-Z]{3}, [0-9]{1,2} [a-zA-Z]{3} 20[0-9]{2} [0-9]{1,2}:[0-9]{2}:[0-9]{2} \+0530)(\")":
          "%a, %d %b %Y %H:%M:%S %z",
          # "dateModified": "2020-01-30T22:15:00+05:30"
-         r"(\"dateModified\": \")(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\+05:30\")": "%Y-%m-%dT%H:%M:%S",
+         r"(\"dateModified\": \")(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\+05:30\")":
+         "%Y-%m-%dT%H:%M:%S",
          # 'publishedDate': '2020-01-01T22:39:00+05:30'
-         r"('publishedDate': ')(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\+05:30')": "%Y-%m-%dT%H:%M:%S",
+         r"('publishedDate': ')(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\+05:30')":
+         "%Y-%m-%dT%H:%M:%S",
          # "datePublished": "2021-02-25T22:59:00+05:30"
          r"(\"datePublished\": \")(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\+05:30\")":
          "%Y-%m-%dT%H:%M:%S",
@@ -252,7 +257,7 @@ class BasePlugin:
         :return: String indicating the state of this plugin, e.g. 'State = FETCH DATA'
         """
         statusString = ''
-        if self.pluginType in [Types.MODULE_NEWS_CONTENT]:
+        if self.pluginType in [Types.MODULE_NEWS_CONTENT, Types.MODULE_DATA_CONTENT]:
             statusString = 'State = ' + Types.decodeNameFromIntVal(self.pluginState)
         elif self.pluginType in [Types.MODULE_DATA_PROCESSOR]:
             statusString = 'State = ' + Types.decodeNameFromIntVal(self.pluginState)
@@ -279,24 +284,27 @@ class BasePlugin:
         """
         return(self.listOfURLS)
 
-    def addURLsListToQueue(self, listOfURLs):
-        """ Add URLs List To Queue
+    def addURLsListToQueue(self, listOfURLs, sessionHistoryDB):
+        """ Add the list of URLs to this plugin's Queue
 
         :parameter listOfURLs: List of URL strings to be fetched for web scraping by this plugin
         :type listOfURLs: list[str]
         """
+        # validate and filter url list before adding to queue.
         listOfURLs = self.filterNonContentURLs(listOfURLs)
+        logger.info(f'{self.pluginName}: After filtering non-content URLs, URLs remaining: {len(listOfURLs)}')
+        listOfURLs = sessionHistoryDB.removeAlreadyFetchedURLs(listOfURLs, self.pluginName)
+        logger.info(f'{self.pluginName}: After filtering already fetched URLS, URLs remaining: {len(listOfURLs)}')
         for listItem in listOfURLs:
             if listItem is not None:
-                # add URL to queue:
+                # add valid URLs to this plugin's queue:
                 self.urlQueue.put(listItem)
-                logger.debug("%s: Adding URL into queue: %s", self.pluginName, listItem.encode('ascii', 'ignore'))
+                logger.debug(f"{self.pluginName}: Adding to queue, URL: {listItem.encode('ascii', 'ignore')}")
                 self.urlQueueTotalSize = self.urlQueueTotalSize + 1
-        logger.debug(f'After adding additional urls for plugin {self.pluginName},' +
-                     ' the total number of URLs in queue = {self.urlQueueTotalSize}')
+        logger.info(f'{self.pluginName}: After adding new urls, total number of URLs = {self.urlQueueTotalSize}')
 
     def putQueueEndMarker(self):
-        """ Adds an end-of-queue marker sentinel object 'None' with ver low priority (10 million).
+        """ Adds an end-of-queue marker sentinel object 'None' and update the state of this plugin.
 
         For news or data content plugins, changes the state of the plugin to -> Types.STATE_FETCH_CONTENT
 
@@ -318,8 +326,8 @@ class BasePlugin:
                     )
 
     def getQueueSize(self):
-        if self.urlQueue.qsize()>0:
-            return(self.urlQueue.qsize()-1)
+        if self.urlQueue.qsize() > 0:
+            return(self.urlQueue.qsize() - 1)
         else:
             return(0)
 
@@ -333,7 +341,7 @@ class BasePlugin:
         :return: URL from the queue
         :rtype: str
         """
-        sURL = self.urlQueue.get(block=True , timeout=timeout)
+        sURL = self.urlQueue.get(block=True, timeout=timeout)
         self.urlQueue.task_done()
         return(sURL)
 
@@ -460,48 +468,67 @@ class BasePlugin:
         :rtype: list[str]
         """
         # retain only valid articles:
-        resultList = retainValidArticles(
-            urlList,
-            self.validURLStringsToCheck
-            )
+        resultList = retainValidArticles(urlList, self.validURLStringsToCheck)
         # remove all invalid articles:
-        resultList = removeInValidArticles(
-            resultList,
-            self.invalidURLSubStrings
-            )
+        resultList = removeInValidArticles(resultList, self.invalidURLSubStrings)
         return(resultList)
 
-    def filterNonContentURLs(self, urlList):
+    def filterNonContentURLs(self, urlList: list) -> list:
         """ Filter out non-content URLs so these are not fetched.
-
-        Refers to class fields - nonContentURLs, and nonContentStrings
+        Refers to class member variables: nonContentURLs, and nonContentStrings
 
         :parameter urlList: The list of URL strings to check and filter
         :type urlList: list[str]
         :return: The filtered list of URLs
         :rtype: list[str]
         """
-        if type(urlList).__name__ == 'str':
-            # if a string was passed, fix it by converting it into a list of string
-            urlList = [urlList]
-        for uRLtoFetch in deDupeList(urlList):
-            try:
-                for item in deDupeList(self.nonContentURLs):
-                    if sameURLWithoutQueryParams(uRLtoFetch, item) is True and uRLtoFetch in urlList:
-                        urlList.remove(uRLtoFetch)  # remove those urls in list: nonContentURLs
-            except Exception as e:
-                logger.error("%s: When filtering non-content URLs, error was: %s", self.pluginName, e)
-            try:
-                for item in deDupeList(self.nonContentStrings):
-                    if uRLtoFetch.find(item) > 0 and uRLtoFetch in urlList:
-                        urlList.remove(uRLtoFetch)  # remove urls containing nonContentStrings
-            except Exception as e:
-                logger.error("%s: When filtering URLs with non-content string indicators, error was: %s", self.pluginName, e)
+        try:
+            if type(urlList) == str:
+                # if a string was passed, fix it by converting it into a list of string
+                urlList = [urlList]
+            urlList = self.filterInvalidURLs(urlList)
+            urlList = [i for i in scraper_utils.deDupeList(urlList) if
+                       is_valid_url(i) is True and
+                       self.has_noncont_url(i, self.nonContentURLs) is False and
+                       self.has_noncont_str(i, self.nonContentStrings) is False]
+        except Exception as e:
+            logger.error(f"{self.pluginName}: When filtering out non-content URLs, error was: {e}")
         return(urlList)
+
+    def has_noncont_url(self, uRLtoFetch: list, nonContentURLs: list) -> bool:
+        """ Check and flag True if this URL is listed in the 'non-content' urls list.
+
+        :param uRLtoFetch: URL to check
+        :param nonContentURLs: Non-content list of URLs to check
+        :return: True if this URL needs to be excluded, False to keep it
+        """
+        for item in scraper_utils.deDupeList(nonContentURLs):
+            # logger.debug(f'check url {uRLtoFetch} = {item}: result = {sameURLWithoutQueryParams(uRLtoFetch, item)}')
+            if sameURLWithoutQueryParams(uRLtoFetch, item):
+                return(True)
+        # in the end, if nothing else is found then flag false:
+        return(False)
+
+    def has_noncont_str(self, uRLtoFetch: str, nonContentStrings: list) -> bool:
+        """ Check and flag True if non-content urls based on sub-trings found in them.
+
+        :param uRLtoFetch: URL to check
+        :param nonContentStrings: Non-content list of URL substrings to be excluded
+        :return: True if this URL needs to be excluded, False to keep it
+        """
+        if uRLtoFetch is None or len(uRLtoFetch) < 2:
+            return(True)
+        for item in scraper_utils.deDupeList(nonContentStrings):
+            # logger.debug(f'check url {uRLtoFetch} has non-cont substring {item}: result: {uRLtoFetch.find(item)}')
+            if item is not None and uRLtoFetch.find(item) >= 0:
+                return(True)
+        # in the end, if nothing else is found then flag false:
+        return(False)
 
     def extractArticlesListWithNewsP(self):
         """ Extract Article Text using the Newspaper library
         """
+        listOfURLS = []
         try:
             # replace default HTTP get method with custom method:
             newspaper.network.get_html_2XX_only = NetworkFetcher.NewsPpr_get_html_2XX_only
@@ -533,19 +560,22 @@ class BasePlugin:
             # normalize the list of URLs:
             if newspaperSourcedURLS is not None:
                 for uRLIndex in range(len(newspaperSourcedURLS)):
-                    self.listOfURLS.append(normalizeURL(newspaperSourcedURLS[uRLIndex]))
+                    listOfURLS.append(normalizeURL(newspaperSourcedURLS[uRLIndex]))
         except Exception as e:
             logger.error("%s: Error extracting articles list using the Newspaper library: %s",
                          self.pluginName,
                          e)
+        logger.info(f'{self.pluginName}: Identified {len(listOfURLS)} links using the Newspaper library.')
+        return(listOfURLS)
 
-    def getArticlesListFromRSS(self):
+    def getArticlesListFromRSS(self, rss_urls):
         """ Extract the articles listing using the BeautifulSoup library
         to identify the list of URLs to be scraped from its published RSS feed URLs: all_rss_feeds
 
         Sets the retrieved URL list in this class instance's field: listOfURLS
         """
-        for thisFeedURL in self.all_rss_feeds:
+        resultList = []
+        for thisFeedURL in rss_urls:
             try:
                 rawData = self.networkHelper.fetchRawDataFromURL(thisFeedURL, self.pluginName)
                 # if retrieved HTML data is of sufficient size, then parse it using the xml parser:
@@ -557,13 +587,15 @@ class BasePlugin:
                         for item in docRoot.channel:
                             if item.name == "item":
                                 # add each link to the list of URL strings
-                                self.listOfURLS.append(normalizeURL(item.link.contents[0]))
+                                resultList.append(normalizeURL(item.link.contents[0]))
             except Exception as e:
                 logger.error("%s: Error getting urls listing from RSS feed %s: %s",
                              self.pluginName,
                              thisFeedURL,
                              e)
-        self.listOfURLS = self.filterInvalidURLs(self.listOfURLS)
+        resultList = self.filterInvalidURLs(resultList)
+        logger.info(f'{self.pluginName}: Identified {len(resultList)} links from RSS feeds.')
+        return(resultList)
 
     def loadDocument(self, fileName):
         """ Read document object from given JSON filename
@@ -583,7 +615,7 @@ class BasePlugin:
                 document.readFromJSON(fileName)
                 document.setFileName(fileName)
             else:
-                logger.error(f'File {fileName} does not exist.')
+                logger.error(f'News event data file {fileName} does not exist.')
         except Exception as e:
             logger.error("When trying to read and parse JSON file %s, error: %s", fileName, e)
         return(document)
@@ -594,7 +626,7 @@ class BasePlugin:
         try:
             if 'mainURLDateFormatted' in dir(self) and self.mainURLDateFormatted is not None:
                 searchResultsURLForDate = runDate.strftime(self.mainURLDateFormatted)
-                URLsListForDate = self.extractLinksFromURLList(runDate, [searchResultsURLForDate])
+                URLsListForDate = self.extr_links_from_urls_list(runDate, [searchResultsURLForDate])
                 if URLsListForDate is not None and len(URLsListForDate) > 0:
                     resultSet = URLsListForDate
                 logger.info("%s: Added %s URLs from news archives for date: %s",
@@ -613,30 +645,36 @@ class BasePlugin:
         self.listOfURLS = []
         allURLs = []
         try:
-            self.getArticlesListFromRSS()
-            self.extractArticlesListWithNewsP()
-            # add main url derived links + pending url list from sqlite database:
-            self.listOfURLS = deDupeList(self.listOfURLS +
-                                         self.extractArticleListFromMainURL(runDate) +
-                                         sessionHistoryDB.retrieveTodoURLList(self.pluginName))
-            allURLs = self.listOfURLS
+            rssURLList = self.getArticlesListFromRSS(self.all_rss_feeds)
+            newsPaperLibURLList = self.extractArticlesListWithNewsP()
+            main_page_list = self.extr_links_from_main_noncont(runDate)
+            pending_urls = sessionHistoryDB.retrieveTodoURLList(self.pluginName)
+            # concatenate all lists of URLs:
+            if rssURLList is not None:
+                allURLs = allURLs + rssURLList
+            if newsPaperLibURLList is not None:
+                allURLs = allURLs + newsPaperLibURLList
+            if main_page_list is not None:
+                allURLs = allURLs + main_page_list
+            if pending_urls is not None:
+                allURLs = allURLs + pending_urls
+            allURLs = scraper_utils.deDupeList(allURLs)
         except Exception as e:
             logger.error("%s: Error retrieving list of URLs from main URL and pending table: %s", self.pluginName, e)
         try:
-            allURLs = self.getLinksRecursively(self.listOfURLS, runDate, self.app_config.recursion_level)
-            allURLs = sessionHistoryDB.removeAlreadyFetchedURLs(allURLs, self.pluginName)
-            self.addURLsListToQueue(allURLs)
-            sessionHistoryDB.addURLsToPendingTable(allURLs, self.pluginName)
+            if self.app_config.recursion_level>1:
+                recursive_urls = self.getLinksRecursively(allURLs, runDate, self.app_config.recursion_level)
+                if recursive_urls is not None:
+                    allURLs = scraper_utils.deDupeList(allURLs + recursive_urls)
         except Exception as e:
-            logger.error("%s: Error trying to validate retrieved listing of URLs: %s",
-                         self.pluginName,
-                         e)
+            logger.error(f"{self.pluginName}: Error trying to validate retrieved listing of URLs: {e}")
         return(allURLs)
 
-    def getLinksRecursively(self, uRLSList, runDate, recursionLevel):
+    def getLinksRecursively(self, urls_list, run_date, recursionLevel):
         """ Get Links Recursively
         """
-        allURLs = uRLSList
+        # TODO: make method immutable, return URL list
+        allURLs = urls_list
         # initialize local variables:
         links2LevelsDeep = []
         links3LevelsDeep = []
@@ -644,93 +682,105 @@ class BasePlugin:
         try:
             if recursionLevel > 1:
                 # go another level deeper
-                logger.info("Started collecting URLs 2 levels deep, for plugin: %s", self.pluginName)
-                links2LevelsDeep = self.extractLinksFromURLList(runDate, allURLs)
+                logger.info(f"Started collecting URLs 2 levels deep, for plugin: {self.pluginName}")
+                links2LevelsDeep = self.extr_links_from_urls_list(run_date, allURLs)
                 if links2LevelsDeep is not None:
                     allURLs = allURLs + links2LevelsDeep
                 if recursionLevel > 2 and links2LevelsDeep is not None:
                     # go yet another level deeper
-                    logger.info("Started collecting URLs 3 levels deep, for plugin: %s", self.pluginName)
-                    links3LevelsDeep = self.extractLinksFromURLList(runDate, links2LevelsDeep)
+                    logger.info(f"Started collecting URLs 3 levels deep, for plugin: {self.pluginName}")
+                    links3LevelsDeep = self.extr_links_from_urls_list(run_date, links2LevelsDeep)
                     if links3LevelsDeep is not None:
                         allURLs = allURLs + links3LevelsDeep
                     if recursionLevel > 3 and links3LevelsDeep is not None:
                         # go yet another level deeper
-                        logger.info("Started collecting URLs 4 levels deep, for plugin: %s", self.pluginName)
-                        links4LevelsDeep = self.extractLinksFromURLList(runDate, links3LevelsDeep)
+                        logger.info(f"Started collecting URLs 4 levels deep, for plugin: {self.pluginName}")
+                        links4LevelsDeep = self.extr_links_from_urls_list(run_date, links3LevelsDeep)
                         if links4LevelsDeep is not None:
                             allURLs = allURLs + links4LevelsDeep
-            allURLs = deDupeList(allURLs)
+            allURLs = scraper_utils.deDupeList(allURLs)
             # remove invalid articles:
             allURLs = self.filterInvalidURLs(allURLs)
         except Exception as e:
             logger.error("Error getting links recursively: %s", e)
         return(allURLs)
 
-    def extractPublishedDate(self, htmlText):
-        """ Extract Published Date from html content
+    @staticmethod
+    def extractPublishedDate(htmlText: object,
+                             date_regex_patterns: dict,
+                             URL: str = '',
+                             plugin_name: str = '') -> datetime:
+        """ Extract the published date from html content. Set default value as today's date.
+
+        :param htmlText: HTML content to search for published date, handles both bytes and str objects.
+        :param date_regex_patterns: Dictionary/Map of compiled regular expressions as keys and date format as values
+        :param URL: URL for which date is being searched and identified
+        :param plugin_name: Name of the plugin
+        :return: Published date
         """
-        # default is todays date:
         date_obj = datetime.now()
+        currentDateTime = date_obj
         if type(htmlText) == bytes:
             htmlText = htmlText.decode('UTF-8')
         dateString = ""
         errorFlag = True
-        for dateRegex in self.dateMatchPatterns.keys():
-            (datePattern, datetimeFormatStr) = self.dateMatchPatterns[dateRegex]
+        for dateRegex in date_regex_patterns.keys():
+            (datePattern, datetimeFormatStr) = date_regex_patterns[dateRegex]
             try:
                 result = datePattern.search(htmlText)
                 if result is not None:
                     dateString = result.group(2)
                     date_obj = datetime.strptime(dateString, datetimeFormatStr).replace(tzinfo=None)
-                    currentDateTime = datetime.now()
                     if date_obj > currentDateTime:
-                        logger.debug("%s: Invalid article date identified in the future: %s, for URL: %s",
-                                     self.pluginName, date_obj, self.URLToFetch)
+                        logger.debug(f"{plugin_name}: ERROR: Publish date is in the future: {date_obj}, for URL: {URL}")
                     else:
                         # if we did not encounter any error till this point, and were able to get a date object
-                        # then, this is the answer, so exit loop
+                        # hence this is the answer, so exit the loop
                         errorFlag = False
                         break
             except Exception as e:
                 logger.debug("%s: Could not identify article date: %s, string to parse: %s, using regexp: %s, URL: %s",
-                             self.pluginName, e, dateString, dateRegex, self.URLToFetch)
+                             plugin_name, e, dateString, dateRegex, URL)
         if errorFlag is True:
             logger.debug("%s: Could not identify published date for article at URL: %s",
-                         self.pluginName,
-                         self.URLToFetch)
+                         plugin_name,
+                         URL)
             raise ScrapeError("Invalid article since the publish date of article could not be identified.")
         return date_obj
 
-    def extractArticleListFromMainURL(self, runDate):
+    def extr_links_from_main_noncont(self, runDate: datetime) -> list:
         """ Extract article list from main URL
         """
-        linksLevel1 = []
+        links_list = []
         try:
             urlsToBeExtracted = [self.mainURL] + self.nonContentURLs
-            linksLevel1 = self.extractLinksFromURLList(runDate, urlsToBeExtracted)
-            linksLevel1 = linksLevel1 + self.extractArchiveURLLinksForDate(runDate)
+            links_list = self.extr_links_from_urls_list(runDate, urlsToBeExtracted)
+            links_list = links_list + self.extractArchiveURLLinksForDate(runDate)
         except Exception as e:
             logger.error("%s: When Extracting article list from main URL, error was: %s",
                          self.pluginName, e)
-        return(linksLevel1)
+        logger.info(f'{self.pluginName}: Identified {len(links_list)} URLs from the main page and non-content URLs.')
+        return(links_list)
 
-    def extractLinksFromURLList(self, runDate, listOfURLs):
+    def extr_links_from_urls_list(self, runDate: object, listOfURLs: list) -> list:
         """ Extract links inside the content of given list of URLs
-        The function argument 'runDate' is not used here.
+        The function argument runDate is not used here, but kept for future possible use.
+
+        :param runDate: Unused argument, may be None
+        :param listOfURLs: List of URLs to fetch and parse for discovering additional links
+        :return: List of additional URL strings
         """
         resultListOfURLs = []
         htmlContent = ""
-        for linkL1Item in deDupeList(listOfURLs):
+        for url_string in scraper_utils.deDupeList(listOfURLs):
             try:
-                htmlContent = self.networkHelper.fetchRawDataFromURL(linkL1Item, self.pluginName)
-                docRoot = BeautifulSoup(htmlContent, 'lxml')
-                extractedListOfURLs = extractLinks(linkL1Item, docRoot)
-                resultListOfURLs = deDupeList(resultListOfURLs + extractedListOfURLs)
+                htmlContent = self.networkHelper.fetchRawDataFromURL(url_string, self.pluginName)
+                extractedListOfURLs = self.extractLinksFromHTML(url_string, htmlContent)
+                resultListOfURLs = scraper_utils.deDupeList(resultListOfURLs + extractedListOfURLs)
             except Exception as e2:
                 logger.error("%s: Error fetching additional links for URL %s: %s",
                              self.pluginName,
-                             linkL1Item,
+                             url_string,
                              e2)
         logger.info("%s: Identified %s additional URLs, filtered count of links = %s",
                     self.pluginName,
@@ -738,8 +788,23 @@ class BasePlugin:
                     len(resultListOfURLs))
         return(resultListOfURLs)
 
-    def extractUniqueIDFromURL(self, URLToFetch):
-        """ get Unique ID From URL by extracting RegEx patterns matching any of urlMatchPatterns
+    def extractLinksFromHTML(self, linkURL: str, htmlContent) -> list:
+        """ Extract links from HTML content
+
+        :param linkURL: URL of the content.
+        :param htmlContent: HTML content text
+        :return: List of new URLs
+        """
+        htmlContent = scraper_utils.clean_non_utf8(htmlContent)
+        docRoot = BeautifulSoup(htmlContent, 'lxml')
+        extractedListOfURLs = extractLinks(linkURL, docRoot)
+        return(scraper_utils.deDupeList(extractedListOfURLs))
+
+    def extractUniqueIDFromURL(self, URLToFetch: str) -> str:
+        """ Identify the unique ID from the URL by extracting RegEx patterns matching any of urlMatchPatterns
+
+        :param URLToFetch: URL string from which the unique ID needs to be identified and extracted
+        :return: Unique identifier as a text string.
         """
         uniqueString = ""
         crcValue = "zzz-zzz-zzz"
@@ -776,8 +841,13 @@ class BasePlugin:
                          uniqueString)
             raise ScrapeError("Invalid article since it does not have a unique identifier.")
 
-    def downloadDataArchive(self, url, pluginName):
-        """ Download Data Archive """
+    def downloadDataArchive(self, url: str, pluginName: str) -> object:
+        """ Download data archive using HTTP(s) GET protocol.
+
+        :param url: URL to fetch
+        :param pluginName: Name of the plugin
+        :return:
+        """
         htmlcontent = b""
         try:
             httpResp = self.networkHelper.getHTTPData(url)
@@ -791,15 +861,20 @@ class BasePlugin:
         """ Fetch complete cleaned data From given URL
         The return value is an ExecutionResult object.
         """
+        # TODO: make method immutable to class variables, except queue and its attributes
         resultVal = ExecutionResult(uRLtoFetch,
                                     0,
                                     0,
                                     None,
                                     self.pluginName)
+        additionalLinks = []
         # set this plugin instance's URL attribute until its data retrieval is completed
         self.URLToFetch = uRLtoFetch
         try:
             self.urlProcessedCount = self.urlProcessedCount + 1
+            if is_valid_url(uRLtoFetch) is False:
+                logger.info(f'{self.pluginName}: Invalid URL, hence ignoring it: {uRLtoFetch}')
+                return(resultVal)
             for item in self.nonContentURLs:
                 if sameURLWithoutQueryParams(uRLtoFetch, item) is True:
                     logger.debug("%s: Ignoring non-content URL/not retrieving it: %s",
@@ -811,6 +886,11 @@ class BasePlugin:
                 if htmlContent is not None and len(htmlContent) > self.minArticleLengthInChars:
                     resultVal.rawDataSize = len(htmlContent)
                     logger.debug("%s: Fetched %s characters of html data", self.pluginName, len(htmlContent))
+                    # clean htmlContent of non UTF-8 and other repeated characters:
+                    htmlContent = NewsEvent.cleanText(htmlContent)
+                    # extract additional links and return in result object:
+                    additionalLinks = self.filterNonContentURLs(self.extractLinksFromHTML(uRLtoFetch, htmlContent))
+                    additionalLinks = self.filterInvalidURLs(additionalLinks)
                     # create newspaper library's article object:
                     newsPaperArticle = Article(uRLtoFetch, config=self.networkHelper.newspaper_config)
                     #  set html data from the fetched html content
@@ -835,7 +915,9 @@ class BasePlugin:
                                                     validData.getPublishDate(),
                                                     self.pluginName,
                                                     dataFileName=savefileNameWithOutExt,
+                                                    additionalLinks=additionalLinks,
                                                     success=True)
+                        resultVal.articleID = validData.getArticleID()
                     else:
                         logger.debug("%s: Insufficient or invalid data (%s characters) retrieved for URL: %s",
                                      self.pluginName,
@@ -873,12 +955,16 @@ class BasePlugin:
                 (not newpArticleObj.publish_date) or (type(newpArticleObj.publish_date) == 'datetime.datetime' and
                                                       newpArticleObj.publish_date > datetime.now())):
             # extract published date by searching for specific tags:
-            newpArticleObj.publish_date = self.extractPublishedDate(newpArticleObj.html)
+            newpArticleObj.publish_date = BasePlugin.extractPublishedDate(newpArticleObj.html,
+                                                                          self.dateMatchPatterns,
+                                                                          URL=self.pluginName,
+                                                                          plugin_name=self.pluginName)
         # identify news agency/source if it is not properly recognized:
         if (len(newpArticleObj.authors) < 1 or
                 (len(newpArticleObj.authors) > 0 and newpArticleObj.authors[0].find('<') >= 0)):
             newpArticleObj.set_authors(self.extractAuthors(newpArticleObj.html))
-        # for special cases, unique id is embedded in HTML content, in that case use this method to identify unique ID
+        # for special cases, unique id is embedded in HTML content,
+        # in such cases use the method extractUniqueIDFromContent() to identify the unique ID
         if 'extractUniqueIDFromContent' in dir(self):
             articleUniqueID = self.extractUniqueIDFromContent(newpArticleObj.html, uRLtoFetch)
             logger.debug("%s: Extracted unique ID from HTML content: %s",

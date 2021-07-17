@@ -37,13 +37,13 @@ import logging
 import os
 from datetime import datetime
 import json
-import queue
 from json import JSONEncoder
 import bz2
 import base64
 import re
 
 # import internal libraries
+import scraper_utils
 from scraper_utils import deDupeList, fixSentenceGaps
 
 
@@ -107,6 +107,14 @@ class NewsEvent(JSONEncoder):
         else:
             logger.error("Article does not have any text field")
         return(textContent)
+
+    def getClassification(self):
+        classContent = None
+        if 'classification' in self.urlData:
+            classContent = self.urlData['classification']
+        else:
+            logger.debug("Article does not have any classification field")
+        return(classContent)
 
     def getTextSize(self):
         textSize = 0
@@ -218,8 +226,11 @@ class NewsEvent(JSONEncoder):
         self.uniqueID = uniqueID
         self.urlData["uniqueID"] = str(uniqueID)
 
-    def setSource(self, sourceName):
-        self.urlData["sourceName"] = str(sourceName)
+    def setSource(self, sourceNames):
+        if type(sourceNames) == str:
+            self.urlData["sourceName"] = [sourceNames]
+        elif type(sourceNames) == list:
+            self.urlData["sourceName"] = sourceNames
 
     def toJSON(self):
         """ Converts python object into json.
@@ -238,6 +249,7 @@ class NewsEvent(JSONEncoder):
         except Exception as theError:
             logger.error("Exception caught reading JSON file %s: %s", jsonFileName, theError)
 
+    @staticmethod
     def cleanText(textInput):
         """ Clean text - replace unicode characters, fix space gaps, remove repeated characters, etc.
 
@@ -250,11 +262,7 @@ class NewsEvent(JSONEncoder):
         if textInput is not None and len(textInput) > 1:
             try:
                 # replace special characters:
-                replaceWithSpaces = ['\u0915', '\u092f', '\u0938', '\u091a', '\u0941', '\u093e', '\u0906',
-                                     '\u092c', '\u093e', '\u0902', '\u0917', '\u0925', '\u092e', '\u0923',
-                                     '\u0930', '\u0908', '\u0926', '\u0932', '\u0905', '\u092d', '\u0924',
-                                     '\u0938', '\u092a', '\u0924', '\u0909', '\u091c', '\u094b', '\u0940',
-                                     'â€™', '🙂', "\u200b", 'â', '™', "\U0001f642", "\x93", "\x94"]
+                replaceWithSpaces = ['â€™', '🙂', 'â', '™', "\t"]
                 for charToReplace in replaceWithSpaces:
                     cleanText = cleanText.replace(charToReplace, " ")
                 # replace specific characters with alternates
@@ -265,7 +273,6 @@ class NewsEvent(JSONEncoder):
                 cleanText = cleanText.replace('₹', ' Rupees ')
                 cleanText = cleanText.replace('$', ' Dollars ')
                 cleanText = cleanText.replace('€', " Euros ")
-                cleanText = cleanText.replace("\t", " ")
                 cleanText = cleanText.replace('—', "-")
                 cleanText = cleanText.replace("\u2014", "-")
                 cleanText = cleanText.replace('–', "-")
@@ -280,10 +287,19 @@ class NewsEvent(JSONEncoder):
                 cleanText = cleanText.replace("\u201c", "'")
                 cleanText = cleanText.replace('​', "'")  # yes, there is a special character here.
                 # remove non utf-8 characters
-                cleanText = cleanText.encode('utf-8', errors="replace").decode('utf-8', errors='ignore').strip()
+                cleanText = scraper_utils.clean_non_utf8(cleanText)
+                # replace special characters:
+                replaceWithSpaces = ['\u0915', '\u092f', '\u0938', '\u091a', '\u0941', '\u093e', '\u0906',
+                                     '\u092c', '\u093e', '\u0902', '\u0917', '\u0925', '\u092e', '\u0923',
+                                     '\u0930', '\u0908', '\u0926', '\u0932', '\u0905', '\u092d', '\u0924',
+                                     '\u0938', '\u092a', '\u0924', '\u0909', '\u091c', '\u094b', '\u0940',
+                                     "\u200b", "\U0001f642", "\x93", "\x94", '\x81', '\xE0', '\xAA', '\x9C']
+                for charToReplace in replaceWithSpaces:
+                    cleanText = cleanText.replace(charToReplace, " ")
                 cleanText = fixSentenceGaps(cleanText)
+                cleanText = cleanText.strip()
             except Exception as e:
-                logger.error("Error cleaning text: %s", e)
+                logger.error(f"Error cleaning text: {e}")
         return(cleanText)
 
     def writeFiles(self, fileNameWithOutExt, htmlContent, saveHTMLFile=False):
@@ -307,7 +323,7 @@ class NewsEvent(JSONEncoder):
                 # dir does not exist, so try creating it:
                 os.mkdir(parentDirName)
         except Exception as theError:
-            logger.error("Exception when saving article creating parent directory %s: %s", parentDirName, theError)
+            logger.error(f"Exception when creating article parent directory {parentDirName}: {theError}")
         try:
             if saveHTMLFile is True:
                 fullHTMLPathName = fileNameWithOutExt + ".html.bz2"
@@ -316,7 +332,7 @@ class NewsEvent(JSONEncoder):
                     fpt.write(htmlContent.encode("utf-8"))
                     fpt.close()
         except Exception as theError:
-            logger.error("Exception caught writing data to html file %s: %s", fullHTMLPathName, theError)
+            logger.error(f"Exception caught writing data to html file {fullHTMLPathName}: {theError}")
         try:
             jsonContent = self.toJSON()
             fullPathName = fileNameWithOutExt + ".json"
@@ -335,7 +351,7 @@ class NewsEvent(JSONEncoder):
         try:
             # check and get authors/sources
             if len(newspaperArticle.authors) > 0:
-                self.setSource(newspaperArticle.authors[0])
+                self.setSource(newspaperArticle.authors)
             else:
                 self.setSource("")
             # set publishDate as current date time if article's publish_date is null

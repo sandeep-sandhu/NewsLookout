@@ -34,7 +34,7 @@
 # #########################################################################################################
 
 
-__version__ = "1.9.9"
+__version__ = "2.0.0"
 __author__ = "Sandeep Singh Sandhu"
 __copyright__ = "Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu"
 __credits__ = ["Sandeep Singh Sandhu"]
@@ -46,6 +46,7 @@ __status__ = "Production"
 ##########
 
 # import standard python libraries:
+import platform
 import sys
 import logging
 import logging.handlers
@@ -67,7 +68,7 @@ class NewsLookout:
     Main class that runs the entire application.
     """
 
-    config_file = os.path.join('conf','newslookout.conf')
+    config_file = os.path.join('conf', 'newslookout.conf')
     run_date = datetime.now().strftime('%Y-%m-%d')
     app_config = None
     app_queue_manager = None
@@ -78,31 +79,33 @@ class NewsLookout:
         by reading the program arguments, validating them
         and setting the configuration data accordingly
         """
-        print("NewsLookout Web Scraping Application, Version ", __version__)
-        print("Python version: ", sys.version)
+        self.print_banner()
 
     @staticmethod
-    def printUsageAndExit():
+    def print_usage_and_exit():
         print('Usage: newslookout -c <configuration file> -d <run date as YYYY-MM-dd>')
         sys.exit(1)
 
-    def readArgs(self, sysargs):
-        """ Read command line arguments and parse them
+    def read_cmdline_args(self, sysargs: dict):
+        """  Read the command line arguments and parse them.
+
+        :param sysargs:
+        :return:
         """
         try:
             if len(sysargs) < 3:
-                self.printUsageAndExit()
+                NewsLookout.print_usage_and_exit()
             opts, args = getopt.getopt(sysargs[1:], "h:c:d:", ["configfile = ", "rundate = "])
             for opt, arg in opts:
                 if opt in ("-h", "--help"):
-                    self.printUsageAndExit()
+                    NewsLookout.print_usage_and_exit()
                 elif opt in ("-c", "--configfile"):
                     self.config_file = arg
                 elif opt in ("-d", "--rundate"):
                     self.run_date = arg
         except getopt.GetoptError as e:
             print("Error reading command line options:", e)
-            self.printUsageAndExit()
+            NewsLookout.print_usage_and_exit()
 
     def readConfigFile(self):
         """ Utility function to read the configuration file,
@@ -118,12 +121,20 @@ class NewsLookout:
             print(f'ERROR: Configuration file "{self.config_file}" could not be read: {e}')
             sys.exit(1)
 
+    @staticmethod
+    def print_banner():
+        """ Prints the startup banner. """
+        print(f"--- NewsLookout Web Scraping Application, Version {__version__} ---")
+        print('Running on: Python version ' +
+              f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}' +
+              f' ({platform.system()})')
+        print(f'Started application at: {datetime.now().strftime("%Y-%b-%d %H:%M:%S")}')
+
     def run(self):
-        """Run the application job after configuring the main queue
+        """Run the application after configuring the queue manager and initialising the plugins.
         """
-        logging.info(f'--- NewsLookout Application (version {__version__}) ---')
-        logging.info(f'--- Python version: {sys.version} ---')
-        logging.info(f'Started retrieving data for run date: {self.run_date} ---')
+        logging.info(f'--- NewsLookout Web Scraping Application, (version {__version__}) ---')
+        logging.info(f'Retrieving data for run date: {self.run_date} ---')
         checkAndGetNLTKData()
         self.app_queue_manager.config(self.app_config)
         # load and initialize all the plugins after everything has been configured.
@@ -131,83 +142,100 @@ class NewsLookout:
         self.app_queue_manager.runAllJobs()
         self.app_queue_manager.finishAllTasks()
 
-    def config(self, sys_argv):
-        self.readArgs(sys_argv)
+    def config(self, sys_argv: dict):
+        """ Configure the application using the command line arguments
+
+        :param sys_argv: Command line arguments
+        :return:
+        """
+        self.read_cmdline_args(sys_argv)
         # initialise the queue manager:
-        print(f'Run date: {self.run_date}')
+        print(f'Retrieving data for run date: {self.run_date}')
         self.app_queue_manager = QueueManager()
         # read and setup the configuration:
         print(f'Reading configuration from: {self.config_file}')
         self.readConfigFile()
         # setup the logging mechanism:
-        print(f'Logging events to file: {self.app_config.logfile}')
-        self.setupLogger()
+        NewsLookout.setup_logger(self.app_config.logfile,
+                                 log_level=self.app_config.logLevelStr,
+                                 max_size_byte=self.app_config.max_logfile_size,
+                                 backup_count=self.app_config.logfile_backup_count)
 
-    def set_pid_file(self):
+    @staticmethod
+    def set_pid_file(pid_file: str):
+        """ Creates a new text file containing the process identifier.
+
+        This serves as a kind of locking mechanism to prevent
+         multiple instances of the application running at the same time.
+
+        :param pid_file: File name to be used as the PID file.
+        """
         # create PID file before starting the application:
-        if os.path.isfile(self.app_config.pid_file):
-            print(f'ERROR! Cannot start the application since PID file exists: {self.app_config.pid_file}')
+        if os.path.isfile(pid_file):
+            print(f'ERROR! Cannot start the application since the PID file already exists: {pid_file}')
             sys.exit(1)
         else:
             fp = None
             try:
                 pidValue = os.getpid()
-                fp = open(self.app_config.pid_file, 'wt', encoding='utf-8')  # create empty file
-                fp.write(str(pidValue))
+                with open(pid_file, 'wt', encoding='utf-8') as fp:  # create empty file
+                    fp.write(str(pidValue))
+                print(f'Using PID file: {pid_file}')
             except Exception as e:
-                print(f'Error creating PID file: {e}, File: {self.app_config.pid_file}')
+                print(f'Error creating PID file: {e}, File: {pid_file}')
                 sys.exit(1)
             finally:
                 fp.close()
 
     def remove_pid_file(self):
-        # After completion of run(), close down everything, remove the pid file:
+        """ After completion of application run(), close down everything, and remove the pid file.
+        """
         if os.path.isfile(self.app_config.pid_file):
             try:
                 os.remove(self.app_config.pid_file)
             except Exception as e:
                 logging.error("Error deleting PID file %s: %s", self.app_config.pid_file, e)
-                sys.exit(1)
         else:
-            logging.info("PID file %s does not exist, so unable to delete it when shutting down.",
-                         self.app_config.pid_file)
+            logging.info(f"PID file {self.app_config.pid_file} does not exist, so unable to delete it.")
 
-    def setupLogger(self):
+    @staticmethod
+    def setup_logger(logfile: str, log_level: str = 'INFO', max_size_byte: int = 1024000, backup_count: int = 10):
         # setup logger with DEBUG level as default
         logLevel = logging.DEBUG
-        if self.app_config.logLevelStr == 'INFO':
+        if log_level == 'INFO':
             logLevel = logging.INFO
-        elif self.app_config.logLevelStr == 'WARN':
+        elif log_level == 'WARN':
             logLevel = logging.WARNING
-        elif self.app_config.logLevelStr == 'ERROR':
+        elif log_level == 'ERROR':
             logLevel = logging.ERROR
-        # Create file handler
-        scraperLogFileHandler = logging.handlers.RotatingFileHandler(
-            filename=self.app_config.logfile, mode='a', maxBytes=self.app_config.max_logfile_size,
-            backupCount=self.app_config.logfile_backup_count, encoding='utf-8')
-        # Create formatter for the file handler
+        # Create formatter for the logging:
         fh_formatter = logging.Formatter('%(asctime)s:[%(levelname)s]:%(name)s:%(thread)s: %(message)s',
                                          datefmt='%Y-%m-%d %H:%M:%S')
-        scraperLogFileHandler.setFormatter(fh_formatter)
         # Set up the default root logger to do nothing
         logging.basicConfig(
             handlers=[logging.NullHandler()],
             level=logLevel,
             format='%(asctime)s:%(levelname)s:%(name)s:%(thread)s: %(message)s')
-        # add to root logger
-        logging.getLogger('').addHandler(scraperLogFileHandler)
+        if logfile is not None:
+            print(f'Logging events to file: {logfile}')
+            # Create file handler
+            scraperLogFileHandler = logging.handlers.RotatingFileHandler(
+                filename=logfile, mode='a', maxBytes=max_size_byte,
+                backupCount=backup_count, encoding='utf-8')
+            scraperLogFileHandler.setFormatter(fh_formatter)
+            # add to root logger
+            logging.getLogger('').addHandler(scraperLogFileHandler)
 
     # # end of application class definition ##
 
 
 def main():
-    global app_inst
-    # instantiate the main application class
+    # global app_inst
+    # instantiate the main application class:
     app_inst = NewsLookout()
+    # configure the application:
     app_inst.config(sys.argv)
-
-    app_inst.set_pid_file()
-    print(f'Using PID file: {app_inst.app_config.pid_file}')
+    NewsLookout.set_pid_file(app_inst.app_config.pid_file)
     # run the application:
     app_inst.run()
     # clean-up before exiting:
@@ -216,7 +244,7 @@ def main():
 
 
 # the main application class instance is a global variable:
-global app_inst
+# global app_inst
 
 if __name__ == "__main__":
     main()

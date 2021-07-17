@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-
 # #########################################################################################################
 # File name: __init__.py                                                                                  #
 # Application: The NewsLookout Web Scraping Application                                                   #
@@ -30,7 +29,6 @@
 # DEALINGS IN THE SOFTWARE.                                                                               #
 # #########################################################################################################
 
-
 import sys
 import os
 
@@ -38,7 +36,8 @@ parentFolder = os.path.dirname(os.path.realpath(__file__))
 sys.path.append(parentFolder)
 sys.path.append(os.path.join(parentFolder, 'plugins'))
 sys.path.append(os.path.join(parentFolder, 'plugins_contrib'))
-
 os.chdir(parentFolder)
 
 from scraper_app import main
+
+# # end of file ##
