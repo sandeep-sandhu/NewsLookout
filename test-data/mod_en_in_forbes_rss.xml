@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+        <title>404 Not Found</title>
+		<meta name="description" content="404 Not Found">
+		<meta name="robots" content="noindex">
+		<link rel="shortcut icon" href="https://www.forbesindia.com/images/forbesicon.ico" type="image/x-icon" />
+		
+<link rel="image_src" href="" />
+<!-- for Facebook --> 
+<meta property="fb:pages" content="97368389993" />         
+<meta property="og:locale" content="en_US" />
+<meta property="og:title" content="404 Not Found" />
+<meta property="og:description" content="404 Not Found" />
+<meta property="og:url" content="" />
+<meta property="og:site_name" content="Forbes India" />
+
+<meta property="og:image" content="" />
+<meta property="og:image:width" content="800" />
+<meta property="og:image:height" content="600" />
+<!-- for Twitter -->     
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:site" content="@forbesindia">
+<meta name="twitter:title" content="404 Not Found">
+<meta name="twitter:description" content="404 Not Found">
+<meta name="twitter:creator" content="@forbesindia">
+<meta name="twitter:image" content="">
+<meta name="twitter:domain" content="forbesindia.com">
+        <!-- first paint CSS -->
+		<style>
+.error-page {
+    background:#fff url(https://www.forbesindia.com/svn_images/bg.jpg) center top no-repeat;
+    width: 100%;
+    display: block;
+    text-align: center;
+    padding-top: 50px;
+}
+.error-search-in form{
+	width:100%;
+}
+.inner404 h2{font-size: 194px;font-weight: 400;text-shadow: 4px 4px #ffd100;color: #000;line-height: 140px !important;border-bottom:0px;}
+.inner404 p{font-size: 39px;color: #000;line-height: 150px;}
+.inner404 .inner-text{font-size: 31px;text-transform: uppercase;width: 415px;margin: 100px auto 0;color: #000;font-family: 'Open sans', sans-serif;font-weight: 700;}
+.error-search{background: #ffd100; border-radius: 10px 10px 0 0;padding: 25px;margin: 0 auto; display: flex;max-width: 900px}
+.error-search-in{border-bottom: 1px solid #000;display: flex;width: 100%;}
+.error-search-in input{padding:0 10px;flex-basis: 0;flex-grow: 1;background: transparent;border:none;font-family: 'Georgia', sans-serif;color: black;font-size: 31px;width: 100%;}
+.error-search-in svg{display: inline-block;flex-shrink: 0;}
+.error-ms-wrap{display: flex;justify-content: center;align-items: center;}
+.inner-img{margin-right: 20px;}
+.inner-img img{width: 100%;}
+.error-search-in input:focus{
+  outline: none;
+}
+.error-search-in input::-webkit-input-placeholder { /* Edge */
+  font-family: 'Georgia', sans-serif;color: black;
+}
+
+.error-search-in input:-ms-input-placeholder { /* Internet Explorer */
+ font-family: 'Georgia', sans-serif;color: black;
+}
+
+.error-search-in input::placeholder {
+  font-family: 'Georgia', sans-serif;color: black;
+}
+
+/* Jquery Autocomplete */
+.ui-autocomplete {	position: absolute;	top: 0;	left: 0;	cursor: default; border:1px solid #ccc;}
+.ui-menu {list-style: none;	padding: 0;	margin: 0;	display: block;	outline: none;}
+.ui-menu .ui-menu { position:absolute; }
+.ui-menu .ui-menu-item { background-color:#fff; margin:0px; padding:0; width:100%; right:0 !important; text-align:left;
+ position:relative; margin:0; cursor:pointer; min-height:0;/* support: IE7 */ /* support: IE10, see #8844 */list-style-image:none;font-size:24px; padding:3px 10px; margin:0; font-size:13px; font-weight:normal; z-index:9999999;}
+.ui-menu .ui-state-focus,.ui-menu .ui-state-active { margin:0; background:#ccc; color:#000;}
+
+.buttons-wrap{
+  background: #d4d4d4; border-radius: 0 0 10px 10px ;padding:35px 25px;margin:0px auto 19px ; display: flex;max-width: 900px;justify-content: space-between;}
+.buttons-wrap li{list-style: none;width: 100%;padding: 0 8px;}
+.buttons-wrap li:first-child{padding-left: 0px;}.buttons-wrap li:last-child{padding-right: 0px;}
+.buttons-wrap li a{display: block;font-family: 'Georgia', sans-serif;color: black;font-size: 16px;padding: 12px 0;background: white;text-transform: capitalize;}
+
+@media (max-width: 1366px){
+  .inner-img img{
+    width: 65%;
+  }
+  .inner404 .inner-text{
+    margin: 70px auto 0;
+	line-height: 40px;
+  }
+}
+
+
+@media (max-width: 800px){
+  .error-ms-wrap{
+    flex-direction: column;
+  }
+  .buttons-wrap{
+    flex-direction: column;
+  }
+  .buttons-wrap li{
+    width: auto;
+    padding:0;
+    margin-bottom: 15px;
+  }
+  .inner404 p{
+    font-size: 30px;
+  }
+  .inner-img img {
+    width: 80%;
+  }
+}
+
+@media (max-width: 450px){
+  .inner404 .inner-text{
+    width: auto;
+    margin: 50px 30px;
+    font-size: 26px;
+  }
+  .error-page {
+    background:#fff url(https://www.forbesindia.com/svn_images/bg-m.jpg) center top no-repeat;
+    background-size:100%; 
+  }
+  .inner404 h2{
+    font-size: 150px;
+  }
+}
+</style>
+        <style type="text/css">
+             @font-face{font-family:'MerriweatherBlack';src:url(https://www.forbesindia.com/forbes-rvp-files/fonts/Merriweather_Black.woff) format("woff")}@font-face{font-family:'MerriweatherRegular';src:url(https://www.forbesindia.com/forbes-rvp-files/fonts/Merriweather_Regular.woff) format("woff")}@font-face{font-family:'MerriweatherBold';src:url(https://www.forbesindia.com/forbes-rvp-files/fonts/Merriweather_Bold.woff) format("woff")}@font-face{font-family:'OpenSansBold';src:url(https://www.forbesindia.com/forbes-rvp-files/fonts/OpenSans_Bold.woff) format("woff")}@font-face{font-family:'OpenSansRegular';src:url(https://www.forbesindia.com/forbes-rvp-files/fonts/OpenSans_Regular.woff) format("woff")}@font-face{font-family:'WorkSansBold';src:url(https://www.forbesindia.com/forbes-rvp-files/fonts/WorkSans_Bold.woff) format("woff")}@font-face{font-family:'WorkSansMedium';src:url(https://www.forbesindia.com/forbes-rvp-files/fonts/WorkSans_Medium.woff) format("woff")}@font-face{font-family:'WorkSansRegular';src:url(https://www.forbesindia.com/forbes-rvp-files/fonts/WorkSans_Regular.woff) format("woff")}@font-face{font-family:'Georgia';src:url(https://www.forbesindia.com/forbes-rvp-files/fonts/Georgia_Regular.woff) format("woff")}html{height:100%}html,body,div,span,applet,object,iframe,h1,h2,h3,h4,h5,h6,p,blockquote,pre,a,abbr,acronym,address,big,cite,code,del,dfn,em,img,ins,kbd,q,s,samp,small,strike,strong,sub,sup,tt,var,b,u,i,dl,dt,dd,ol,ul,li,fieldset,form,label,legend,table,caption,tbody,tfoot,thead,tr,th,td,article,aside,canvas,details,embed,figure,figcaption,footer,header,hgroup,menu,nav,output,section,summary,time,mark,audio,video{margin:0;padding:0;border:0;font-size:100%;font:inherit;vertical-align:baseline}i,em{font-style:italic;}article,aside,details,figcaption,figure,footer,header,hgroup,menu,nav,section{display:block}body,*{padding:0;margin:0;-webkit-overflow-scrolling:touch;color:#333333;font:14px/20px Georgia;box-sizing:border-box}ol,ul,li{list-style:none;padding:0;margin:0}blockquote,q{quotes:none}blockquote:before,blockquote:after,q:before,q:after{content:'';content:none}table{border-collapse:collapse;border-spacing:0}a{text-decoration:none;outline:none}a:focus,img:focus,input:focus,button:focus,div:focus{outline:none}.slick-slider{min-height:0;min-width:0}.forbesmaincontainer{margin:20px 0 0}.forbescontainer{max-width:1250px;margin:0 auto;position:relative;padding:0 10px}.forbesimg{width:100%;display:block;margin:8px 0 20px;border:1px solid #DFDFDF}.forbesflex{display:-webkit-box;display:-moz-box;display:-ms-flexbox;display:-webkit-flex;display:flex;-webkit-justify-content:space-between;-moz-justify-content:space-between;justify-content:space-between;align-items:flex-start}.flexleft{flex-grow:1;margin-right:30px}.flexright{width:300px;flex-shrink:0}.btn-gray{background:#333;font-family:'OpenSansRegular';font-size:12px;line-height:17px;color:#fff;text-decoration:none;border-radius:5px;padding:7px 10px;box-shadow:0 2px 4px #ccc}.section-title{font-size:42px;font-family:WorkSansBold;line-height:1.44;margin-bottom:0;text-transform:capitalize}.big-title{font-size:24px;font-family:MerriweatherBold;line-height:1.44;margin:10px 0}.medium-title{font-size:16px;font-family:MerriweatherBold;line-height:1.44;margin-bottom:10px}.small-title{font-size:14px;font-family:MerriweatherBold;line-height:1.44;margin-bottom:10px}.xsmall-title{font-size:12px;font-family:MerriweatherBold;line-height:1.44;margin-bottom:10px}.category{font-size:12px;font-family:WorkSansMedium;line-height:20px;margin-bottom:15px;text-transform:uppercase;position:relative}.category svg{margin-left: 5px;}.catimg{position: relative;top: 2px}.author{font-size:12px;font-family:WorkSansRegular;line-height:16px;margin-bottom:10px;color:#737373;letter-spacing:-.24px}.authorname{font-family:WorkSansBold;color:#333333}.des-text{margin-bottom:20px}.more-link{text-align:left;text-decoration:underline;font:16px/20px WorkSansBold;letter-spacing:0;color:#000000;opacity:1;padding:20px 0 10px;display:block}.poll-title{font-size:24px;font-family:WorkSansBold;line-height:24px;color:#4774A8;margin-bottom:14px}.white{color:#fff}.green{color:#627F48;background:#fff;padding:0 5px 0 0}.orange{color:#E29226;background:#fff;padding:0 5px 0 0}.blue{color:#4774A8;background:#fff;padding:0 5px 0 0}.skyblue{color:#6DC1B9;background:#fff;padding:0 5px 0 0}.cred{color:#787878;background:#fff;padding:0 5px 0 0}.purple{color:#933F65;background:#fff;padding:0 5px 0 0}.bg-green{background:#627F48;color:#fff;padding:5px 10px;margin:15px 0}.bg-orange{background:#E29226;color:#fff;padding:5px 10px;margin:15px 0}.bg-blue{background:#4774A8;color:#fff;padding:5px 9px;margin:15px 0}.bg-skyblue{background:#6DC1B9;color:#fff;padding:5px 10px;margin:15px 0}.bg-cred{background:#787878;color:#fff;padding:5px 10px;margin:15px 0}.bg-purple{background:#933F65;color:#fff;padding:5px 10px;margin:15px 0}.bg-black{background:#000;color:#fff;padding:5px 10px 30px;margin:15px 0 20px}.grid-feature{width:59%}.grid-list{width:38%}.grid-wrap .category{margin-bottom:5px}.grid-wrap .category::after{content:"";border-top:1px dashed #707070;position:absolute;width:100%;left:0;right:0;top:11px;z-index:-1}.grid-list li{margin-bottom:18px;margin-top:3px}.ad-block{margin:8px auto 20px;display:block;text-align:center}.block-brk{background-image:url(https://www.forbesindia.com/forbes-rvp-files/images/bg.png);background-repeat:repeat-x;padding-bottom:20px;margin-bottom:20px;background-position:bottom}.grid-four li{width:22%;border-bottom:1px dashed #707070;margin-bottom:20px;padding-bottom:10px}.grid-three{margin-bottom:10px}.grid-three li{width:31.5%}.grid-img{width:80px;margin-right:10px;margin-top:-8px;flex-shrink:0}.grid-wrap li{width:100%}.podcastwrap{background:#F2F2F2;padding:5px 10px 10px;margin-bottom:20px;position:relative}.podcastwrap::after{background-image:url(https://www.forbesindia.com/forbes-rvp-files/images/blbg.png);background-repeat:repeat-x;padding-bottom:20px;background-position:bottom;position:absolute;bottom:0;content:"";left:0;right:0}.number-news{background-image:url(https://www.forbesindia.com/forbes-rvp-files/images/news-number.png);background-repeat:no-repeat;margin-bottom:15px;padding:20px 10px 10px;background-size:cover}.newno{font:24px/20px WorkSansBold;letter-spacing:0;color:#BFBFBF;padding-bottom:10px}.socialwrap{position:relative;display:flex;justify-content:space-between;margin:0 auto 25px;max-width:300px;margin-bottom:25px}.socialwrap ul{display:flex;justify-content:space-around}.socialwrap ul li{margin-right:10px}.socialwrap ul li:last-child{margin-right:0}.socialwrap ul li a{background:url(https://www.forbesindia.com/forbes-rvp-files/images/soc_icons_sprites.png) no-repeat;display:block}.socialwrap ul li a.ic-fb{background-position:-5px -5px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-twit{background-position:-87px -5px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-insta{background-position:-46px -5px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-linkedin{background-position:-5px -46px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-cloud{background-position:-46px -87px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-ytube{background-position:-5px -87px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-telegram{background-position:-87px -46px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-spotify{background-position:-46px -46px;width:31px;height:31px;display:block}.socialwrap::before{content:'FOLLOW';color:#666;font-family:WorkSansBold;font-size:12px;display:flex;align-items:center;width:52px;margin-right:10px}#rtsocial:before{color:#4774A8}#rtsocial ul li{margin-right:4px}.rotatebox{width:200px;height:200px;margin:14px 0 10px;position:fixed;z-index:9;bottom:10px;right:48px}.rotatebox .closebutton{transform:rotate(45deg);width:27px;height:27px;margin:0;float:right;border-radius:50%;background:#590591;box-sizing:border-box;position:absolute;cursor:pointer;top:-52px;right:10px;z-index:1}.rotatebox .closebutton:before{position:absolute;content:'';top:6px;left:13px;height:14px;width:2px;background:#fff}.rotatebox .closebutton:after{position:absolute;content:'';top:12px;left:7px;width:14px;height:2px;background:#fff}.rotatebox .cubewrap{perspective:900px;perspective-origin:50% 85px;top:38px;right:31px;position:absolute}.rotatebox .cube{position:relative;width:200px;transform-style:preserve-3d}#opt2 .cube div{background:#000;width:170px;height:170px;position:absolute;margin:0 auto}#opt2 .cube .front{transform: translateZ(85px)}#opt2 .back{background:#000;width:170px;height:170px;display:block;transform: translateZ(-85px) rotateY(180deg)}#opt2.rotatebox .right{background:#000;width:170px;height:170px;display:block;transform: rotateY(-270deg) translateX(85px);transform-origin: top right}#opt2 .left{background:#000;width:170px;height:170px;display:block;transform: rotateY(270deg) translateX(-85px);transform-origin: center left}#opt2 .top{transform:rotateX(-90deg) translateY(-85px);transform-origin:top center;display:none}#opt2 .bottom{transform:rotateX(90deg) translateY(85px);transform-origin:bottom center;display:none}#opt2 .front{background:#000;width:200px;height:200px;display:block;}.rotatebox .front div{width:170px;height:170px}#opt2.rotatebox .left img, #opt2.rotatebox .right img, #opt2.rotatebox .front img, #opt2.rotatebox .back img{margin:5px 20px 0;width:130px}#opt2.rotatebox .left p, #opt2.rotatebox .right p, #opt2.rotatebox .front p, #opt2.rotatebox .back p{color:#fff;margin:0;padding:0 20px 3px;text-align:left;font-family:WorkSansMedium;font-size:11px;line-height:11px;}#opt2.rotatebox .left .readmore, #opt2.rotatebox .right .readmore, #opt2.rotatebox .front .readmore, #opt2.rotatebox .back .readmore{border: 1px solid #fff;margin:0 0 0 20px;color:#fff;text-align:left;border-radius:50px;padding:3px 10px;font-family: WorkSansRegular;font-size: 10px;}@keyframes spin{from{transform:rotateY(0)}to{transform:rotateY(360deg)}}#opt2 .cube{animation:spin 30s infinite linear}
+
+            	@media screen and (max-width: 1023px){
+					.grid-feature iframe{width:100%;}
+					.forbesflex{flex-wrap:wrap}.flexleft{margin-right:0}.grid-wrap .forbesflex{flex-wrap:nowrap}.grid-feature,.grid-list{width:100%}.grid-feature{margin-bottom:5px}.big-title{font-size:16px}.medium-title{font-size:14px}.small-title{font-size:12px}.section-title{font-size:30px;line-height:1.44}.flexright,.flexleft{width:100%;flex-shrink:unset}.hide-mob{display:none}.forbesmaincontainer{margin:5px 0 0}.rotatebox{border:none;width:inherit;height:inherit}.rotatebox .closebutton{width:22px;height:22px;top:-30px;right:-22px}.rotatebox .closebutton:before{top:4px;left:10px}.rotatebox .closebutton:after{top:9px;left:5px}.rotatebox .cubewrap{position:fixed;top:unset;bottom:120px;z-index:99;perspective-origin:50% 51px}#opt2.rotatebox .cube{width:102px}#opt2.rotatebox .left img, #opt2.rotatebox .right img, #opt2.rotatebox .front img, #opt2.rotatebox .back img{width:30px;height:30px;margin:2px 10px 0}#opt2.rotatebox .cube div{width:102px;height:102px}#opt2.rotatebox .left p, #opt2.rotatebox .right p, #opt2.rotatebox .front p, #opt2.rotatebox .back p{font-size:10px;line-height:10px;padding:0 10px}#opt2.rotatebox .left .readmore, #opt2.rotatebox .right .readmore, #opt2.rotatebox .front .readmore, #opt2.rotatebox .back .readmore{margin:0 0 0 10px;border-radius:20px;padding:2px 10px;font-size:10px}#opt2.rotatebox .back{transform:translateZ(-51px) rotateY(180deg)}#opt2.rotatebox .right{transform:rotateY(-270deg) translateX(51px);transform-origin:top right}#opt2.rotatebox .left{transform:rotateY(270deg) translateX(-51px);transform-origin:center left}.rotatebox .top{transform:rotateX(-90deg) translateY(-51px);transform-origin:top center}.rotatebox .bottom{transform:rotateX(90deg) translateY(51px);transform-origin:bottom center}#opt2.rotatebox .front{transform:translateZ(51px)}}
+            	/* header css */
+                #wrapper{width:100%}header{background:#000300;width:100%;display:block}header .headerWrap{width:1250px;margin:0 auto;position:relative}header .headerWrap .top-banner{padding:8px 0 18px;text-align:center;display:block}header .headerWrap nav{padding-bottom:15px;align-items:flex-end;justify-content:flex-start}header .headerWrap nav .barmenu{width:36px;padding:10px 7px 6px;cursor:pointer;order:1;display:flex;flex-direction:column;margin-right:15px;align-self:flex-end}header .headerWrap nav .barmenu span{background:#fff;width:22px;height:2px;transition:.2s;margin-bottom:4px}header .headerWrap nav .change{background:#fff}header .headerWrap nav .change span{background:#707070}header .headerWrap nav .change span:first-child{-webkit-transform:rotate(-45deg) translate(-5px,4px);transform:rotate(-45deg) translate(-5px,4px)}header .headerWrap nav .change span:nth-child(2){opacity:0}header .headerWrap nav .change span:nth-child(3){-webkit-transform:rotate(45deg) translate(-5px,-3px);transform:rotate(45deg) translate(-5px,-3px)}header .headerWrap nav .logo{margin-right:36px;order:2}header .headerWrap nav .logo a{display:block}header .headerWrap nav .top-nav{font-family:WorkSansBold;order:3;font-size:15px;text-transform:uppercase;color:#fff;width:auto;display:flex;justify-content:space-between;margin-bottom:3px;align-self:flex-end}header .headerWrap nav .top-nav ul{align-items:center}header .headerWrap nav .top-nav ul li{margin-right:21px}header .headerWrap nav .top-nav ul li a{color:#fff}header .headerWrap nav .top-nav .circle{margin:0 15px 0 0}header .headerWrap nav .subscribe{order:4}header .headerWrap nav .subscribe a{border-radius:70px;border:1px solid #828282;color:#fff;font-size:15px;display:block;font-family:WorkSansBold;padding:4px 16px 5px}header .headerWrap nav .subscribe a:hover{background:#707070;color:#eee}header .headerWrap nav .search{order:5;align-self:flex-end;cursor:pointer;margin-left:auto;position:relative}header .headerWrap nav .search i{padding:5px 5px 0 10px;transition:.2s}header .headerWrap nav .search .sel{background:#333;display:inline-block;padding:5px 5px 0 10px;border-radius:0 8px 8px 0}header .headerWrap nav .search .sel svg{fill:#fff;margin-left:-2px}header .headerWrap nav .search .inputwrap{position:absolute;top:0;right:35px;display:none}header .headerWrap nav .search .inputwrap input{width:300px;padding:8px 8px 7px 12px;border:none;background:#707070;color:#eee;border-radius:8px 0 0 8px}header .headerWrap nav .search ::-webkit-input-placeholder{color:#fff}header .headerWrap nav .search :-ms-input-placeholder{color:#fff}header .headerWrap nav .search ::placeholder{color:#fff}header .dropdown-menu{background:#fff;width:530px;border-top:none;position:absolute;top:161px;padding:0;border-radius:0;left:0;display:none;font-family:WorkSansRegular;font-size:14px;z-index:9;box-shadow:0 3px 4px #ccc}header .dropdown-menu .forbesflex{align-items:inherit;}header .dropdown-menu .left-nav{width:210px;border-right:1px solid #b2b2b2;padding-top:13px}header .dropdown-menu .left-nav h2{color:#666;padding:0 0 5px 15px;text-transform:uppercase;font-size:12px}header .dropdown-menu .left-nav ul li{margin-right:-1px;font-family:WorkSansBold;position:relative}header .dropdown-menu .left-nav ul li a{padding:8px 15px;display:block;color:#000;width:100%}header .dropdown-menu .left-nav ul li a.active,header .dropdown-menu .left-nav ul li:hover{background:#f5f5f5}header .dropdown-menu .left-nav ul li:last-child{margin-bottom:0}header .dropdown-menu .left-nav ul li:after{content:'';border:solid #000;border-width:0 2px 2px 0;display:inline-block;padding:3px;position:absolute;right:21px;top:13px;transform:rotate(-45deg);-webkit-transform:rotate(-45deg)}header .dropdown-menu .show{width:100%;display:block}header .dropdown-menu .right-nav{background:#f5f5f5;width:320px;position:relative;overflow:auto}header .dropdown-menu .right-nav:nth-child(2){display:block}header .dropdown-menu .right-nav .backmenu{display:none}header .dropdown-menu .submenu{font-family:WorkSansMedium;font-size:14px;height:100%;transition:opacity .15s linear}header .dropdown-menu .submenu ul{padding:20px 0 0 23px;display:flex;justify-content:space-between;flex-wrap:wrap}header .dropdown-menu .submenu ul li{width:50%}header .dropdown-menu .submenu ul li:after{display:none}header .dropdown-menu .submenu ul li a{padding:6px 15px;display:block;color:#999}header .dropdown-menu .submenu ul li a:hover{color:#000}@media screen and (max-width:600px){header .dropdown-menu{top:116px;width:100% !important;}header .dropdown-menu .left-nav{width:100%}header .dropdown-menu .right-nav{width:0;background:#fff}header .dropdown-menu .right-nav .backmenu{display:block;padding:20px 0 0 35px;font-weight:700}header .dropdown-menu .right-nav .backmenu:before{content:'';border:solid #000;border-width:0 2px 2px 0;display:inline-block;padding:3px;position:absolute;left:21px;top:26px;transform:rotate(135deg);-webkit-transform:rotate(135deg)}header .dropdown-menu .show{width:100%;display:block}header .dropdown-menu .hide{width:0;display:none}header .dropdown-menu .submenu ul{padding:8px 0 20px 23px}header .dropdown-menu .submenu ul li a{padding:6px 0}}@media screen and (max-width:1023px){header .headerWrap{width:100%}header .headerWrap .top-banner img{width:320px;height:50px}header .headerWrap nav{flex-wrap:wrap;padding:0 10px 7px}header .headerWrap nav .barmenu{margin-right:15px}header .headerWrap nav .logo{margin-right:0}header .headerWrap nav .logo img{width:102px;height:30px}header .headerWrap nav .top-nav{width:100%;order:5;overflow:auto;font-size:13px;padding-top:25px}header .headerWrap nav .top-nav ul{width:50%}header .headerWrap nav .top-nav .circle{display:none}header .headerWrap nav .subscribe{order:3;margin-left:auto}header .headerWrap nav .subscribe a{font-size:12px;padding:3px 12px 4px}header .headerWrap nav .search{order:4;margin-left:12px}header .headerWrap nav .search .inputwrap input{width:265px}header .headerWrap nav .top-nav .forbesflex{flex-wrap:inherit}header .dropdown-menu{top:108px}header .dropdown-menu .right-nav .backmenu{display:none}}@media screen and (min-width:1024px) and (max-width:1280px){header .headerWrap{width:100%;}header .headerWrap nav{justify-content:center}header .headerWrap nav .barmenu{margin:0 6px 7px 5px}header .headerWrap nav .logo{margin-right:10px}header .headerWrap nav .top-nav{width:894px;margin-right:10px;font-size:13px;justify-content:flex-start}header .headerWrap nav .top-nav ul{width:590px}header .headerWrap nav .top-nav ul li{margin-right:16px}header .headerWrap nav .top-nav .circle{margin:0 4px 0 0}header .headerWrap nav .subscribe a{padding:4px 12px 5px;font-size:13px}header .headerWrap nav .search{margin-right:5px}header .dropdown-menu{top:163px}}
+                /* header css */
+			
+                #wrapper{width:100%}header{background:#000300;width:100%;display:block}header .headerWrap{width:1250px;margin:0 auto;position:relative}header .headerWrap .top-banner{padding:8px 0 18px;text-align:center;display:block}header .headerWrap nav{padding-bottom:15px;align-items:flex-end;justify-content:flex-start}header .headerWrap nav .barmenu{width:36px;padding:10px 7px 6px;cursor:pointer;order:1;display:flex;flex-direction:column;margin-right:15px;align-self:flex-end}header .headerWrap nav .barmenu span{background:#fff;width:22px;height:2px;transition:.2s;margin-bottom:4px}header .headerWrap nav .change{background:#fff}header .headerWrap nav .change span{background:#707070}header .headerWrap nav .change span:first-child{-webkit-transform:rotate(-45deg) translate(-5px,4px);transform:rotate(-45deg) translate(-5px,4px)}header .headerWrap nav .change span:nth-child(2){opacity:0}header .headerWrap nav .change span:nth-child(3){-webkit-transform:rotate(45deg) translate(-5px,-3px);transform:rotate(45deg) translate(-5px,-3px)}header .headerWrap nav .logo{margin-right:36px;order:2}header .headerWrap nav .logo a{display:block}header .headerWrap nav .top-nav{font-family:WorkSansBold;order:3;font-size:15px;text-transform:uppercase;color:#fff;width:auto;display:flex;justify-content:space-between;margin-bottom:3px;align-self:flex-end}header .headerWrap nav .top-nav ul{align-items:center}header .headerWrap nav .top-nav ul li{margin-right:21px}header .headerWrap nav .top-nav ul li a{color:#fff}header .headerWrap nav .top-nav .circle{margin:0 15px 0 0}header .headerWrap nav .subscribe{order:4}header .headerWrap nav .subscribe a{border-radius:70px;border:1px solid #828282;color:#fff;font-size:15px;display:block;font-family:WorkSansBold;padding:4px 16px 5px}header .headerWrap nav .subscribe a:hover{background:#707070;color:#eee}header .headerWrap nav .search{order:5;align-self:flex-end;cursor:pointer;margin-left:auto;position:relative}header .headerWrap nav .search i{padding:5px 5px 0 10px}header .headerWrap nav .search .sel{background:#333;display:inline-block;padding:5px 5px 0 10px;border-radius:0 8px 8px 0}header .headerWrap nav .search .sel svg{fill:#fff;margin-left:-2px}header .headerWrap nav .search .inputwrap{position:absolute;top:0;right:35px;display:none}header .headerWrap nav .search .inputwrap input{width:300px;padding:8px 8px 7px 12px;border:none;background:#707070;color:#eee;border-radius:8px 0 0 8px}header .headerWrap nav .search ::-webkit-input-placeholder{color:#fff}header .headerWrap nav .search :-ms-input-placeholder{color:#fff}header .headerWrap nav .search ::placeholder{color:#fff}header .dropdown-menu{background:#fff;width:530px;border-top:none;position:absolute;top:170px;left:0;display:none;font-family:WorkSansRegular;font-size:14px;z-index:9;box-shadow:0 3px 4px #ccc}header .dropdown-menu .forbesflex{align-items:inherit;}header .dropdown-menu .left-nav{width:210px;border-right:1px solid #b2b2b2;padding-top:13px}header .dropdown-menu .left-nav h2{color:#666;padding:0 0 5px 15px;text-transform:uppercase;font-size:12px}header .dropdown-menu .left-nav ul li{margin-right:-1px;font-family:WorkSansBold;position:relative}header .dropdown-menu .left-nav ul li a{padding:8px 15px;display:block;color:#000;width:100%}header .dropdown-menu .left-nav ul li a.active,header .dropdown-menu .left-nav ul li:hover{background:#f5f5f5}header .dropdown-menu .left-nav ul li:last-child{margin-bottom:0}header .dropdown-menu .left-nav ul li:after{content:'';border:solid #000;border-width:0 2px 2px 0;display:inline-block;padding:3px;position:absolute;right:21px;top:13px;transform:rotate(-45deg);-webkit-transform:rotate(-45deg)}header .dropdown-menu .show{width:100%;display:block}header .dropdown-menu .right-nav{background:#f5f5f5;width:320px;position:relative;overflow:auto}header .dropdown-menu .right-nav:nth-child(2){display:block}header .dropdown-menu .right-nav .backmenu{display:none}header .dropdown-menu .submenu{font-family:WorkSansMedium;font-size:14px;height:100%;transition:opacity .15s linear}header .dropdown-menu .submenu ul{padding:20px 0 0 23px;display:flex;justify-content:space-between;flex-wrap:wrap}header .dropdown-menu .submenu ul li{width:50%}header .dropdown-menu .submenu ul li:after{display:none}header .dropdown-menu .submenu ul li a{padding:6px 15px;display:block;color:#999}header .dropdown-menu .submenu ul li a:hover{color:#000}@media screen and (max-width:600px){header .dropdown-menu{top:116px;width:100%}header .dropdown-menu .left-nav{width:100%}header .dropdown-menu .right-nav{width:0;background:#fff}header .dropdown-menu .right-nav .backmenu{display:block;padding:20px 0 0 35px;font-weight:700}header .dropdown-menu .right-nav .backmenu:before{content:'';border:solid #000;border-width:0 2px 2px 0;display:inline-block;padding:3px;position:absolute;left:21px;top:26px;transform:rotate(135deg);-webkit-transform:rotate(135deg)}header .dropdown-menu .show{width:100%;display:block}header .dropdown-menu .hide{width:0;display:none}header .dropdown-menu .submenu ul{padding:8px 0 20px 23px}header .dropdown-menu .submenu ul li a{padding:6px 0}}@media screen and (max-width:1023px){header .headerWrap{width:100%;max-width:100%;}header .headerWrap .top-banner img{width:320px;height:50px}header .headerWrap nav{flex-wrap:wrap;padding:0 10px 7px}header .headerWrap nav .barmenu{margin-right:15px}header .headerWrap nav .logo{margin-right:0}header .headerWrap nav .logo img{width:102px;height:30px}header .headerWrap nav .top-nav{width:100%;order:5;overflow:auto;font-size:13px;padding-top:25px}header .headerWrap nav .top-nav ul{width:50%}header .headerWrap nav .top-nav .circle{display:none}header .headerWrap nav .subscribe{order:3;margin-left:auto}header .headerWrap nav .subscribe a{font-size:12px;padding:3px 12px 4px}header .headerWrap nav .search{order:4;margin-left:12px}header .headerWrap nav .search .inputwrap input{width:265px}header .headerWrap nav .top-nav .forbesflex{flex-wrap:inherit}header .dropdown-menu{top:108px}header .dropdown-menu .right-nav .backmenu{display:none}}@media screen and (min-width:1024px) and (max-width:1280px){header .headerWrap{width:100%;}header .headerWrap nav{justify-content:center}header .headerWrap nav .barmenu{margin:0 6px 7px 5px}header .headerWrap nav .logo{margin-right:10px}header .headerWrap nav .top-nav{width:894px;margin-right:10px;font-size:13px;justify-content:flex-start}header .headerWrap nav .top-nav ul{width:590px}header .headerWrap nav .top-nav ul li{margin-right:16px}header .headerWrap nav .top-nav .circle{margin:0 4px 0 0}header .headerWrap nav .subscribe a{padding:4px 12px 5px;font-size:13px}header .headerWrap nav .search{margin-right:5px}header .dropdown-menu{top:163px}}
+                /* header css */
+				header .headerWrap .top-banner #dskcontainer{width:728px;height:91px;margin:0 auto;display:block;}
+header .headerWrap .top-banner #mbcontainer{display:none}
+@media screen and (max-width:1023px){
+header .headerWrap .top-banner #mbcontainer{width:320px;height:50px;margin:0 auto;display:block;}
+header .headerWrap .top-banner #dskcontainer{display:none}
+}
+				
+				/* Jquery Autocomplete */
+.ui-autocomplete {	position: absolute;	top: 0;	left: 0;	cursor: default; border:1px solid #ccc;}
+.ui-menu {list-style: none;	padding: 0;	margin: 0;	display: block;	outline: none;}
+.ui-menu .ui-menu { position:absolute; }
+.ui-menu .ui-menu-item { background-color:#fff; margin:0px; padding:0; width:100%; right:0 !important; text-align:left;
+ position:relative; margin:0; cursor:pointer; min-height:0;/* support: IE7 */ /* support: IE10, see #8844 */list-style-image:none;font-size:24px; padding:3px 10px; margin:0; font-size:13px; font-weight:normal; z-index:9999999;}
+.ui-menu .ui-state-focus,.ui-menu .ui-state-active { margin:0; background:#ccc; color:#fff;}
+
+@media screen and (max-width: 999px){
+.search{display:none}
+}
+@media screen and (min-width: 1000px){
+.search{display:block}
+}
+        </style>
+        
+
+<!--<script async='async' src='https://www.googletagservices.com/tag/js/gpt.js'></script>-->
+<script async='async' src='https://securepubads.g.doubleclick.net/tag/js/gpt.js'></script>
+
+<script>
+  var googletag = googletag || {};
+  googletag.cmd = googletag.cmd || [];
+</script>
+<script>
+  googletag.cmd.push(function() {
+				googletag.defineSlot('/1039154/Forbes_India/FI_HomPg/FI_HomePg_Mobile_320x50', [320, 50], 'div-gpt-ad-1497334408496-0').addService(googletag.pubads());	
+					googletag.defineSlot('/1039154/Forbes_India/FI_HomPg/FI_HomPg_SB_728x90', [728, 90], 'div-gpt-ad-1534845070371-0').addService(googletag.pubads());	
+					googletag.defineSlot('/1039154/Forbes_India/FI_HomPg/FI_HomPg_MR6_300x250', [300, 250], 'div-gpt-ad-1494573720706-9').addService(googletag.pubads());	
+		
+	googletag.pubads().enableSingleRequest();
+    googletag.enableServices();
+  });
+</script>
+
+    </head>
+
+    <body>
+        <div id="wrapper">
+            <header>
+                <div class="headerWrap">
+                 <div class="top-banner">
+         <div id="dskcontainer">
+               
+			<!-- /1039154/Forbes_India/FI_HomPg/FI_HomPg_SB_728x90 -->
+			<div id='div-gpt-ad-1534845070371-0' style='height:90px;'>
+			<script>
+			googletag.cmd.push(function() { googletag.display('div-gpt-ad-1534845070371-0'); });
+			</script>
+			</div>         </div>
+         <div id="mbcontainer">
+         
+			<!-- /1039154/Forbes_India/FI_HomPg/FI_HomePg_Mobile_320x50 -->
+			<div id='div-gpt-ad-1497334408496-0' style='height:50px;'>
+			<script>
+			googletag.cmd.push(function() { googletag.display('div-gpt-ad-1497334408496-0'); });
+			</script>
+			</div>         </div>
+ </div>
+                     <nav class="forbesflex">
+                        <div class="barmenu">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </div>
+                        <div class="dropdown-menu">
+                            <div class="forbesflex">
+                                <div class="left-nav">
+                                    <h2>Sections</h2>
+                                    <ul>
+									<style>
+									header .dropdown-menu .left-nav ul .smenu:after{
+						             border:none;
+									}
+									</style>
+									<li class="smenu"><a class="text-red" href="https://www.forbesindia.com/subscription/">Subscribe</a></li>
+									      <li class="smenu"><a href="https://www.forbesindia.com/leadership/1927/1">Leadership</a></li>
+										  <li class="smenu"><a href="https://www.forbesindia.com/innovation/1887/1">Innovation</a></li>
+									<li class="smenu"><a href="https://www.forbesindia.com/billionaires/1931/1">Billionaires</a></li>
+									<li class="smenu"><a href="https://www.forbesindia.com/startups/1559/1">Startups</a></li>
+										<li class="smenu"><a href="https://www.forbesindia.com/multimedia/audio/8/1">Podcasts</a></li>
+										<li class="smenu"><a href="https://www.forbesindia.com/multimedia/video/2/1">Videos</a></li>
+										<li class="smenu"><a href="https://www.forbesindia.com/life/92/1">Life</a></li>
+										<li class="smenu"><a href="https://www.forbesindia.com/blog/">Blogs</a></li>
+									<li class="lmenu" id="lists" ><a href="javascript:void(0);">Lists</a></li>
+									<li  class="lmenu" id="leadership"><a href="javascript:void(0);">Thought Leadership</a></li>
+										<li class="smenu" id="magazine"><a href="https://www.forbesindia.com/magazine/" >Magazine</a></li>
+                                        
+                                    </ul>
+                                </div>
+                                <div class="right-nav">
+                                    <a href="javascript:void(0);" class="backmenu">Lists</a>
+									<div class="lists">
+                                        <div class="submenu">
+                                         <ul>
+                    	                    	
+                        	<li><a href="https://www.forbesindia.com/lists/30-under-30-2021/1901/1">30 Under 30 2021</a>
+							</li>
+								                    	
+                        	<li><a href="https://www.forbesindia.com/lists/indias-100-great-people-managers-2020/1879/1">India&#039;s 100 Great People Managers 2020</a>
+							</li>
+								                    	
+                        	<li><a href="https://www.forbesindia.com/lists/india-rich-list-2020/1877/1">India Rich List 2020</a>
+							</li>
+								                    	
+                        	<li><a href="https://www.forbesindia.com/lists/self-made-women-2020/1835/1">Self Made Women 2020</a>
+							</li>
+								                    	
+                        	<li><a href="https://www.forbesindia.com/lists/30-under-30-2020/1829/1">30 Under 30 2020</a>
+							</li>
+								                    	
+                        	<li><a href="https://www.forbesindia.com/lists/2019-celebrity-100/1819/1">2019 Celebrity 100</a>
+							</li>
+								                    	
+                        	<li><a href="https://www.forbesindia.com/lists/india-rich-list-2019/1807/1">India Rich List 2019</a>
+							</li>
+								                    	
+                        	<li><a href="https://www.forbesindia.com/lists/2019-wpower-trailblazers/1759/1">2019 W-Power Trailblazers</a>
+							</li>
+								                    	
+                        	<li><a href="https://www.forbesindia.com/lists/30-under-30-2019/1755/1">30 Under 30 2019</a>
+							</li>
+								                    	
+                        	<li><a href="https://www.forbesindia.com/lists/2018-celebrity-100/1735/1">2018 Celebrity 100</a>
+							</li>
+																	<li><a href="https://www.forbesindia.com/lists/30-under-30/1449/1">30 Under 30</a>
+							</li>
+                          
+                        </ul>
+                                        </div>
+                                    </div>
+                                     <div class="magazine">
+                                        <div class="submenu">
+                                            <ul>
+                                               <li><a href="https://www.forbesindia.com/magazine/">Latest Issue</a></li>
+                          <!--  <li><a href="archive/"> Archive</a></li>-->
+                          
+                                            </ul>
+                                        </div>
+                                    </div>
+                                    <div class="upfront">
+                                        <div class="submenu">
+                                           <ul>
+						                   <li><a href="https://www.forbesindia.com/upfront/column/252/1">Column</a></li>
+                                        <li><a href="https://www.forbesindia.com/upfront/special/992/1">Special</a></li>
+                                        <li><a href="https://www.forbesindia.com/upfront/leaderboard/1563/1">Leaderboard </a></li>
+                                        <li><a href="https://www.forbesindia.com/upfront/exit-interview/142/1">Exit Interview</a></li>
+                                        <li><a href="https://www.forbesindia.com/upfront/close-range/152/1">Close Range</a></li>
+                                        <li><a href="https://www.forbesindia.com/upfront/world-watch/172/1">World Watch</a></li>
+                                        <li><a href="https://www.forbesindia.com/upfront/ideas-opinion/1344/1">Ideas & Opinion</a></li>
+                                        <li><a href="https://www.forbesindia.com/upfront/hindsight/202/1">Hindsight</a></li>
+                                        <li><a href="https://www.forbesindia.com/upfront/briefing/192/1">Briefing</a></li>
+                                        <li><a href="https://www.forbesindia.com/upfront/breakpoint/162/1">Breakpoint</a></li>
+                                        <li><a href="https://www.forbesindia.com/upfront/resolution/212/1">Resolution</a></li>
+                                        <li><a href="https://www.forbesindia.com/upfront/numerix/222/1">Numerix</a></li>
+                                        <li><a href="https://www.forbesindia.com/upfront/greyscale/232/1">Greyscale</a></li>
+                     					</ul>
+                                        </div>
+                                    </div>
+                                    <div class="features">
+                                        <div class="submenu">
+                                           <ul>
+                        	<li><a href="https://www.forbesindia.com/features/corporate/"> Corporate Account</a></li>
+                            <li><a href="https://www.forbesindia.com/features/firstprinciples/"> First Principles</a></li>
+                            <li><a href="https://www.forbesindia.com/features/globalgame/">Global Game</a></li>
+                            <li><a href="https://www.forbesindia.com/features/enterprise/"> Enterprise</a></li>
+                           <li><a href="https://www.forbesindia.com/features/specialreport/"> Special Report</a></li>
+                        </ul>
+                                        </div>
+                                    </div>
+                                    <div class="life">
+                                        <div class="submenu">
+                                           <ul>
+													<li><a href="https://www.forbesindia.com/life/recliner/422/1">Recliner</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/traveller/432/1">Traveller</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/health/442/1">Health</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/appraisals/462/1">Appraisals</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/findex/482/1">F-index</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/cheat-sheet/492/1">Cheat Sheet</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/tipoff/512/1">Tip-Off</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/nuggets/542/1">Nuggets</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/frequent-flier/682/1">Frequent Flier</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/style/732/1">Style</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/exlibris/742/1">Ex-Libris</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/special/1022/1">Special</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/thoughts/1403/1">Thoughts</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/engage/1487/1">Engage</a>
+							</li>
+                        								<li><a href="https://www.forbesindia.com/life/forbes-life/1745/1">Forbes Life</a>
+							</li>
+                        	                        </ul>
+                                        </div>
+                                    </div>
+                                    <div class="forbeslife">
+                                        <div class="submenu">
+                                         <ul>
+					                    	
+                        	<li><a href="https://www.forbesindia.com/forbeslifeindia/think/1459/1">Think</a>
+							</li>
+								                    	
+                        	<li><a href="https://www.forbesindia.com/forbeslifeindia/live/1461/1">Live</a>
+							</li>
+								                    	
+                        	<li><a href="https://www.forbesindia.com/forbeslifeindia/work/1463/1">Work</a>
+							</li>
+								                    	
+                        	<li><a href="https://www.forbesindia.com/forbeslifeindia/play/1465/1">Play</a>
+							</li>
+								                          
+                        </ul>
+                                        </div>
+                                    </div>
+                                    <div class="leadership">
+                                        <div class="submenu">
+                                         <ul>
+					<li><a href="https://www.forbesindia.com/broadcast1/business-evangelist-of-india/">Business Evangelist of India</a></li>					 
+					<li><a href="https://www.forbesindia.com/skilltree/education-evangelists-of-india/">Education Evangelists of India</a></li>
+                    	                    	
+                        	<li><a href="https://www.forbesindia.com/thought-leadership/essec-business-school/1949/1">ESSEC Business School</a>
+							</li>
+							                    	
+                        	<li><a href="https://www.forbesindia.com/thought-leadership/london-business-school/1625/1">London Business School</a>
+							</li>
+							                    	
+                        	<li><a href="https://www.forbesindia.com/thought-leadership/great-lakes-institute-of-management/1605/1">Great Lakes Institute of Management</a>
+							</li>
+							                    	
+                        	<li><a href="https://www.forbesindia.com/thought-leadership/iim-bangalore/1603/1">IIM Bangalore</a>
+							</li>
+							                    	
+                        	<li><a href="https://www.forbesindia.com/thought-leadership/iese-business-school/1601/1">IESE Business School</a>
+							</li>
+							                    	
+                        	<li><a href="https://www.forbesindia.com/thought-leadership/esmt/1597/1">ESMT</a>
+							</li>
+							                    	
+                        	<li><a href="https://www.forbesindia.com/thought-leadership/aifmb/1539/1">AIFMB</a>
+							</li>
+							                    	
+                        	<li><a href="https://www.forbesindia.com/thought-leadership/iit-madras/1543/1">IIT Madras</a>
+							</li>
+							                    	
+                        	<li><a href="https://www.forbesindia.com/thought-leadership/weschool/1545/1">WeSchool</a>
+							</li>
+							                    	
+                        	<li><a href="https://www.forbesindia.com/thought-leadership/sp-jain-school-of-global-management/1553/1">SP Jain School of Global Management</a>
+							</li>
+							                    	
+                        	<li><a href="https://www.forbesindia.com/thought-leadership/kellogg-school-of-management/1649/1">Kellogg School of Management</a>
+							</li>
+							                          
+                        </ul>
+                                        </div>
+                                    </div>
+                                    <div class="multimedia">
+                                        <div class="submenu">
+                                         	<ul>
+                        	<li><a href="https://www.forbesindia.com/multimedia/video/2/1">Video</a></li>
+								<li><a href="https://www.forbesindia.com/aperture/">Slideshow</a></li>
+								<!--<li><a href="<//?= SITE_URL?>multimedia/graphics/3/1">Interactive Graphics</a></li>-->
+								<li><a href="https://www.forbesindia.com/multimedia/audio/8/1">Audio</a></li>
+								<li><a href="https://www.forbesindia.com/multimedia/twinterview/">Twinterview</a></li>
+                        </ul>
+                                        </div>
+                                    </div>
+                                    
+                                </div>
+                            </div>
+                        </div>
+                        <div class="logo">
+                            <a href="https://www.forbesindia.com/"><img src="https://www.forbesindia.com/forbes-rvp-files/images/forbes-logo.png" alt="" /></a>
+                        </div>
+						<style>
+						.text-red {
+    color: #ed1c26 !important;
+}
+						</style>
+                        <div class="top-nav">
+                            <ul class="forbesflex">
+                                <li><a href="https://www.forbesindia.com/leadership/1927/1">Leadership</a></li>
+                                <li><a href="https://www.forbesindia.com/innovation/1887/1">Innovation</a></li>
+                                <li><a href="https://www.forbesindia.com/billionaires/1931/1">Billionaires</a></li>
+                                <li><a href="https://www.forbesindia.com/lists/1">Lists</a></li>
+								 <li><a href="https://www.forbesindia.com/startups/1559/1">Startups</a></li>
+                               <!-- <li><a href="https://www.forbesindia.com/webspecial/992/1">Trending</a></li>-->
+                                <li><a href="https://www.forbesindia.com/multimedia/audio/8/1">Podcasts</a></li>
+                                <li><a href="https://www.forbesindia.com/multimedia/video/2/1">Videos</a></li>
+								 <li><a href="https://www.forbesindia.com/life/92/1">Life</a></li>
+								<li class="scrbmen text-red" style="display:none;"><a class="cd-signinfont-600 text-red" href="https://www.forbesindia.com/subscription/index.php">Subscribe</a></li>
+						<li id="username" style="white-space:nowrap;"></li>
+                            </ul>
+                           <!-- <div class="circle"><img src="forbes-rvp-files/images/circle.png" alt="" /></div>-->
+                        </div>
+                        
+                        <div class="search">
+						<div class="inputwrap">
+							<form onsubmit="javascript:return doSubmitSearch('d');" method="post">
+						<input type="search" placeholder="Search..."  id="tags"  name="searchtext1" value=""  />
+								</form>
+                            </div>
+                            <i>
+                                <svg width="25" height="25" viewBox="0 0 24 24" fill="#fff">
+                                    <path
+                                        d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"
+                                    ></path>
+                                    <path d="M0 0h24v24H0z" fill="none"></path>
+                                </svg>
+                            </i>
+                        </div>
+						</form>
+                    </nav>
+                </div>
+				<script type="text/javascript" src="https://www.forbesindia.com/js/jquery.js"></script>
+				<script>
+    // A $( document ).ready() block.
+    $( document ).ready(function() {
+        var user=readCookie("nnfgh");
+       if(user!=null){
+          //  $("#username").val(decodeURI(user));
+		 // $("#username").html(decodeURI(user));
+		 $("#username").html("<a href='https://www.forbesindia.com/subscription/user_profile.php' style='color:#ed1c26 !important'>" +user+ "</a>  <a href='https://www.forbesindia.com/subscription/logout.php' style='color:#ed1c26 !important'>| Logout</a> ");
+        }
+		else{
+		$("#username").html("<a class='cd-signinfont-600 text-red' href='https://www.forbesindia.com/subscription/sign-in.php'>Log in</a>");
+        $('.scrbmen').show();		
+		}
+    });
+function readCookie(name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(';');
+        for(var i=0;i < ca.length;i++) {
+            var c = ca[i];
+            while (c.charAt(0)==' ') c = c.substring(1,c.length);
+            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+        }
+        return null;
+    }
+
+ </script>
+            </header>
+
+
+
+<div class="container-fluid">
+    <div class="row">
+      <div class="error-page">
+        <div class="container">
+            <div class="row">
+                <div class="error-ms-wrap">
+                  <div class="inner-img">
+                    <img src="https://www.forbesindia.com/svn_images/paper.png">
+                  </div>
+                  <div class="inner404">
+                    <h2>404</h2>
+                    <p>page not found</p>
+                    <div class="inner-text">
+                      We can't find what you
+                      were looking for.
+                    </div>
+                  </div>
+                </div>
+            </div>
+            <div class="error-search">
+                  <div class="error-search-in"> 
+				          		<form onsubmit="javascript:return doSubmitSearch('d');">
+                    <input type="text" placeholder="Search" id="tags" name="searchtext"  value="" />
+					 <div class="clear"></div>
+					</form>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/><path d="M0 0h24v24H0z" fill="none"/></svg>
+                  </div>
+            </div>
+            <ul class="buttons-wrap">
+              <li>
+                <a href="https://www.forbesindia.com/"><<  Go back to Forbes india homepage</a>
+              </li>
+              
+              </li>
+            </ul>
+        </div>
+      </div>
+    </div>
+</div>
+<!-- Footer --> 
+<footer id="newfooter">
+                <div class="footer-top">
+                    <div class="footer-container">
+                        <div class="flexwrap">
+                            <div class="flexleft">
+                                <div class="footer-logo"><img src="https://www.forbesindia.com/forbes-rvp-files/images/footer-forbes-logo1.png" alt="" /></div>
+                                <div class="copytext">&copy; COPYRIGHT 2021, FORBESINDIA.COM ALL RIGHTS RESERVED</div>
+                            </div>
+                            <div class="flexright">
+                                <div class="socialwrap">
+                                    <ul>
+                                        <li><a href="https://www.facebook.com/ForbesIndia" target="_blank" class="ic-fb"></a></li>
+                                        <li><a href="https://twitter.com/forbes_india?lang=en" target="_blank" class="ic-twit"></a></li>
+                                        <li><a href="https://www.instagram.com/forbesindia/" target="_blank" class="ic-insta"></a></li>
+                                        <li><a href="https://www.linkedin.com/company/forbes-india" target="_blank" class="ic-linkedin"></a></li>
+                                        <li><a href="https://open.spotify.com/show/4UT3wTpKhqqjWicisQC6hG" target="_blank" class="ic-spotify"></a></li>
+                                        <li><a href="https://www.youtube.com/forbesindia" target="_blank" class="ic-ytube"></a></li>
+										<li><a href="https://t.me/s/forbesind?before=115" target="_blank" class="ic-telegram"></a></li>
+										
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="footer-content">
+                    <div class="footer-container">
+                        <h2>Latest News</h2>
+                        <div class="grid-column">
+                            <div class="column">
+							<ul>
+							                              <li><a href="https://www.forbesindia.com/article/photo-of-the-day/photo-of-the-day-black-lives-matter/68773/1">Photo of the Day: Black lives matter</a></li>
+							                               <li><a href="https://www.forbesindia.com/article/forbes-lifes/ireland-is-using-the-video-game-assassins-creed-to-attract-a-new-kind-of-tourist/68769/1">Ireland is using the video game &#039;Assassin&#039;s Creed&#039; to attract a new kind of tourist</a></li>
+							                               <li><a href="https://www.forbesindia.com/article/special/ten-interesting-things-we-read-this-week/68757/1">Ten interesting things we read this week</a></li>
+							                               <li><a href="https://www.forbesindia.com/article/forbes-lifes/microsofts-windows-11-will-allow-for-android-apps/68765/1">Microsoft&#039;s Windows 11 will allow for Android apps</a></li>
+							                               <li><a href="https://www.forbesindia.com/article/global-news/the-internet-eats-up-less-energy-than-you-might-think/68767/1">The internet eats up less energy than you might think</a></li>
+							                               <li><a href="https://www.forbesindia.com/article/global-news/us-bans-imports-of-some-chinese-solar-materials-tied-to-forced-labor/68771/1">US bans imports of some Chinese solar materials tied to forced labor</a></li>
+							                                 </ul>
+                            </div>
+                            <div class="column">
+                                <ul class="links">
+                                    <li><a href="https://www.forbesindia.com/leadership/1927/1" target="_blank">LEADERSHIP</a></li>
+                                <li><a href="https://www.forbesindia.com/innovation/1887/1" target="_blank">INNOVATION</a></li>
+                                <li><a href="https://www.forbesindia.com/billionaires/1931/1" target="_blank">BILLIONAIRES</a></li>
+                                <li><a href="https://www.forbesindia.com/lists/1" target="_blank">LISTS</a></li>
+								 <li><a href="https://www.forbesindia.com/startups/1559/1" target="_blank">STARTUPS</a></li>
+                               <li><a href="https://www.forbesindia.com/multimedia/audio/8/1" target="_blank">PODCASTS</a></li>
+                                <li><a href="https://www.forbesindia.com/multimedia/video/2/1" target="_blank">VIDEOS</a></li>
+								 <li><a href="https://www.forbesindia.com/life/92/1" target="_blank">LIFE</a></li>
+								
+                                </ul>
+                            </div>
+                            <div class="column">
+                            
+			<!-- /1039154/Forbes_India/FI_HomPg/FI_HomPg_MR6_300x250 -->
+			<div id='div-gpt-ad-1494573720706-9' style='height:250px;'>
+			<script>
+			googletag.cmd.push(function() { googletag.display('div-gpt-ad-1494573720706-9'); });
+			</script>
+			</div>                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="footer-links">
+                   <div class="flexwrap footer-container">
+                        <div class="flexleft">
+                            <a href="https://www.forbesindia.com/contactus/" target="_blank">CONTACT US</a>
+                            <a href="https://www.forbesindia.com/advertise/" target="_blank">ADVERTISE WITH US</a>
+                            <a href="https://www.forbesindia.com/subscription/" target="_blank">SUBSCRIBE</a>
+							 <a href="https://www.forbesindia.com/marquee" target="_blank">FORBES INDIA MARQUEE</a>
+                            <a href="https://www.forbesindia.com/leadershipawards" target="_blank">LEADERSHIP AWARDS</a>
+                          
+                        </div>
+                        <div class="flexright">
+                             <a href="https://www.forbesindia.com/privacy/" target="_blank">PRIVACY POLICY</a>
+							  <a href="https://www.forbesindia.com/cookiepolicy/" target="_blank">COOKIE POLICY</a>
+							  <a href="https://www.forbesindia.com/terms-conditions/" target="_blank">TERMS &amp; CONDITIONS</a>
+							  <a href="https://www.forbesindia.com/disclaimer/" target="_blank">DISCLAIMER</a>
+                            <!--<a href="summit">ENTREPRENEURSHIP SUMMIT</a>
+                            <a href="ceo-dialogues">CEO DIALOGUES</a>-->
+                        </div>
+                    </div>
+                </div>
+                <div class="footer-copywrite">
+                    <div class="footer-container">
+                        <div class="flexwrap">
+                            <div class="nw18logo">
+                                <a href="#"><img src="https://www.forbesindia.com/forbes-rvp-files/images/logo-nw18.png" alt="" /></a>
+                            </div>
+                           <!-- <div class="forbes-domain">
+                                <a href="http://www.forbes.com/"><img src="https://www.forbesindia.com/forbes-rvp-files/images/forbes-logo-01.png" alt="Forbes" title="Forbes" /></a>
+                                <a href="http://www.forbesrussia.ru/"><img src="https://www.forbesindia.com/forbes-rvp-files/images/forbes-logo-02.png" alt="Forbes Russia" title="Forbes Russia" /></a>
+                                <a href="http://www.forbes.pl/"><img src="https://www.forbesindia.com/forbes-rvp-files/images/forbes-logo-03.png" alt="Forbes Poland" title="Forbes Poland" /></a>
+                                <a href="http://www.forbes.ro/"><img src="https://www.forbesindia.com/forbes-rvp-files/images/forbes-logo-04.png" alt="Forbes Romania" title="Forbes Romania" /></a>
+                                <a href="http://www.forbeschina.com/"><img src="https://www.forbesindia.com/forbes-rvp-files/images/forbes-logo-05.png" alt="Forbes China" title="Forbes China" /></a>
+                            </div>--->
+                        </div>
+                    </div>
+                </div>
+            </footer><!-- Main content Ends here --> 
+<script src="https://www.forbesindia.com/js/jquery.js"></script>
+<script src="https://www.forbesindia.com/js/jquery-ui.js"></script> 
+<script src="https://www.forbesindia.com/js/jquery.ui.core.js"></script> 
+<script src="https://www.forbesindia.com/js/fonts.js"></script> 
+<script src="https://www.forbesindia.com/js/bootstrap.min.js"></script> 
+
+<script src="https://www.forbesindia.com/js/owl.carousel.min.js"></script> 
+<script src="https://www.forbesindia.com/js/OwlCarousel2Thumbs.min.js"></script>
+<script src="https://www.forbesindia.com/js/carousel-swipe.js"></script> 
+<script src="https://www.forbesindia.com/js/jquery.ui.rcarousel.js"></script> 
+<script src="https://www.forbesindia.com/js/common.js"></script> 
+<script src="https://www.forbesindia.com/js/jquery.slimscroll.js"></script> 
+<!--<script src="https://www.forbesindia.com/js/jquery.ui.widget.js"></script> -->
+<script src="https://www.forbesindia.com/js/mediaelement-and-player.min.js"></script>
+ <!--<script src="js/readmore.js"></script>-->  
+<script src="https://www.forbesindia.com/subscription/js/md5.js"> </script>
+<script src="https://www.forbesindia.com/js/functions.js?v=1"></script> 
+
+
+
+<!--<script src="<//?php echo SITE_URL; ?>js/owl.carousel.min_new.js"></script> -->
+<script>(function() {"use strict"; var toggles = document.querySelectorAll(".pan-cake-menu"); for (var i = toggles.length - 1; i >= 0; i--) {var toggle = toggles[i]; toggleHandler(toggle); }; function toggleHandler(toggle) {toggle.addEventListener( "click", function(e) {e.preventDefault(); (this.classList.contains("is-active") === true) ? this.classList.remove("is-active") : this.classList.add("is-active"); }); }  })(); </script>
+
+ <script type="text/javascript">	
+	
+function doSubmitSearch(view){
+	var str = "";
+    if(view == "m"){
+        str = document.getElementById('tags-m').value;
+    }else{
+        str = document.getElementById('tags').value;
+    }
+	
+	if(str==''){
+		alert('Please enter search term');
+		return false;
+	}
+	else if(str.match(/([\<])([^\>]{1,})*([\>])/i)!=null)
+		{
+          alert('Please enter a valid search term');
+		  return false;
+		}
+	else{
+		str = str.replace(/\s/g, "+");
+		if(str.substr(str.length-1,str.length)=='+'){
+			str = str.substr(0,str.length-1);
+		}
+		window.location.href='https://www.forbesindia.com/search.php?searchtext='+str;
+		return false;
+	}
+}
+$(function() {
+		var json_obj='';
+		var srch="modi";
+		var arr_name='';
+		var arr_slug='';
+		$( "#tags, #tags-m" ).autocomplete({
+			source: function( request, response ) {
+				$.ajax({
+					url : "https://www.forbesindia.com/includes/autosuggest.php",
+					type : 'POST',
+					dataType: "json",
+					data:
+					{
+						'srch': request.term
+					},
+					cache : false,
+					success: function (data)
+					{
+						console.log(data);
+						response(data.name);
+					}
+				});
+			},
+			select: function(event, ui) {
+				console.log(arr_name);
+				console.log(arr_slug);
+				window.location.href = "https://www.forbesindia.com/search.php?searchtext="+ui.item.label;
+			}			
+		});
+		$( "#search").click(function() {
+			var txt_val;
+			txt_val=$("#tags-m").val();
+			if(txt_val !='' && txt_val.match(/([\<])([^\>]{1,})*([\>])/i)==null){
+				window.location.href = "https://www.forbesindia.com/search.php?searchtext="+txt_val;
+			}
+
+		});
+		$( "#search1").click(function() {
+			var txt_val;
+			txt_val=$("#tags").val();
+			if(txt_val !='' && txt_val.match(/([\<])([^\>]{1,})*([\>])/i)==null){
+				window.location.href = "https://www.forbesindia.com/search.php?searchtext="+txt_val;
+			}
+
+		});
+		 $(document).on('keypress', '#tags', function(e) {
+
+        if ( e.keyCode == 13 ) {  // detect the enter key
+           var txt_val;
+			txt_val=$("#tags").val();
+			if(txt_val !='' && txt_val.match(/([\<])([^\>]{1,})*([\>])/i)==null){
+				window.location.href = "https://www.forbesindia.com/search.php?searchtext="+txt_val;
+			} 
+        }
+    });
+	 $(document).on('keypress', '#tags-m', function(e) {
+
+        if ( e.keyCode == 13 ) {  // detect the enter key
+           var txt_val;
+			txt_val=$("#tags-m").val();
+			if(txt_val !='' && txt_val.match(/([\<])([^\>]{1,})*([\>])/i)==null){
+				window.location.href = "https://www.forbesindia.com/search.php?searchtext="+txt_val;
+			} 
+        }
+    });
+	});
+	</script>
+<script type="text/javascript">	
+
+$(document).ready(function(){
+	
+
+	/* to hide iframes with src="" or no src set, or src="https://" start 
+	$('iframe').each(function() {
+	  var src = this.src.toLowerCase();
+	  if (src === self.location.href || !/^https?:[\/]{0,2}\w/i.test(src)) {
+		$(this).hide();
+	  } else {
+		$(this).show();
+	  }
+	});*/
+	
+$('#mainHomeCarousel-01').carousel({
+				  interval: 7000
+			  });
+	 
+	  
+	/* to hide iframes with src="" or no src set, or src="https://" end */
+	$(".common-share").click(function () {
+		var $target = $($(this).data('target'));
+		$(".all-social").not($target).hide();
+		$(".all-social-for-slider").not($target).hide();
+		$target.show();
+	});
+	$(document).mouseup(function (e) {
+		 var popup = $(".all-social, .all-social-for-slider");
+		 if (!$('.common-share').is(e.target) && !popup.is(e.target) && popup.has(e.target).length == 0) {
+			 popup.hide();
+		 }
+	 });
+	$(".icon-sq-dots-white").click(function(){
+		$(".popup-share").toggle()
+	});
+	
+	$('.popup').click(function() {	
+		var NWin = window.open($(this).prop('href'), '', 'scrollbars=1,height=400,width=400');
+		if (window.focus){ NWin.focus(); }
+		return false;
+	});	
+	
+	$('#owl-carousel').owlCarousel({
+		loop:true,
+		slideSpeed : 800,
+		autoplay : 5000,
+		margin:10,
+		responsiveClass:true,
+		responsive:{
+			0:{
+				items:1,
+				nav:true
+			},
+			600:{
+				items:3,
+				nav:true
+			},
+			1024:{
+				items:3,
+				nav:true,
+				loop:true
+			},
+			1280:{
+				items:5,
+				nav:true,
+				loop:true
+			}
+		}
+	})
+	$("#owl-carousel").owlCarousel();
+	
+	$('#owl-carousel-01').owlCarousel({
+		loop:false,
+		slideSpeed : 800,
+		autoplay : 5000,
+		margin:10,
+		responsiveClass:true,
+		responsive:{
+			0:{
+				items:1,
+				nav:true
+			},
+			600:{
+				items:3,
+				nav:true
+			},
+			1024:{
+				items:3,
+				nav:true,
+				loop:true
+			},
+			1280:{
+				items:4,
+				nav:true,
+				loop:true
+			}
+		}
+	})
+	$("#owl-carousel-01").owlCarousel();	
+	
+$('#owl-carousel-story').owlCarousel({
+		loop:false,
+		slideSpeed : 800,
+		autoplay : 5000,
+		margin:0,
+		responsiveClass:true,
+		responsive:{
+			0:{
+				items:1,
+				nav:true
+			},
+			600:{
+				items:1,
+				nav:true
+			},
+			1024:{
+				items:1,
+				nav:true,
+				loop:true
+			},
+			1280:{
+				items:1,
+				nav:true,
+				loop:true
+			}
+		}
+	})
+	$("#owl-carousel-story").owlCarousel();	
+	
+	$('#owl-carousel-super').owlCarousel({
+		loop:false,
+		slideSpeed : 800,
+		autoplay : 5000,
+		margin:10,
+		responsiveClass:true,
+		responsive:{
+			0:{
+				items:2,
+				nav:true
+			},
+			600:{
+				items:3,
+				nav:true
+			},
+			1024:{
+				items:3,
+				nav:true,
+				//loop:true
+			},
+			1280:{
+				items:4,
+				nav:true,
+				//loop:true
+			}
+		}
+	})
+	$("#owl-carousel-super").owlCarousel();		
+	/* archive carousel */
+	$('#owl-carousel-archive').owlCarousel({
+		loop:true,
+		slideSpeed : 800,
+		autoplay : 5000,
+		margin:0,
+		responsiveClass:true,
+		responsive:{
+			0:{
+				items:2,
+				nav:false
+			},
+			600:{
+				items:4,
+				nav:true
+			},
+			1000:{
+				items:5,
+				nav:true,
+				loop:true,
+				mergeFit:true
+			},
+			1280:{
+				items:7,
+				nav:true,
+				loop:true,
+				mergeFit:true
+			}
+		}
+	})
+	$("#owl-carousel-archive").owlCarousel();
+	
+	//For lists one item scroll changing the id
+	$('#owl-carousel-list').owlCarousel({
+		items:1,
+		margin:0,
+		stagePadding:0,
+		nav:true,
+		loop:true,
+		smartSpeed:450
+	});
+	$('#owl-carousel-02').owlCarousel({
+		loop:false,
+		slideSpeed : 800,
+		autoplay : 5000,
+		margin:00,
+		responsiveClass:true,
+		responsive:{
+			0:{
+				items:1,
+				nav:true
+			},
+			600:{
+				items:3,
+				nav:true
+			},
+			1024:{
+				items:3,
+				nav:true,
+				loop:true
+			},
+			1280:{
+				items:3,
+				nav:true,
+				loop:true
+			}
+		}
+	})
+	$("#owl-carousel-02").owlCarousel();
+	 $('.carousel').carousel({ interval: 3000,})
+	$(".owl-thumbs").css("display", "none");		
+}); 
+
+$('.topsearch').click(function(){
+	$(".topsearchbox").fadeIn()
+});
+
+$('.topimg_search').click(function(){
+	$(".topsearchbox").hide()
+});
+
+
+$('html').click(function(e) {
+	if((!$(e.target).hasClass('checkbox')) && (!$(e.target).hasClass('icon-share')))
+	{
+		 var chk_id = $('input[type=radio][name=shareRadio]:checked').attr('id');
+		 var clsname1 = "checkbox_"+chk_id;
+		 $("#"+chk_id).removeClass(clsname1);
+		 $('input[type=radio][name=shareRadio]').removeAttr('checked');               
+	}
+});	
+
+$('input[type=radio][name=shareRadio]').click(function(){
+	var checked_id = $('input[type=radio][name=shareRadio]:checked').attr('id');
+	var clsname = "checkbox_"+checked_id;
+	if($("#"+this.id).hasClass(clsname)){
+		if($("#"+this.id).is(':checked')){
+			$("#"+this.id).removeClass(clsname);
+			$("#"+this.id).prop('checked', false);
+		}
+	}else{
+		$('input[type=radio][name=shareRadio]').removeClass().addClass("checkbox");
+		$("#"+this.id).addClass(clsname);
+	}
+});
+googletag.pubads().enableSingleRequest();       // Existing Line
+_w18sub();         // New Line                        
+googletag.enableServices();       // Existing Line
+</script> 
+<!-- footer CSS -->
+        <style type="text/css">
+           footer{width:100%;background:#ededed;border-top:1px solid #ccc}footer .footer-top{background:#fff;padding:20px 0}footer .footer-container{width:1250px;margin:0 auto}footer .flexwrap{display:flex;justify-content:space-between;align-items:center}footer .flexleft .footer-logo{display:inline-flex;margin-right:10px}footer .flexleft .copytext{font-family:WorkSansRegular;font-size:12px;color:#666;display:inline-flex}footer .footer-content{padding-top:30px}#newfooter h2{color:#333;font-family:WorkSansBold;font-size:18px;border-bottom:none;text-transform:none;font-weight:unset;}footer .footer-content .grid-column{display:flex;justify-content:flex-start}footer .footer-content .grid-column .column{border-right:1px solid #ccc;margin-bottom:20px}footer .footer-content .grid-column .column:last-child{border-right:0}footer .footer-content .grid-column .column ul{width:100%;padding-right:70px;padding-top:20px}footer .footer-content .grid-column .column ul li{display:flex;font-family:MerriweatherBold;color:#333;font-size:16px;margin-bottom:20px;position:relative;margin-left:20px}footer .footer-content .grid-column .column ul li:before{background:#ccc;width:8px;height:8px;border-radius:25px;content:'';position:absolute;left:0;margin-left:-20px;margin-top:6px}footer .footer-content .grid-column .column .links{width:330px;padding:20px 76px 0 24px}footer .footer-content .grid-column .column .links li{font-family:WorkSansBold;font-size:16px;margin-bottom:15px}footer .footer-content .grid-column .column .links li a{color:#333;text-decoration:underline}footer .footer-content .grid-column .column .links li:before{width:5px;height:5px}footer .footer-content .grid-column .column .banner{margin-left:20px}footer .footer-links .flexwrap{border-top:1px solid #c7c7c7;padding:25px 0}footer .footer-links .flexwrap a{font-family:WorkSansMedium;font-size:12px;text-decoration:underline;color:#666;margin-right:20px}footer .footer-links .flexwrap a:last-child{margin-right:0}footer .footer-links .flexright{width:auto}footer .footer-copywrite{background:#1a1f25;padding:25px 0}footer .footer-copywrite .nw18logo{display:inline-flex}footer .footer-copywrite .forbes-domain{display:flex;justify-content:space-between}footer .footer-copywrite .forbes-domain a{margin-right:45px;display:inline-flex}footer .footer-copywrite .forbes-domain a:last-child{margin-right:0}footer .socialwrap{ margin-bottom: 0}.socialwrap ul{display:flex;justify-content:space-around}.socialwrap ul li{margin-right:10px}.socialwrap ul li:last-child{margin-right:0}.socialwrap ul li a{background:url(https://www.forbesindia.com/forbes-rvp-files/images/soc_icons_sprites.png) no-repeat;display:block}.socialwrap ul li a.ic-fb{background-position:-5px -5px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-twit{background-position:-87px -5px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-insta{background-position:-46px -5px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-linkedin{background-position:-5px -46px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-cloud{background-position:-46px -87px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-ytube{background-position:-5px -87px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-telegram{background-position:-87px -46px;width:31px;height:31px;display:block}.socialwrap ul li a.ic-spotify{background-position:-46px -46px;width:31px;height:31px;display:block}.socialwrap::before{content:'FOLLOW';color:#666;font-family:WorkSansBold;font-size:12px;display:flex;align-items:center;width:52px;margin-right:10px}@media screen and (max-width:800px){footer .footer-content .grid-column .column .links{width:100%;display:flex;flex-wrap:wrap;justify-content:space-between;padding:0}footer .footer-copywrite{padding:15px 0 15px 10px}footer .footer-copywrite .forbes-domain{width:100%;overflow:auto;white-space:nowrap}footer .footer-links .flexwrap a{font-size:10px;margin-right:7px}}@media screen and (max-width:1023px){footer{flex-direction:column;display:flex}footer .footer-container{width:100%}footer .flexwrap{flex-direction:column}footer .flexleft{margin-right:0;text-align:center}footer .flexleft .footer-logo{margin-right:0}footer .flexleft .footer-logo img{width:122px;height:32px}footer .flexleft .copytext{font-size:11px;padding:0 10px 15px}footer .footer-content{padding-top:20px}footer .footer-content h2{padding-left:10px}footer .footer-content .grid-column{flex-direction:column}footer .footer-content .grid-column .column{margin:0 10px;padding:20px 0;border-right:0;border-bottom:1px solid #ccc;text-align:center}footer .footer-content .grid-column .column .banner{margin-left:0}footer .footer-content .grid-column .column ul{padding:0}footer .footer-content .grid-column .column ul li{font-size:12px;margin-bottom:12px;text-align:left}footer .footer-content .grid-column .column ul li:last-child{margin-bottom:0}footer .footer-content .grid-column .column .links{width:100%;display:flex;flex-wrap:wrap;justify-content:space-around;padding:0}footer .footer-content .grid-column .column .links li{font-size:14px;margin-left:10px;margin-bottom:0}footer .footer-content .grid-column .column .links li:before{margin-left:-10px}footer .footer-content .grid-column .column .links li:last-child{margin-bottom:0}footer .footer-copywrite .forbes-domain{justify-content:center}footer .footer-copywrite .forbes-domain a{margin-right:15px}footer .footer-copywrite .forbes-domain a img{width:60px;height:28px}footer .footer-copywrite .nw18logo{padding-bottom:15px}footer .footer-links .flexwrap{padding:15px 0;text-align:center;border-top:0}footer .footer-links .flexwrap .flexleft{margin-right:0}footer .footer-links .flexwrap a{margin-right:7px}}@media screen and (min-width:1024px) and (max-width:1280px){footer .flexwrap{max-width:1024px;margin:0 auto}footer .footer-container{width:calc(100% - 10px)}footer .footer-content h2{max-width:1024px;margin:0 auto}footer .footer-content .grid-column{max-width:1024px;margin:0 auto;justify-content:space-between}footer .footer-content .grid-column .column ul{width:400px}footer .footer-content .grid-column .column .links{width:268px;padding:20px 30px 0 24px}footer .footer-links .flexwrap a{margin-right:12px}}
+        </style>
+        <!-- footer CSS -->
+        <!--css-->
+        <link rel="stylesheet" type="text/css" href="https://www.forbesindia.com/forbes-rvp-files/css/home.css?v=2" />
+        <!--css-->
+        <!--js-->
+        <script type="text/javascript" src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
+		<script>
+  var jQuery_3_4_1 = $.noConflict(true);
+</script>
+        <script type="text/javascript" src="https://www.forbesindia.com/forbes-rvp-files/js/forbes-ot.js?v=42"></script>
+        <!--js-->
+    
+<script type="text/javascript">
+$=jQuery;	
+$(document).ready(function(){
+   $(".follow-btn").click(function(e){
+		e.preventDefault();
+		var $this = $(this).parent().find(".follow-popup-box");
+		$(".follow-popup-box").not($this).hide('500');
+		$this.toggle('500');		
+	});
+	
+	$(".btn-close").click(function(){
+		$(".follow-popup-box").hide();
+	});	
+});
+function submitFollow(frm_id, type_id, type) {
+	var name = $("#user_name"+frm_id).val();
+	var email = $("#user_email"+frm_id).val();
+	$.ajax({
+		url: "https://www.forbesindia.com//follow.php",
+		type: "POST",
+		data: {follow_type_id : type_id, follow_type: type, user_name: name, user_email: email},
+		dataType: "html",
+		success: function(resp){
+			$("#resp_msg"+frm_id).html(resp);
+			$("#get_mail_alert"+frm_id).hide();
+			setTimeout("$('#follow"+frm_id+"').hide()",5000);
+		}
+	});
+}
+</script>
+
+</body>
+</html>
