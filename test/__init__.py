@@ -30,15 +30,72 @@
 import sys
 import os
 
-testfolder = os.path.dirname(os.path.realpath(__file__))
-parentFolder = os.path.dirname(testfolder)
-sourceFolder = os.path.join(parentFolder, 'src')
-sys.path.append(sourceFolder)
-sys.path.append(os.path.join(sourceFolder, 'plugins'))
-sys.path.append(os.path.join(sourceFolder, 'plugins_contrib'))
+def getAppFolders():
+    testfolder = os.path.dirname(os.path.realpath(__file__))
+    parentFolder = os.path.dirname(testfolder)
+    sourceFolder = os.path.join(parentFolder, 'src')
+    sys.path.append(sourceFolder)
+    sys.path.append(os.path.join(sourceFolder, 'plugins'))
+    sys.path.append(os.path.join(sourceFolder, 'plugins_contrib'))
+    testdataFolder = os.path.join(parentFolder, 'test-data')
+    return((parentFolder, sourceFolder, testdataFolder))
 
+
+def getMockAppInstance(parentFolder, rundate, configfile):
+    from scraper_app import NewsLookout
+    mock_sys_argv = ['python.exe', '-c', configfile,
+                     '-d', rundate]
+    # instantiate the main application class
+    local_app_inst = NewsLookout()
+    local_app_inst.config(mock_sys_argv)
+    return(local_app_inst)
+
+
+def list_all_files(directoryName):
+    if os.path.isdir(directoryName) is True:
+        filesList = [os.path.join(directoryName, i) for i in os.listdir(directoryName)
+                     if os.path.isfile(os.path.join(directoryName, i))]
+        return(filesList)
+
+
+def altfetchRawDataFromURL(feedFileName, pluginName):
+    with open(feedFileName, 'rt', encoding='utf-8') as fp:
+        file_contents = fp.read()
+        fp.close()
+        return(file_contents)
+
+
+def read_bz2html_file(filename: str) -> str:
+    """ Reads contents from BZ2 compressed HTML file.
+
+    :param filename: BZ2 archive to read
+    :return: HTML content read from file
+    """
+    import bz2
+    with bz2.open(filename, "rb") as f:
+        # Decompress data from file
+        content = f.read()
+    return(content.decode('UTF-8'))
+
+
+def get_network_substitute_fun(plugin_name: str, testdata_dir: str, file_no: int = 0) -> object:
+    files_list = list_all_files(testdata_dir)
+    listofFiles = [i for i in files_list if i.find(plugin_name) >= 0 and i.find('.bz2')> 0]
+    if file_no < len(listofFiles):
+        htmlBz2FileName = listofFiles[file_no]
+    else:
+        htmlBz2FileName = listofFiles[0]
+    print(f'Generating data supplying function to get data from file #{file_no}')
+    def replacement_fun(uRLtoFetch, pluginName, getBytes=False):
+        html_content = read_bz2html_file(htmlBz2FileName)
+        print(f'Read {len(html_content)} characters of HTML content from file: {htmlBz2FileName}')
+        return(html_content)
+    return(replacement_fun)
+
+
+(parentFolder, sourceFolder, testdataFolder) = getAppFolders()
 os.chdir(parentFolder)
 
-__version__ = '1.9.9'
+__version__ = '2.0.0'
 
 # end of file #
