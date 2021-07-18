@@ -92,6 +92,14 @@ def test_fetchDataFromURL():
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
     (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    import nltk
+    try:
+        fsPointer = nltk.data.find('tokenizers/punkt')
+        logger.debug("NLTK punkt tokenizers is available.")
+    except Exception as e:
+        logger.debug("Error: %s", e)
+        downloadResult = nltk.download('punkt')
+        logger.debug("Download of punkt successful? %s", downloadResult)
     import data_structs
     # monkey patch to substitute network fetch.
     pluginClassInst.networkHelper.fetchRawDataFromURL = get_network_substitute_fun(
