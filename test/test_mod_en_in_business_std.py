@@ -92,6 +92,7 @@ def test_fetchDataFromURL():
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
     (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    os.environ["NLTK_DATA"] = os.path.join(testdataFolder, 'nltk_data')
     import nltk
     import data_structs
     # monkey patch to substitute network fetch.
