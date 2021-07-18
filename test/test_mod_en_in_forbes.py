@@ -116,13 +116,6 @@ def test_fetchDataFromURL():
     (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
     import data_structs
     import nltk
-    try:
-        fsPointer = nltk.data.find('tokenizers/punkt')
-        logger.debug("NLTK punkt tokenizers is available.")
-    except Exception as e:
-        logger.debug("Error: %s", e)
-        downloadResult = nltk.download('punkt')
-        logger.debug("Download of punkt successful? %s", downloadResult)
     # monkey patch to substitute network fetch.
     pluginClassInst.networkHelper.fetchRawDataFromURL = get_network_substitute_fun(
         pluginClassInst.pluginName,
@@ -141,25 +134,32 @@ def test_fetchDataFromURL():
     for j, addl_url in enumerate(resultVal.additionalLinks):
         print(f'{j+1}:\t{addl_url}')
     assert type(resultVal) == data_structs.ExecutionResult, 'fetchDataFromURL() not returning exec result correctly.'
-    assert resultVal.wasSuccessful is True, 'fetchDataFromURL() did not complete successfully'
-    assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.publishDate == '2021-07-08', 'fetchDataFromURL() not parsing published date correctly.'
-    assert resultVal.textSize == 7374, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.savedDataFileName == os.path.join('./data', '2021-07-08', 'mod_en_in_forbes_73837853'), \
-        'fetchDataFromURL() not saving parsed data correctly.'
-    assert len(resultVal.additionalLinks) == 111, 'fetchDataFromURL() not extracting additional links correctly.'
-    if os.path.isfile(resultVal.savedDataFileName + ".json"):
-        os.remove(resultVal.savedDataFileName + ".json")
-        print(f'Deleted temp JSON file {resultVal.savedDataFileName + ".json"} successfully.')
-    if os.path.isfile(resultVal.savedDataFileName + ".html.bz2"):
-        os.remove(resultVal.savedDataFileName + ".html.bz2")
-        print(f'Deleted temp raw-data file {resultVal.savedDataFileName + ".html.bz2"} successfully.')
-    # test alternate logic to extract article body content:
-    htmlContent = pluginClassInst.networkHelper.fetchRawDataFromURL(uRLtoFetch, pluginClassInst.pluginName)
-    bodytext = pluginClassInst.extractArticleBody(htmlContent)
-    print(f'Alternate method extracted body text of size = {len(bodytext)}')
-    assert len(bodytext) == 0, \
-        "extractArticleBody() unable to extract article text using alternate (non-newspaper library) method."
+    try:
+        fsPointer = nltk.data.find('tokenizers/punkt')
+        logger.debug("NLTK punkt tokenizers is available.")
+        assert resultVal.wasSuccessful is True, 'fetchDataFromURL() did not complete successfully'
+        assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
+        assert resultVal.publishDate == '2021-07-08', 'fetchDataFromURL() not parsing published date correctly.'
+        assert resultVal.textSize == 7374, 'fetchDataFromURL() not parsing text body correctly.'
+        assert resultVal.savedDataFileName == os.path.join('./data', '2021-07-08', 'mod_en_in_forbes_73837853'), \
+            'fetchDataFromURL() not saving parsed data correctly.'
+        assert len(resultVal.additionalLinks) == 111, 'fetchDataFromURL() not extracting additional links correctly.'
+        if os.path.isfile(resultVal.savedDataFileName + ".json"):
+            os.remove(resultVal.savedDataFileName + ".json")
+            print(f'Deleted temp JSON file {resultVal.savedDataFileName + ".json"} successfully.')
+        if os.path.isfile(resultVal.savedDataFileName + ".html.bz2"):
+            os.remove(resultVal.savedDataFileName + ".html.bz2")
+            print(f'Deleted temp raw-data file {resultVal.savedDataFileName + ".html.bz2"} successfully.')
+        # test alternate logic to extract article body content:
+        htmlContent = pluginClassInst.networkHelper.fetchRawDataFromURL(uRLtoFetch, pluginClassInst.pluginName)
+        bodytext = pluginClassInst.extractArticleBody(htmlContent)
+        print(f'Alternate method extracted body text of size = {len(bodytext)}')
+        assert len(bodytext) == 0, \
+            "extractArticleBody() unable to extract article text using alternate (non-newspaper library) method."
+    except Exception as e:
+        logger.debug("Error: %s", e)
+        downloadResult = nltk.download('punkt')
+        logger.debug("Download of punkt successful? %s", downloadResult)
 
 
 def test_extractArchiveURLLinksForDate():
