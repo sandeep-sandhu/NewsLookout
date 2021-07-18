@@ -6,7 +6,7 @@ rem Pass the first argument
 cd /d "%~dp0"
 
 if [%1]==[] goto makedate
-
+rem Else, use date supplied as command-line argument
 python src\scraper_app.py -c conf\newslookout_win.conf -d %1
 
 goto end
