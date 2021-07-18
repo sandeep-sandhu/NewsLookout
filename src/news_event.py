@@ -286,6 +286,9 @@ class NewsEvent(JSONEncoder):
                 cleanText = cleanText.replace('“', "'")
                 cleanText = cleanText.replace("\u201c", "'")
                 cleanText = cleanText.replace('​', "'")  # yes, there is a special character here.
+            except Exception as e:
+                logger.error(f"Error cleaning text by replacing special characters: {e}")
+            try:
                 # remove non utf-8 characters
                 cleanText = scraper_utils.clean_non_utf8(cleanText)
                 # replace special characters:
@@ -299,7 +302,7 @@ class NewsEvent(JSONEncoder):
                 cleanText = fixSentenceGaps(cleanText)
                 cleanText = cleanText.strip()
             except Exception as e:
-                logger.error(f"Error cleaning text: {e}")
+                logger.error(f"Error cleaning text encoding: {e}")
         return(cleanText)
 
     def writeFiles(self, fileNameWithOutExt, htmlContent, saveHTMLFile=False):

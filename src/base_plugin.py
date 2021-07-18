@@ -294,7 +294,6 @@ class BasePlugin:
         listOfURLs = self.filterNonContentURLs(listOfURLs)
         logger.info(f'{self.pluginName}: After filtering non-content URLs, URLs remaining: {len(listOfURLs)}')
         listOfURLs = sessionHistoryDB.removeAlreadyFetchedURLs(listOfURLs, self.pluginName)
-        logger.info(f'{self.pluginName}: After filtering already fetched URLS, URLs remaining: {len(listOfURLs)}')
         for listItem in listOfURLs:
             if listItem is not None:
                 # add valid URLs to this plugin's queue:

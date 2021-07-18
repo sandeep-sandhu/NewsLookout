@@ -218,6 +218,7 @@ class SessionHistory:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
             logger.debug("Fetched pending url list for plugin %s: Released exclusive db access.", pluginName)
+        URLsFromSQLite = deDupeList(URLsFromSQLite)
         logger.info(f'{pluginName}: Identified {len(URLsFromSQLite)} URLs from pending table of history database.')
         return(URLsFromSQLite)
 
