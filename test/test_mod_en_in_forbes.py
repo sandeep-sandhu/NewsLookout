@@ -114,7 +114,11 @@ def test_fetchDataFromURL():
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
     (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
-    os.environ["NLTK_DATA"] = os.path.join(testdataFolder, 'nltk_data')
+    nltk_path = os.path.join(testdataFolder, 'nltk_data')
+    print(f'Path for NLTK data is: {nltk_path}')
+    os.environ["NLTK_DATA"] = nltk_path
+    dirlist = list_all_files(os.path.join(nltk_path, 'tokenizers', 'punkt'))
+    print(f'Listing of NLTK data: {dirlist}')
     import data_structs
     import nltk
     # monkey patch to substitute network fetch.
