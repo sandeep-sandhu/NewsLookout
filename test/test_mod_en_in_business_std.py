@@ -54,6 +54,9 @@ def testPluginSubClass():
     """Test case Base Plugin Class
     """
     (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    nltk_path = os.path.join(testdataFolder, 'nltk_data')
+    print(f'Path for NLTK data is: {nltk_path}')
+    os.environ["NLTK_DATA"] = nltk_path
     runDateString = '2021-06-10'
     global app_inst
     global pluginClassInst
@@ -64,7 +67,6 @@ def testPluginSubClass():
     from plugins.mod_en_in_business_std import mod_en_in_business_std
     import data_structs
     import session_hist
-
     pluginClassInst = mod_en_in_business_std()
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
     assert type(pluginClassInst).__name__ == "mod_en_in_business_std", \

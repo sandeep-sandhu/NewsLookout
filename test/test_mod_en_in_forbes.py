@@ -53,6 +53,9 @@ def testPluginSubClass():
     """Test case Base Plugin Class
     """
     (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    nltk_path = os.path.join(testdataFolder, 'nltk_data')
+    print(f'Path for NLTK data is: {nltk_path}')
+    os.environ["NLTK_DATA"] = nltk_path
     runDateString = '2021-06-10'
     global app_inst
     global pluginClassInst
@@ -163,8 +166,7 @@ def test_fetchDataFromURL():
             "extractArticleBody() unable to extract article text using alternate (non-newspaper library) method."
     except Exception as e:
         logger.debug("Error: %s", e)
-        downloadResult = nltk.download('punkt')
-        logger.debug("Download of punkt successful? %s", downloadResult)
+        logger.info("Skipping fetch tests since nltk punkt tokenizer is not available")
 
 
 def test_extractArchiveURLLinksForDate():
