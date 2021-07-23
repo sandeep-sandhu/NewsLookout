@@ -83,8 +83,8 @@ class mod_en_in_inexp_business(BasePlugin):
 
     urlUniqueRegexps = [r"(^https.*)(\-)([0-9]+)(\.html$)",
                         r"(^https\://indianexpress.com/article/.*)(\-)([0-9]+)(/$)",
-                        r"(^https\://indianexpress.com/article/.*)(\-)([0-9]+)(\.html$)"
-                        ]
+                        r"(^https\://indianexpress.com/article/.*)(\-)([0-9]+)(\.html$)",
+                        r"(^https\:\/\/indianexpress.com\/.*)(\-)([0-9]{4,})(\/)"]
     urlMatchPatterns = []
 
     invalidTextStrings = []
@@ -106,7 +106,6 @@ class mod_en_in_inexp_business(BasePlugin):
     allowedDomains = ["indianexpress.com", "www.newindianexpress.com"]
     listOfURLS = []
     uRLdata = dict()
-    urlMatchPatterns = []
 
     def __init__(self):
         """ Initialize the object

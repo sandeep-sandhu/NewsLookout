@@ -124,6 +124,7 @@ class mod_en_in_business_std(BasePlugin):
     # never fetch URLs containing these strings:
     invalidURLSubStrings = ['hindi.business-standard.com', '/sports']
 
+    # Third regexp group is the unique identifier:
     urlUniqueRegexps = [r'(^http.+\/\/)(www.business\-standard.com\/.+\-)([0-9]{5,})',
                         r'(^http.+\/\/)(www.business\-standard.com\/article.+\-)([0-9]{5,})(_1.html)',
                         r'(^http.+\/\/)(www.business\-standard.com\/article.+article_id=)([0-9]{5,})(_*[0-9]*)']

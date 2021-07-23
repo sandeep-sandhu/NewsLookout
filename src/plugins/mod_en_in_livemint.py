@@ -205,8 +205,8 @@ class mod_en_in_livemint(BasePlugin):
                       ]
 
     # write regexps in three groups ()()() so that the third group
-    # gives a unique identifier such as a long integer at the end of a URL
-    urlUniqueRegexps = [r'(https\/\/)(www\.livemint\.com\/.+\-)([0-9]{5,})(\.html)']
+    # gives a unique identifier such as a long integer at the end of a URL:
+    urlUniqueRegexps = [r'(https:\/\/)(www\.livemint\.com\/.+\-)([0-9]{5,})(\.html)']
 
     # write the following regexps dict with each key as regexp to match the required date text,
     # group 2 of this regular expression should match the date string
