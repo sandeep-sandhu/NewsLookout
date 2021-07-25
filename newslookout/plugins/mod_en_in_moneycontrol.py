@@ -416,10 +416,10 @@ class mod_en_in_moneycontrol(BasePlugin):
     def extractArticleBody(self, htmlContent):
         """ Extract article's text
         """
+        articleText = ""
+        tempArray = []
         try:
             # get article text data by parsing specific tags:
-            articleText = ""
-            tempArray = []
             try:
                 logger.debug("Parsing article content to extract body text.")
                 docRoot = BeautifulSoup(htmlContent, 'lxml')
@@ -428,10 +428,10 @@ class mod_en_in_moneycontrol(BasePlugin):
                     tempArray = tempArray + (tag.find_all('p', text=True))
                 for paraGraph in tempArray:
                     articleText = articleText + paraGraph.get_text()
-            except Exception as e:
-                logger.error("Error extracting article content: %s", e)
             except Warning as w:
                 logger.warning("Warning when extracting article body: %s", w)
+            except Exception as e:
+                logger.error("Error extracting article content: %s", e)
         except Exception as e:
             logger.error("Exception extracting article body: %s", e)
         return(articleText)

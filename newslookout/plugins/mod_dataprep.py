@@ -74,7 +74,7 @@ class mod_dataprep(BasePlugin):
         """ Process given data object by this plugin.
 
         :param newsEventObj: The NewsEvent object to be processed.
-        :type dataObj: NewsEvent
+        :type newsEventObj: NewsEvent
         """
         try:
             assert type(newsEventObj) == NewsEvent

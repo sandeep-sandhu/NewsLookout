@@ -155,7 +155,7 @@ class mod_in_bse(BasePlugin):
                         n = fp.write(rawData)
                         logger.debug("Wrote %s bytes to file: %s", n, fullPathName)
                         fp.close()
-                    uncompressSize = self.parseFetchedData(fullPathName,
+                    uncompressSize = self.parseFetchedData2(fullPathName,
                                                            dirPathName,
                                                            WorkerID,
                                                            str(publishDate.strftime("%Y%m%d")))
@@ -175,8 +175,14 @@ class mod_in_bse(BasePlugin):
             logger.error("While fetching data, Exception was: %s", e)
         return(resultVal)
 
-    def parseFetchedData(self, zipFileName, dataDirForDate, WorkerID, publishDateStr):
+    def parseFetchedData2(self, zipFileName: str, dataDirForDate: str, WorkerID: str, publishDateStr: str) -> int:
         """Parse the fetched Data
+
+        :param zipFileName: Name of downloaded archive for given date
+        :param dataDirForDate: Directory to save the data files
+        :param WorkerID: ID of the thread, used in log messages
+        :param publishDateStr: Given date of the archive
+        :return: Size of total data extracted from the archive in bytes
         """
         zipDatafile = None
         expandedSize = 0

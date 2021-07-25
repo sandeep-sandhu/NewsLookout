@@ -127,7 +127,6 @@ class mod_en_in_hindu(BasePlugin):
     allowedDomains = ["www.thehindu.com"]
     listOfURLS = []
     uRLdata = dict()
-    urlMatchPatterns = []
 
     def __init__(self):
         """ Initialize the object
@@ -145,7 +144,7 @@ class mod_en_in_hindu(BasePlugin):
         try:
             if type(htmlText) == bytes:
                 htmlText = htmlText.decode('UTF-8')
-            industryPat = re.compile(r"(<meta name=\"keywords\" content=\")([a-zA-Z_\-.\ ]{3,})(\" \/>)")
+            industryPat = re.compile(r"(<meta name=\"keywords\" content=\")([a-zA-Z_\-. ]{3,})(\" />)")
             matchRes = industryPat.search(htmlText)
             if matchRes is not None:
                 industries.append(matchRes.group(2))

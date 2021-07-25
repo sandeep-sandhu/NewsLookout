@@ -21,8 +21,8 @@ temp
 test-data
 logs
 NewsLookout.egg-info
-src/__pycache__/
-src/plugins/__pycache__/
+newslookout/__pycache__/
+newslookout/plugins/__pycache__/
 test/__pycache__/
 # ignore batch scripts:
 make_build.cmd

@@ -475,8 +475,8 @@ class ProgressWatcher(threading.Thread):
                     logger.info(f"Total count of all URLs to fetch: {self.q_status.totalURLCount}, " +
                                 "Are any plugins still fetching over network? " +
                                 f"{self.q_status.isPluginStillFetchingoverNetwork}")
-                    logger.info(f"Data Processing Input Queue size: {self.q_status.dataInputQsize}, " +
-                                f"Data Processing Output Queue size: {self.q_status.dataOutputQsize}")
+                    logger.info(f"Data items waiting to be processed in Input Queue: {self.q_status.dataInputQsize}, " +
+                                f"Data Processed: {self.q_status.dataOutputQsize}")
                     for statusMessage in QueueStatus.getStatusChange(previousState, self.q_status.currentState):
                         logger.info(statusMessage)
                     # save previous state, use deepcopy for dictionary object:

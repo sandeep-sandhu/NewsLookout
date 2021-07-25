@@ -143,6 +143,7 @@ class mod_in_nse(BasePlugin):
         sizeOfDataDownloaded = -1
         uncompressSize = 0
         publishDateStr = ""
+        publishDate = None
         resultVal = None
         self.master_data_dir = self.app_config.master_data_dir
         logger.debug("Fetching %s, Worker ID %s", uRLtoFetch.encode("ascii"), WorkerID)
@@ -182,7 +183,7 @@ class mod_in_nse(BasePlugin):
                                                             sizeOfDataDownloaded)
                 # save pledges data:
                 # sizeOfDataDownloaded = sizeOfDataDownloaded + self.fetchPledgesData(self.master_data_dir, publishDate)
-                uncompressSize = self.parseFetchedData(str(publishDate.strftime("%Y%m%d")),
+                uncompressSize = self.parseFetchedData2(str(publishDate.strftime("%Y%m%d")),
                                                        fullPathName,
                                                        dirPathName,
                                                        WorkerID,
@@ -301,7 +302,7 @@ class mod_in_nse(BasePlugin):
                     logger.error("Error saving master data: %s", e)
         return(sizeOfDataDownloaded)
 
-    def parseFetchedData(self, publishDateStr, zipFileName, dataDirForDate, WorkerID, uRLtoFetch):
+    def parseFetchedData2(self, publishDateStr, zipFileName, dataDirForDate, WorkerID, uRLtoFetch):
         """Parse the fetched Data
         """
         uncompressSize = 0
