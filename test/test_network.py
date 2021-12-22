@@ -35,8 +35,9 @@
 import sys
 import os
 from datetime import datetime
+import pytest
 
-from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_file
+from . import getAppFolders, getMockAppInstance #, list_all_files, read_bz2html_file
 
 
 # ###################################
@@ -52,6 +53,20 @@ from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_fi
 #         # return test string as body:
 #         html = "<html><p>Goodbye world!</p></html>"
 #         self.wfile.write(html.encode('UTF-8'))
+
+
+@pytest.fixture()
+def app_inst(tmpdir):
+    """Connect to db before tests, disconnect after."""
+    # Setup : start app
+    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    app_inst = getMockAppInstance(parentFolder,
+                                  '2021-06-10',
+                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+
+    yield
+    # Teardown : stop app
+    # delete the log file.
 
 
 def test_fetchRawDataFromURL():

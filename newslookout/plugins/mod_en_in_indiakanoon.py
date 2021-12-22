@@ -6,7 +6,7 @@
 # File name: mod_en_in_indiakanoon.py                                                                     #
 # Application: The NewsLookout Web Scraping Application                                                   #
 # Date: 2021-06-01                                                                                        #
-# Purpose: plugin for India Kanoon portal on legal rulings                                                #
+# Purpose: plugin for Indian Kanoon portal on legal rulings                                                #
 # Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com  #
 #                                                                                                         #
 #                                                                                                         #
@@ -48,8 +48,8 @@ logger = logging.getLogger(__name__)
 
 
 class mod_en_in_indiakanoon(BasePlugin):
-    """ Web Scraping plugin - mod_en_in_indiakanoon
-    Description: india kanoon portal for legal rulings
+    """ Web Scraping plugin - mod_en_in_indiankanoon
+    Description: indian kanoon portal for legal rulings
     Language: English
     Country: India
     """
@@ -145,6 +145,7 @@ class mod_en_in_indiakanoon(BasePlugin):
                         r'(https:\/\/)(indiankanoon.org\/.+)([0-9]{5,})(\.html)'
                         ]
 
+    # TODO: Fix date regex to prevent part of URL being parsed into date
     articleDateRegexps = {
         r'(on )([0-9]+ [a-zA-Z]{3}, [0-9]{4})(<\/TITLE>)': '%d %b, %Y',
         r'(on )([0-9]+ [a-zA-Z]{3,}, [0-9]{4})(<\/TITLE>)': '%d %B, %Y',
@@ -158,14 +159,15 @@ class mod_en_in_indiakanoon(BasePlugin):
         r'(.)([0-9]{1,2}st [January|February|March|April|May|June|July|August|September|October|November' +
         r'|December]{3,} [2|1][0-9]{2})': '%dst %B %Y',
         r'(.)([0-9]{1,2}nd [January|February|March|April|May|June|July|August|September|October|November' +
-        r'|December]{3,} [2|1][0-9]{2})': '%dnd %B %Y'
-        # TODO: 11th April, 1944
+        r'|December]{3,} [2|1][0-9]{2})': '%dnd %B %Y',
+        r'(.)([0-9]{1,2}th, [January|February|March|April|May|June|July|August|September|October|November' +
+        r'|December]{3,} [2|1][0-9]{2})': '%dth %B, %Y'
         }
 
-    invalidTextStrings = ['Try out our Premium Member services']
-    subStringsToFilter = ['<p>Try out our <b>Premium Member</b> services: <b>Virtual Legal Assistant</b>,  ' +
-                          '<b>Query Alert Service</b> and an ad-free experience. <a href="/members/">' +
-                          'Free for one month</a> and pay only if you like it.</p>']
+    invalidTextStrings = []
+    subStringsToFilter = ["<p>Try out our <b>Premium Member</b> services: <b>Virtual Legal Assistant</b>" +
+                          ", <b>Query Alert Service</b> and an ad-free experience. <a href=\"/members/\">" +
+                          "Free for one month</a> and pay only if you like it.</p>"]
     allowedDomains = ['indiankanoon.org']
 
     articleIndustryRegexps = []
@@ -264,6 +266,7 @@ class mod_en_in_indiakanoon(BasePlugin):
             # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
             cleanedText = filterRepeatedchars(cleanedText,
                                               deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
+            cleanedText = cleanedText.replace('\n', ' ')
             # remove invalid substrings:
             for stringToFilter in deDupeList(self.subStringsToFilter):
                 cleanedText = cleanedText.replace(stringToFilter, " ")

@@ -79,7 +79,7 @@ class SessionHistory:
         """ Read SQLite database file and get its connection.
         This db stores previously saved URLs.
         """
-        # try:
+        # intentionally do not catch any errors, let these bubble up to the calling function:
         logger.debug("Trying to open connection to history URLs sqlite DB file '%s'", dataFileName)
         sqlCon = lite.connect(dataFileName,
                               timeout=SessionHistory.db_connect_timeout,
@@ -91,14 +91,10 @@ class SessionHistory:
         cur.execute(SessionHistory.ddl_failed_urls_table)
         cur.execute(SessionHistory.ddl_deleted_dups_table)
         sqlCon.commit()
-        # except lite.Error as e:
-        #     logger.error("SQLite database error connecting to previous saved URLs db: %s", e)
-        # except Exception as e:
-        #     logger.error(f"Error connecting to {dataFileName}, the previous session history database: {e}")
         return(sqlCon)
 
     def printDBStats(self):
-        """ Print SQLite database Stats and version no.
+        """ Print SQLite database statistics and the SQLite version number.
         """
         sqlCon = None
         try:
@@ -132,6 +128,7 @@ class SessionHistory:
         :param pluginName: (Optional) Name of the plugin to search database for.
         :return: True if URL was attempted earlier.
         """
+        # TODO: change method to check multiple URLs
         searchResult = False
         sqlCon = None
         try:
@@ -172,6 +169,7 @@ class SessionHistory:
                 sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
                 cur = sqlCon.cursor()
                 if newURLsList is not None:
+                    # TODO: parallelize this to search entire list in one iteration, use temp tables and SQL
                     for listItem in newURLsList:
                         result = cur.execute('select url, pubdate from URL_LIST where url = ? union all ' +
                                              'select url, NULL from FAILED_URLS where url = ?',
@@ -242,6 +240,7 @@ class SessionHistory:
                 sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
                 cur = sqlCon.cursor()
                 urlList = deDupeList(urlList)
+                # TODO: parallelize this to process entire list in one iteration
                 for sURL in urlList:
                     # Ideally, if url already exists, the no. of attempts should be incremented by 1, but it is omitted
                     cur.execute('insert or ignore into pending_urls (url, plugin_name, attempts) values (?, ?, 1)',
@@ -311,6 +310,7 @@ class SessionHistory:
                 logger.debug("Save newly retrieved URLs to history db: Got exclusive db access")
                 sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
                 cur = sqlCon.cursor()
+                # TODO: Parallelize this to process entire list in one iteration
                 for resultObj in results_from_queue:
                     # write each item to table:
                     cur.execute(
@@ -342,7 +342,7 @@ class SessionHistory:
     def addDupURLToDeleteTbl(self, sURL: str, pluginName: str, pubdate: datetime.datetime, filename: str):
         """ Add duplicate URLs To deleted table. Query this using the statement:
 
-        select url, plugin, pubdate, filename from deleted_duplicates;
+        `select url, plugin, pubdate, filename from deleted_duplicates;`
 
         :param sURL: URL to mark for deletion.
         :param pluginName: Name of the plugin.

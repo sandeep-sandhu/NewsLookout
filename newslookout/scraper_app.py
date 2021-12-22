@@ -134,7 +134,7 @@ class NewsLookout:
         """Run the application after configuring the queue manager and initialising the plugins.
         """
         logging.info(f'--- NewsLookout Web Scraping Application, (version {__version__}) ---')
-        logging.info(f'Retrieving data for run date: {self.run_date} ---')
+        logging.info(f'Retrieving data for run date: {self.run_date}')
         checkAndGetNLTKData()
         self.app_queue_manager.config(self.app_config)
         # load and initialize all the plugins after everything has been configured.

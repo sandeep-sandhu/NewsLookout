@@ -406,6 +406,8 @@ class BasePlugin:
         """
         newlist = []
         try:
+            # TODO: check logic, why does datetime object need to be converted to string if datetime object
+            #  is indeed required later in this method?
             runDateString = runDate.strftime("%Y-%m-%d")
             listOfFiles = BasePlugin.getFullFilePathsInDir(
                 BasePlugin.identifyDataPathForRunDate(baseDirName, runDateString))
@@ -719,7 +721,7 @@ class BasePlugin:
         :return: Published date
         """
         date_obj = datetime.now()
-        currentDateTime = date_obj
+        currentDateTime = datetime.now()
         if type(htmlText) == bytes:
             htmlText = htmlText.decode('UTF-8')
         dateString = ""

@@ -2,9 +2,9 @@
 
 SCRIPT_PATH=`dirname $(realpath $0)`
 cd $SCRIPT_PATH
-cd ..
 
-PYTHON_BIN=/usr/local/bin/python3
+
+PYTHON_BIN=`which python3`
 
 if [ -z "$1" ]
 then
@@ -14,5 +14,5 @@ else
 fi
 
 
-$PYTHON_BIN scraper_app.py -c ..\conf\newslookout_unix.conf -d $RUN_DATE $2
+$PYTHON_BIN newslookout/scraper_app.py -c conf/newslookout_unix.conf -d $RUN_DATE $2
 

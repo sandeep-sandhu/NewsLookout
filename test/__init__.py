@@ -33,7 +33,7 @@ import os
 def getAppFolders():
     testfolder = os.path.dirname(os.path.realpath(__file__))
     parentFolder = os.path.dirname(testfolder)
-    sourceFolder = os.path.join(parentFolder, 'src')
+    sourceFolder = os.path.join(parentFolder, 'newslookout')
     sys.path.append(sourceFolder)
     sys.path.append(os.path.join(sourceFolder, 'plugins'))
     sys.path.append(os.path.join(sourceFolder, 'plugins_contrib'))
