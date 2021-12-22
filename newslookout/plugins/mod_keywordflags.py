@@ -112,7 +112,7 @@ class mod_keywordflags(BasePlugin):
         """ Process given data object by this plugin.
 
         :param newsEventObj: The NewsEvent object to be processed.
-        :type dataObj: NewsEvent
+        :type newsEventObj: NewsEvent
         """
         assert type(newsEventObj) == NewsEvent, "processDataObj() received an object that is not of type NewsEvent"
         runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')

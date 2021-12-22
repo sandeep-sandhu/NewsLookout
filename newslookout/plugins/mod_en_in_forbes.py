@@ -127,7 +127,6 @@ class mod_en_in_forbes(BasePlugin):
     allowedDomains = ["www.forbesindia.com"]
     listOfURLS = []
     uRLdata = dict()
-    urlMatchPatterns = []
 
     def __init__(self):
         """ Initialize the object

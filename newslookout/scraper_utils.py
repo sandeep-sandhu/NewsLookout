@@ -16,9 +16,9 @@
 #    saveObjToJSON()                                                                                      #
 #    checkAndSanitizeConfigString()                                                                       #
 #    checkAndSanitizeConfigInt()                                                                          #
-#    deDupeList(listWithDuplicates)                                                                       #
-#    spaceGapAfterDot(matchobj)                                                                           #
-#    fixSentenceGaps(inputText)                                                                           #
+#    deDupeList(input_list)                                                                       #
+#    regex_space_after_dot(matchobj)                                                                           #
+#    fixSentenceGaps(input_text)                                                                           #
 #    filterRepeatedchars()                                                                                #
 #    cutStrFromTag()                                                                                      #
 #    cutStrBetweenTags()                                                                                  #
@@ -130,8 +130,13 @@ def removeInValidArticles(articleList: list, invalidURLPatternsList: list) -> li
 
 
 def clean_non_utf8(input_text) -> str:
+    """ Remove any non utf-8 characters by encoding/decoding into UTF-8
+
+    :param input_text: Text to clean up.
+    :return: Cleaned text
+    """
     output_text = input_text
-    # remove non utf-8 characters
+
     try:
         if input_text is None:
             output_text = ''
@@ -145,8 +150,11 @@ def clean_non_utf8(input_text) -> str:
 
 
 def removeStartTrailQuotes(textString: str) -> str:
-    """ Remove starting and or trailing quotes from strings """
-    resultString = ""
+    """ Remove any starting and/or trailing quotes from the input text.
+
+    :param textString: Text to clean up
+    :return: Cleaned up text
+    """
     resultString = textString.strip('\"').strip("'")
     return(resultString)
 
@@ -164,10 +172,14 @@ def decodeSecret(encodedText, keyValue):
     return(decodedText)
 
 
-def saveObjToJSON(jsonFileName, objToSave):
-    """ Save the object to a JSON format file
+def saveObjToJSON(jsonFileName: str, objToSave: dict):
+    """ Save the object to a JSON format file.
+    Doesn't handle any exceptions here, lets it bubble up.
+
+    :param jsonFileName: File to save the json string.
+    :param objToSave: Dictionary object to structure into JSON format
+    :return:
     """
-    # don't catch any exception here, let it bubble up
     jsonString = json.dumps(objToSave)
     with open(jsonFileName, 'wt', encoding='utf-8') as fp:
         fp.write(jsonString)
@@ -210,21 +222,21 @@ def checkAndSanitizeConfigInt(configObj, sectionName, configParamName, default=N
     return(configParamValue)
 
 
-def deDupeList(listWithDuplicates):
-    """ Dedupe a given List by converting into a dict
-    , and then re-converting to a list back again.
+def deDupeList(input_list: list) -> list:
+    """ De-duplicates a given List by converting into an ordered dictionary,
+     and then re-converting to a list back again.
     """
-    dedupedList = listWithDuplicates
-    if type(listWithDuplicates).__name__ == 'list':
-        dedupedList = list(
+    de_duplicated_list = input_list
+    if type(input_list) == list:
+        de_duplicated_list = list(
              OrderedDict.fromkeys(
-                 listWithDuplicates
+                 input_list
                 )
             )
-    return(dedupedList)
+    return(de_duplicated_list)
 
 
-def spaceGapAfterDot(matchobj):
+def regex_space_after_dot(matchobj):
     """ Function called by fixSentenceGaps() when searching for sentence split checking regex to clean text """
     if matchobj is not None:
         if matchobj.group(0) == '-':
@@ -232,50 +244,47 @@ def spaceGapAfterDot(matchobj):
         else:
             return(matchobj.group(1) + matchobj.group(2) + " " + matchobj.group(3))
     else:
-        logger.error('Error extracting match data: empty object passed to function spaceGapAfterDot()')
+        logger.error('Error extracting match data: empty object passed to function regex_space_after_dot()')
 
 
-def fixSentenceGaps(inputText):
+def fixSentenceGaps(input_text: str) -> str:
     """ Searches for sentence split positions without any space after full-stops
     and puts a space after the fullstop ending the previous sentence.
+    Example cases to be fixed:
 
-    :parameter inputText: The text to check and fix.
+      -  in the morning.A total
+
+      -  IST).The stock
+
+      -  increased to Rs 167.75.Earlier, the spokesman said
+
+      -  were 17.<newline>That was
+
+    :parameter input_text: The text to check and fix.
     """
-    replacedText = inputText
+    cleaned_text = input_text
     try:
-        replacedText = re.sub(r'( [a-zA-Z]{2,})(\.)([A-Za-z]{2,} )',
-                              spaceGapAfterDot,
-                              inputText)
-        # TODO: Fix the following scenarios of full stop between sentences -
-        # in the morning.A total
-        # IST).The stock
-        # Rs 167.75.Earlier,
-        # 17.\nThat
+        cleaned_text = re.sub(r'( [a-zA-Z]{2,})(\.)([A-Za-z]{2,} )',
+                              regex_space_after_dot,
+                              input_text)
     except Exception as e:
         logger.error(f'When fixing sentence gaps, error: {e}')
-    return(replacedText)
+    return(cleaned_text)
 
 
 def filterRepeatedchars(baseText, charList):
-    """ """
+    """ Filter out repeated characters from given text.
+
+    :param baseText:
+    :param charList:
+    :return:
+    """
     cleanText = baseText
     for singleChar in charList:
         doubleChars = singleChar + singleChar
         while cleanText.find(doubleChars) > -1:
             cleanText = cleanText.replace(doubleChars, singleChar)
     return(cleanText)
-
-
-# def cutStrFromTag(sourceStr, startTagStr):
-#     """ Cut part of the source String starting from substring from Tag till its end """
-#     resultStr = ""
-#     try:
-#         start_pos = sourceStr.find(startTagStr) + len(startTagStr)
-#         if start_pos > -1:
-#             resultStr = sourceStr[start_pos:]
-#     except Exception as e:
-#         logger.error("ERROR extracting string starting from tags: %s", e)
-#     return(resultStr)
 
 
 def cutStrBetweenTags(sourceStr, startTagStr, endTagStr):

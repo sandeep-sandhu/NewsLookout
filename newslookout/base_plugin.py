@@ -103,6 +103,7 @@ class BasePlugin:
     authorMatchPatterns = []
     dateMatchPatterns = {}
     allowedDomains = []
+    mainURL = None
     mainURLDateFormatted = None
     all_rss_feeds = []
     pluginType = None
@@ -294,7 +295,6 @@ class BasePlugin:
         listOfURLs = self.filterNonContentURLs(listOfURLs)
         logger.info(f'{self.pluginName}: After filtering non-content URLs, URLs remaining: {len(listOfURLs)}')
         listOfURLs = sessionHistoryDB.removeAlreadyFetchedURLs(listOfURLs, self.pluginName)
-        logger.info(f'{self.pluginName}: After filtering already fetched URLS, URLs remaining: {len(listOfURLs)}')
         for listItem in listOfURLs:
             if listItem is not None:
                 # add valid URLs to this plugin's queue:
@@ -374,14 +374,14 @@ class BasePlugin:
         return(filesList)
 
     @staticmethod
-    def identifyDataPathForRunDate(baseDirName, runDateString):
+    def identifyDataPathForRunDate(baseDirName: str, runDateString: str) -> str:
         """ Identify the data directory path for a given run-date
 
         :rtype: str
         :param baseDirName: The base data directory for the application.
         :type baseDirName: str
         :param runDateString: The business date for which the text needs to be processed.
-        :type runDate: str
+        :type runDateString: str
         :return: Full path for the directory storing files for the given run-date
         """
         if type(runDateString).__name__ == 'datetime':
@@ -389,7 +389,7 @@ class BasePlugin:
         return(os.path.join(baseDirName, str(runDateString)))
 
     @staticmethod
-    def identifyFilesForDate(baseDirName, runDate, dayspan=0):
+    def identifyFilesForDate(baseDirName: str, runDate: datetime, dayspan: int = 0) -> list:
         """ Get list of files for directories for today's run date.
          Optionally, get files from tomorow's run-date and yesterday's run-date directories too.
 
@@ -406,6 +406,8 @@ class BasePlugin:
         """
         newlist = []
         try:
+            # TODO: check logic, why does datetime object need to be converted to string if datetime object
+            #  is indeed required later in this method?
             runDateString = runDate.strftime("%Y-%m-%d")
             listOfFiles = BasePlugin.getFullFilePathsInDir(
                 BasePlugin.identifyDataPathForRunDate(baseDirName, runDateString))
@@ -434,7 +436,7 @@ class BasePlugin:
         return(newlist)
 
     @staticmethod
-    def makeUniqueFileName(pluginName, baseDirName, uniqueID, URL=None):
+    def makeUniqueFileName(pluginName: str, baseDirName: str, uniqueID: object, URL: str = None) -> str:
         """ Create a Unique File Name for this article to be saved
         It does not contain the extension .json, this has to be appended.
 
@@ -444,7 +446,7 @@ class BasePlugin:
          i.e. the combination of base directory and publish date.
         :type baseDirName: str
         :parameter uniqueID: Unique identifier for the given article being saved.
-        :type uniqueID: int
+        :type uniqueID: str
         :rtype: str
         :return: Full file path for given article, excluding the file extension.
         """
@@ -719,7 +721,7 @@ class BasePlugin:
         :return: Published date
         """
         date_obj = datetime.now()
-        currentDateTime = date_obj
+        currentDateTime = datetime.now()
         if type(htmlText) == bytes:
             htmlText = htmlText.decode('UTF-8')
         dateString = ""
@@ -771,7 +773,7 @@ class BasePlugin:
         :return: List of additional URL strings
         """
         resultListOfURLs = []
-        htmlContent = ""
+        extractedListOfURLs = []
         for url_string in scraper_utils.deDupeList(listOfURLs):
             try:
                 htmlContent = self.networkHelper.fetchRawDataFromURL(url_string, self.pluginName)
@@ -930,6 +932,9 @@ class BasePlugin:
         self.tempArticleData = None
         self.URLToFetch = None
         return(resultVal)
+
+    def checkAndCleanText(self, inputText: str, rawData: str) -> str:
+        pass
 
     def parseFetchedData(self, uRLtoFetch, newpArticleObj, WorkerID):
         """Parse the fetched news article data to validate it, clean it,

@@ -4,17 +4,34 @@
 .coveragerc
 .pydevproject
 .project
+.idea
+.pytest_cache
+.settings
+.coveralls.yml
+MANIFEST.in
+NewsLookout.iml
 # ignore following directories:
 coverage_report
 htmlcov
 dist
 build
+data
+docs
 temp
 test-data
 logs
 NewsLookout.egg-info
+newslookout/__pycache__/
+newslookout/plugins/__pycache__/
+test/__pycache__/
 # ignore batch scripts:
 make_build.cmd
 run_flake8_pytest.cmd
 upload-to-pypi.cmd
 run_scraper_multiple_dates.cmd
+# ignore configuration files
+conf/cookies.txt
+conf/newslookout_tuf.conf
+conf/newslookout_unix.conf
+conf/newslookout_win.conf
+models/install-models.md

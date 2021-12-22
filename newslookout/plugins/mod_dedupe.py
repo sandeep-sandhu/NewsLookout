@@ -95,8 +95,6 @@ class mod_dedupe(BasePlugin):
 
         :param newsEventObj: The ExecutionResult object to be processed.
         :type newsEventObj: data_structs.ExecutionResult
-        :param runDate: The business date for which the text needs to be processed.
-        :type runDate: datetime.datetime
         """
         # TODO: lock file to avoid conflicting writes, release lock at the end of the method
         runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')
@@ -186,6 +184,7 @@ class mod_dedupe(BasePlugin):
         """ Delete duplicate files for each set of duplicates identified
         """
         # for each pair, delete the second document, i.e.: recTuple[index][2]
+        counter = 0
         if similarTuples is not None:
             for counter, recTuple in enumerate(similarTuples):
                 try:

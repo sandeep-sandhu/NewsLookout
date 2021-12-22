@@ -2,11 +2,10 @@
 # -*- coding: utf-8 -*-
 
 # #########################################################################################################
-#                                                                                                         #
-# File name: mod_en_in_hindu.py                                                                           #
+# File name: mod_en_in_inexp_business.py                                                                  #
 # Application: The NewsLookout Web Scraping Application                                                   #
 # Date: 2021-06-01                                                                                        #
-# Purpose: Plugin for the Hindu newspaper                                                                 #
+# Purpose: Plugin for the Indian Express - Business news portal                                           #
 # Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com  #
 #                                                                                                         #
 #                                                                                                         #
@@ -31,132 +30,108 @@
 
 # import standard python libraries:
 import logging
-import re
 
 # import web retrieval and text processing python libraries:
 from bs4 import BeautifulSoup
 
-from data_structs import Types
-# from data_structs import ScrapeError
+# import this project's python libraries:
 from base_plugin import BasePlugin
 from scraper_utils import deDupeList, filterRepeatedchars
+from data_structs import Types
 
 ##########
 
 logger = logging.getLogger(__name__)
 
+##########
 
-class mod_en_in_hindu(BasePlugin):
-    """ Web Scraping plugin - mod_en_in_hindu for the Hindu business Newspaper
+
+class mod_en_in_inexp_business(BasePlugin):
+    """ Web Scraping plugin - mod_en_in_inexp_business for Indian Express Business Newspaper
     """
 
-    # define a minimum count of characters for text body, article content below this limit will be ignored
-    minArticleLengthInChars = 200
+    minArticleLengthInChars = 250
 
-    # implies web-scraper for news content, see data_structs.py for other types
-    pluginType = Types.MODULE_NEWS_CONTENT
+    pluginType = Types.MODULE_NEWS_CONTENT  # implies web-scraper for news content
 
-    # archive URL: https://www.thehindu.com/archive/
-    mainURL = 'https://www.thehindu.com/business/'
-    mainURLDateFormatted = 'https://www.thehindu.com/archive/print/%Y/%m/%d/'
+    mainURL = 'https://www.newindianexpress.com/business/'
 
-    all_rss_feeds = ["https://www.thehindu.com/business/feeder/default.rss"]
+    all_rss_feeds = ["https://www.newindianexpress.com/Nation/rssfeed/?id=170"]
 
     # fetch only URLs containing the following substrings:
-    validURLStringsToCheck = ['https://www.thehindu.com/business/']
+    validURLStringsToCheck = ['https://www.newindianexpress.com/nation/',
+                              'business',
+                              'https://www.newindianexpress.com/opinions/',
+                              'https://www.newindianexpress.com/world/',
+                              'https://indianexpress.com/']
+
+    nonContentStrings = ['www.newindianexpress.com/opinions/',
+                         'www.newindianexpress.com/business']
+
+    # get URL links from these URLs but done fetch content from them:
+    nonContentURLs = ['https://www.newindianexpress.com/opinions/editorials',
+                      'https://www.newindianexpress.com/opinions/columns',
+                      'https://www.newindianexpress.com/opinions/columns/karamatullah-k-ghori',
+                      'https://www.newindianexpress.com/opinions/columns/shampa-dhar-kamath',
+                      'https://www.newindianexpress.com/opinions/columns/shankkar-aiyar',
+                      'https://www.newindianexpress.com/opinions/columns/ravi-shankar',
+                      'https://www.newindianexpress.com/opinions/columns/s-gurumurthy',
+                      'https://www.newindianexpress.com/opinions/columns/t-j-s-george']
 
     # never fetch these URLs:
     invalidURLSubStrings = []
 
-    # this list of URLs will be visited to get links for articles,
-    # but their content will not be scraped to pick up news content
-    nonContentURLs = [mainURL,
-                      'https://www.thehindu.com/business/agri-business/',
-                      'https://www.thehindu.com/business/Industry/',
-                      'https://www.thehindu.com/business/Economy/',
-                      'https://www.thehindu.com/business/markets/',
-                      'https://www.thehindu.com/business/budget/',
-                      'https://www.thehindu.com/business/',
-                      'https://epaper.thehindu.com',
-                      'https://roofandfloor.thehindu.com',
-                      'https://crossword.thehindu.com',
-                      'https://frontline.thehindu.com',
-                      'https://www.thehindu.com',
-                      'https://step.thehindu.com',
-                      'https://sportstar.thehindu.com'
-                      ]
-
-    nonContentStrings = ['epaper.thehindu.com',
-                         'roofandfloor.thehindu.com',
-                         'crossword.thehindu.com',
-                         'frontline.thehindu.com',
-                         'step.thehindu.com',
-                         'sportstar.thehindu.com']
-
-    urlUniqueRegexps = [r"(https\:\/\/)(www.thehindu.com\/business\/.*\-)([0-9]+)(\.ece$)",
-                        r"(https\:\/\/www.thehindu.com\/business\/.*)(\-)([0-9]+)(/$)",
-                        r"(https\:\/\/www.thehindu.com\/business\/.*)(article)([0-9]+)(\.ece)",
-                        r"(https:\/\/)(www.thehindu.com\/news\/.+\/article)([0-9]{3,})(\.ece)"]
+    urlUniqueRegexps = [r"(^https.*)(\-)([0-9]+)(\.html$)",
+                        r"(^https\://indianexpress.com/article/.*)(\-)([0-9]+)(/$)",
+                        r"(^https\://indianexpress.com/article/.*)(\-)([0-9]+)(\.html$)",
+                        r"(^https\:\/\/indianexpress.com\/.*)(\-)([0-9]{4,})(\/)"]
+    urlMatchPatterns = []
 
     invalidTextStrings = []
     subStringsToFilter = []
+    articleDateRegexps = {r'("datePublished":")(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})' +
+                          r'(\+05:30","dateModified")':
+                          '%Y-%m-%dT%H:%M:%S',
+                          r'(Published: <span>)([0-9]{1,}th[ ]+[A-Za-z]{3,} 20[0-9]{2} [0-9]{2}:[0-9]{2})( .M<\/span>)':
+                          '%dth  %B %Y %H:%M'
+                          }
 
-    articleDateRegexps = {
-        r"(<meta name=\"publish-date\" content=\")" +
-        r"(20[0-9]{2}\-[0-9]{2}\-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2})(\+05:30\")":
-        "%Y-%m-%dT%H:%M:%S",
-        # January 22, 2015 15:30 IST
-        r"(<none>\n)([a-zA-Z]{3,} [0-9]{1,2}, 20[0-9]{2} [0-9]{1,2}:[0-9]{2})( IST)":
-        "%B %d, %Y %H:%M"}
-
-    # tp.push(["setContentAuthor", "Special Correspondent"])
-    # 'Author':'Special Correspondent',
-    # 'authorName' : 'Special Correspondent'
-    # <meta property="article:author" content="Special Correspondent" />
-    # <a href="#" class="mobile-auth-nm no-lnk">
-    # Special Correspondent
-    # </a>
-    authorRegexps = [r"(tp.push\(\[\"setContentAuthor\", \")([a-zA-Z.\- ]{3,})(\"\]\))",
-                     r"(<meta property=\"article:author\" content=\")([a-zA-Z_\-.\ ]{3,})(\" \/>)",
-                     r"('Author':')([a-zA-Z_\-.\ ]{3,})(',)",
-                     r"('authorName' : ')([a-zA-Z.\- ]{3,})(')"
-                     ]
     dateMatchPatterns = dict()
-    urlMatchPatterns = []
+
+    authorRegexps = [r"(\"author\":{\"\@type\":\"Person\",\"name\":\")([a-zA-Z_\-\. ]{2,})(\"\})",
+                     r"(<span class=\"author_des\"> By <span>)([a-zA-Z_\-\. ]{2,})(<\/span>)"
+                     ]
     authorMatchPatterns = []
-    allowedDomains = ["www.thehindu.com"]
+
+    allowedDomains = ["indianexpress.com", "www.newindianexpress.com"]
     listOfURLS = []
     uRLdata = dict()
-    urlMatchPatterns = []
 
     def __init__(self):
         """ Initialize the object
-        Re-use base class's objects in searching for unique url and published date strings
+        Use base class's lists and dicts in searching for unique url and published date strings
         """
-        self.articleDateRegexps.update(super().articleDateRegexps)
-        self.urlUniqueRegexps = self.urlUniqueRegexps + super().urlUniqueRegexps
+        self.articleDateRegexps.update(BasePlugin.articleDateRegexps)
+        self.urlUniqueRegexps = super().urlUniqueRegexps + self.urlUniqueRegexps
         super().__init__()
 
     def extractIndustries(self, uRLtoFetch, htmlText):
-        """ Extract the industry of the articles from its URL or contents
+        """  Extract Industries relevant to the article from URL or html content
         """
         industries = []
-        # <meta name="keywords" content="Go Air" />
         try:
-            if type(htmlText) == bytes:
-                htmlText = htmlText.decode('UTF-8')
-            industryPat = re.compile(r"(<meta name=\"keywords\" content=\")([a-zA-Z_\-.\ ]{3,})(\" \/>)")
-            matchRes = industryPat.search(htmlText)
-            if matchRes is not None:
-                industries.append(matchRes.group(2))
+            logger.debug("Extracting industries identified by the article.")
+            # docRoot = BeautifulSoup(htmlText, 'lxml')
+            # section = article_html.find( "span", "ag")
         except Exception as e:
-            logger.error("Error extracting industries: %s", e)
+            logger.error("When extracting industries: %s", e)
         return(industries)
 
     def extractAuthors(self, htmlText):
-        """ Extract Authors/Agency/Source of the article from its raw html code
+        """ Extract Authors/Agency/Source from html
         """
         authors = []
+        maxAuthorStringLength = 100
         authorStr = None
         for authorMatch in self.authorMatchPatterns:
             logger.debug("Trying match pattern: %s", authorMatch)
@@ -164,33 +139,34 @@ class mod_en_in_hindu(BasePlugin):
                 result = authorMatch.search(htmlText)
                 if result is not None:
                     authorStr = result.group(2)
-                    authors = authorStr.split(',')
                     # At this point, the text was correctly extracted, so exit the loop
                     break
             except Exception as e:
                 logger.debug("Unable to identify the article authors using regex: %s; string to parse: %s, URL: %s",
                              e, authorStr, self.URLToFetch)
-        if authorStr is None or authorStr == '':
-            authors = []
+            if len(authorStr) < 1:
+                raise Exception("Could not identify news agency/source.")
+            elif len(authorStr) > maxAuthorStringLength:
+                raise Exception("Could not identify news agency/source.")
+            else:
+                authors = authorStr.split(',')
         return(authors)
 
     def extractArticleBody(self, htmlContent):
-        """ Extract article's text from raw HTML content
-         """
+        """ Extract article's text using the Beautiful Soup library """
         articleText = ""
         try:
             # get article text data by parsing specific tags:
-            docRoot = BeautifulSoup(htmlContent, 'lxml')
-            matchParas = docRoot.findAll('p', {"class": 'body'})
-            for para in matchParas:
-                articleText = articleText + para.get_text()
-            body_root = docRoot.find_all("div", "articlestorycontent")
+            article_html = BeautifulSoup(htmlContent, 'lxml')
+            # <div id = "storyContent" class = "articlestorycontent">
+            body_root = article_html.find_all("div", "articlestorycontent")
             if len(body_root) > 0:
                 articleText = body_root[0].getText()
-        except Warning as w:
-            logger.warning("Warning when extracting text via BeautifulSoup: %s", w)
+            # except Warning as w:
+            #    logger.warn("Warning when extracting text via BeautifulSoup: %s", w)
         except Exception as e:
-            logger.error("Error extracting article text via tags: %s", e)
+            logger.error("Exception extracting article via tags: %s", e)
+
         return(articleText)
 
     def checkAndCleanText(self, inputText, rawData):

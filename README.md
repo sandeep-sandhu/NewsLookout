@@ -1,6 +1,7 @@
 
 ![Build Status](https://github.com/sandeep-sandhu/NewsLookout/actions/workflows/python-app.yml/badge.svg) ![GitHub release](https://img.shields.io/github/v/release/sandeep-sandhu/NewsLookout.svg) [![Coverage Status](https://coveralls.io/repos/github/sandeep-sandhu/NewsLookout/badge.svg?branch=main)](https://coveralls.io/github/sandeep-sandhu/NewsLookout?branch=main) [![Pypi Release](https://img.shields.io/pypi/v/newslookout.svg?style=flat-square&label=PyPI)](https://pypi.org/project/newslookout/)
 [![Python Versions](https://img.shields.io/pypi/pyversions/newslookout.svg?style=flat-square&label=Python%20Versions)](https://pypi.org/project/newslookout/)
+[![Contributors](https://img.shields.io/github/contributors/sandeep-sandhu/NewsLookout.svg)](https://github.com/sandeep-sandhu/NewsLookout/contributors)
 
 # NewsLookout Web Scraping Application
 The NewsLookout web scraping application gathers and classified financial events from public news websites and market data for India.
@@ -38,11 +39,15 @@ A few notable ones are:
 
 ## Installation
 Install the dependencies using pip:
->     pip install -r requirements.txt
+
+```console
+pip install -r requirements.txt
+```
 
 Install the application via pip:
->     pip install newslookout
-
+```console
+pip install newslookout
+```
 _Caution: As a security best practice, it is strongly recommended to run the application under its own separate Operating System level user ID without any special privileges._
 
 Next, create and configure separate locations for:
@@ -56,7 +61,9 @@ Set these parameters in the configuration file.
 ## NLP Data
 
 Download the spacy model using this command:
->     python -m spacy download en_core_web_lg
+```console
+python -m spacy download en_core_web_lg
+```
 
 For NLTK, refer to the NLTK website on downloading the data - https://www.nltk.org/data.html.
 Specifically, the following data needs to be downloaded:
@@ -67,13 +74,15 @@ Specifically, the following data needs to be downloaded:
 
 To do this, you could either use the nltk downloader - run the following commands:
 
->     import nltk
->     nltk.download('punkt')
->     nltk.download('maxent_treebank_pos_tagger')
->     nltk.download('reuters')
->     nltk.download('universal_treebanks_v20')
+```console
+import nltk
+nltk.download('punkt')
+nltk.download('maxent_treebank_pos_tagger')
+nltk.download('reuters')
+nltk.download('universal_treebanks_v20')
+```
 
-Or, you could manually download these from the source location - https://github.com/nltk/nltk_data/tree/gh-pages/packages
+Alternatively, you could manually download these from the source location - https://github.com/nltk/nltk_data/tree/gh-pages/packages
 
 If these are not installed to one of the standard locations,
 you will need to set the NLTK_DATA environment variable to specify the location of this NLTK data.
@@ -101,7 +110,9 @@ The key parameters that need to be configured are:
 Installing the wheel or via pip will generate a script `newslookout` placed in your local folder.
 This invokes the main method of the application and should be passed the two required arguments - configuration file and date for which the application is run.
 For example:
->     newslookout -c myconfigfile.conf -d 2020-01-01
+```console
+newslookout -c myconfigfile.conf -d 2020-01-01
+```
 
 In addition to this, 2 scripts are provided for UNIX-like and Windows OS.
 For convenience, you may run these shell scripts to start the application, it automatically generates the current date and supplies it as an argument to the python application.
@@ -116,18 +127,19 @@ If the application is killed or shuts down abruptly without cleaning up, this PI
 ### Console Display
 The application displays its progress on stdout, for example:
 
->     NewsLookout Web Scraping Application, Version  1.9.9
->     Python version:  3.8.8 (tags/v3.8.8:024d805, Feb 19 2021, 13:18:16)
->     Run date: 2021-06-10
->     Reading configuration from: conf/newslookout.conf
->     Logging events to file: logs/newslookout.log
->     Using PID file: data/newslookout.pid
->     
->     
->     URLs identified: 100%|██████████████████████████████████████████████████████████| 14/14 [1h 48:14<00:00, 0.00 Plugins/s]
->     Data downloaded: 100%|██████████████████████████████████████████████████████| 1474/1474 [1h 48:14<00:00, 0.23    URLs/s]
->      Data processed:  38%|███████████████████▌                               |  384/1007 [1h 48:14<2h 55:36, 0.06   Files/s]
+```console
+NewsLookout Web Scraping Application, Version  1.9.9
+Python version:  3.8.5 (Linux)
+Run date: 2021-06-10
+Reading configuration from: conf/newslookout.conf
+Logging events to file: logs/newslookout.log
+Using PID file: data/newslookout.pid
 
+
+URLs identified: 100%|██████████████████████████████████████████████████████████| 14/14 [1h 48:14<00:00, 0.00 Plugins/s]
+Data downloaded: 100%|██████████████████████████████████████████████████████| 1474/1474 [1h 48:14<00:00, 0.23    URLs/s]
+ Data processed:  38%|███████████████████▌                               |  384/1007 [1h 48:14<2h 55:36, 0.06   Files/s]
+```
 
 ### Event Log
 For a more detailed log of events, refer to the log file.

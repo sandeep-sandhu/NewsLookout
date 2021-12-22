@@ -1,25 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+
 # #########################################################################################################
-# File name: queue_manager.py                                                                             #
-# Application: The NewsLookout Web Scraping Application                                                   #
-# Date: 2021-06-23                                                                                        #
-# Purpose: Manage worker threads and the job queues of all the scraper plugins for the application        #
-# Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com  #
-#                                                                                                         #
-# Provides:                                                                                               #
-#    QueueManager                                                                                         #
-#        config                                                                                           #
-#        initPlugins                                                                                      #
-#        initURLSourcingWorkers                                                                           #
-#        initContentFetchWorkers                                                                          #
-#        initDataProcWorkers                                                                              #
-#        runAllJobs                                                                                       #
-#        startAllModules                                                                                  #
-#        finishAllTasks                                                                                   #
-#        processDataSynchronously                                                                         #
-#                                                                                                         #
 #                                                                                                         #
 # Notice:                                                                                                 #
 # This software is intended for demonstration and educational purposes only. This software is             #
@@ -40,6 +23,25 @@
 #                                                                                                         #
 # #########################################################################################################
 
+"""
+ File name: queue_manager.py
+ Application: The NewsLookout Web Scraping Application
+ Date: 2021-06-23
+ Purpose: Manage worker threads and the job queues of all the scraper plugins for the application
+ Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
+
+ Provides:                                                                                             
+    QueueManager
+        config
+        initPlugins
+        initURLSourcingWorkers
+        initContentFetchWorkers
+        initDataProcWorkers
+        runAllJobs
+        startAllModules
+        finishAllTasks
+        processDataSynchronously
+"""
 
 # import standard python libraries:
 import importlib

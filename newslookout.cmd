@@ -7,7 +7,7 @@ cd /d "%~dp0"
 
 if [%1]==[] goto makedate
 rem Else, use date supplied as command-line argument
-python src\scraper_app.py -c conf\newslookout_win.conf -d %1
+python newslookout\scraper_app.py -c conf\newslookout_win.conf -d %1
 
 goto end
 
@@ -18,7 +18,7 @@ for /f "skip=1" %%x in ('wmic os get localdatetime') do if not defined MyDate se
 
 set today=%MyDate:~0,4%-%MyDate:~4,2%-%MyDate:~6,2%
 
-python src\scraper_app.py -c conf\newslookout_win.conf -d %today%
+python newslookout\scraper_app.py -c conf\newslookout_win.conf -d %today%
 
 :end
 echo Program completed successfully.
