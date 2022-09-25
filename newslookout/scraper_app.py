@@ -34,7 +34,7 @@
 # #########################################################################################################
 
 
-__version__ = "2.0.0"
+__version__ = "2.1.0"
 __author__ = "Sandeep Singh Sandhu"
 __copyright__ = "Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu"
 __credits__ = ["Sandeep Singh Sandhu"]
@@ -86,11 +86,11 @@ class NewsLookout:
         print('Usage: newslookout -c <configuration file> -d <run date as YYYY-MM-dd>')
         sys.exit(1)
 
-    def read_cmdline_args(self, sysargs: dict):
+    def read_cmdline_args(self, sysargs: list):
         """  Read the command line arguments and parse them.
 
-        :param sysargs:
-        :return:
+        :param sysargs: The command line arguments passed from the OS.
+        :return: Nothing
         """
         try:
             if len(sysargs) < 3:
@@ -142,7 +142,7 @@ class NewsLookout:
         self.app_queue_manager.runAllJobs()
         self.app_queue_manager.finishAllTasks()
 
-    def config(self, sys_argv: dict):
+    def config(self, sys_argv: list):
         """ Configure the application using the command line arguments
 
         :param sys_argv: Command line arguments
