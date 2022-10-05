@@ -52,10 +52,11 @@ def getMockAppInstance(parentFolder, rundate, configfile):
 
 
 def list_all_files(directoryName):
-    if os.path.isdir(directoryName) is True:
+    if os.path.exists(directoryName) and os.path.isdir(directoryName):
         filesList = [os.path.join(directoryName, i) for i in os.listdir(directoryName)
                      if os.path.isfile(os.path.join(directoryName, i))]
         return(filesList)
+    return None
 
 
 def altfetchRawDataFromURL(feedFileName, pluginName):
@@ -71,11 +72,18 @@ def read_bz2html_file(filename: str) -> str:
     :param filename: BZ2 archive to read
     :return: HTML content read from file
     """
-    import bz2
-    with bz2.open(filename, "rb") as f:
-        # Decompress data from file
-        content = f.read()
-    return(content.decode('UTF-8'))
+    html_text = None
+
+    try:
+        import bz2
+        with bz2.open(filename, "rb") as f:
+            # Decompress data from file
+            content = f.read()
+            html_text = content.decode('UTF-8')
+    except Exception as e:
+        print(f"Error opening html file: {filename}")
+
+    return html_text
 
 
 def get_network_substitute_fun(plugin_name: str, testdata_dir: str, file_no: int = 0) -> object:

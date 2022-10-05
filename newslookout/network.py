@@ -147,7 +147,7 @@ class NetworkFetcher:
         time.sleep(pause_time_seconds)
 
     @functools.lru_cache(maxsize=300)
-    def fetchRawDataFromURL(self, uRLtoFetch: str, pluginName: str, getBytes: bool = False) -> object:
+    def fetchRawDataFromURL(self, uRLtoFetch: str, pluginName: str, getBytes: bool = False) -> str:
         """ Fetch raw HTML content from the given URL.
 
         :param uRLtoFetch: URL to be fetched over HTTP(s) GET Protocol
@@ -224,7 +224,7 @@ class NetworkFetcher:
 
         :param httpsResponse:
         :param getBytes:
-        :return:
+        :return: str
         """
         if httpsResponse is not None and httpsResponse.encoding != 'ISO-8859-1' and getBytes is False:
             return(httpsResponse.text)
