@@ -34,7 +34,7 @@ import re
 
 # import web retrieval and text processing python libraries:
 # from bs4 import BeautifulSoup
-from data_structs import Types, ScrapeError
+from data_structs import PluginTypes, ScrapeError
 from scraper_utils import calculateCRC32, deDupeList, filterRepeatedchars
 from base_plugin import BasePlugin
 
@@ -53,7 +53,7 @@ class mod_en_in_trak(BasePlugin):
     minArticleLengthInChars = 400
 
     # implies web-scraper for news content, see data_structs.py for other types
-    pluginType = Types.MODULE_NEWS_CONTENT
+    pluginType = PluginTypes.MODULE_NEWS_CONTENT
 
     # main webpage URL
     mainURL = "https://trak.in/"
@@ -141,7 +141,7 @@ class mod_en_in_trak(BasePlugin):
         super().__init__()
 
     # Special function for this plugin
-    def extractUniqueIDFromContent(self, htmlContent: str, URLToFetch: str) -> str:
+    def extractUniqueIDFromContent(self, htmlContent: str|bytes, URLToFetch: str) -> str:
         """ Identify Unique ID From content
         Pattern: <link rel='shortlink' href='https://trak.in/?p=119415' />
         """
@@ -149,6 +149,7 @@ class mod_en_in_trak(BasePlugin):
         crcValue = "zzz-zzz-zzz"
         if type(htmlContent) == bytes:
             htmlContent = htmlContent.decode('UTF-8')
+        # else, htmlContent is a string
         try:
             # calculate CRC string if url are not usable:
             crcValue = str(calculateCRC32(URLToFetch.encode('utf-8')))
@@ -198,7 +199,7 @@ class mod_en_in_trak(BasePlugin):
                          industryPattern)
         return(industries)
 
-    def extractAuthors(self, htmlText: str) -> list:
+    def extractAuthors(self, htmlText: str|bytes) -> list:
         """ Extract the author from the html content
         """
         authors = []
@@ -219,7 +220,7 @@ class mod_en_in_trak(BasePlugin):
                              e, authorStr, self.URLToFetch)
         return(authors)
 
-    def extractArticleBody(self, htmlContent: str) -> str:
+    def extractArticleBody(self, htmlContent: str|bytes) -> str:
         """ extract the text body of the article
         """
         body_text = ""
@@ -227,7 +228,7 @@ class mod_en_in_trak(BasePlugin):
             htmlContent = htmlContent.decode('UTF-8')
         return(body_text)
 
-    def checkAndCleanText(self, inputText: str, htmlContent: str) -> str:
+    def checkAndCleanText(self, inputText: str, htmlContent: str, url: str) -> str:
         """ Check and clean article text
         """
         cleanedText = inputText

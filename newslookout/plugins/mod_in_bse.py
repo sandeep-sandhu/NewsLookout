@@ -41,7 +41,7 @@ import requests
 # import this project's python libraries:
 from base_plugin import BasePlugin
 from scraper_utils import getPreviousDaysDate
-from data_structs import Types, ExecutionResult
+from data_structs import PluginTypes, ExecutionResult
 
 ##########
 
@@ -56,7 +56,7 @@ class mod_in_bse(BasePlugin):
     """
 
     minArticleLengthInChars = 10000
-    pluginType = Types.MODULE_DATA_CONTENT  # implies data content fetcher
+    pluginType = PluginTypes.MODULE_DATA_CONTENT  # implies data content fetcher
 
     mainURL = 'https://www.bseindia.com/download/BhavCopy/Equity/EQ_ISINCODE_'
     mainURL_suffix = ".zip"
@@ -83,7 +83,7 @@ class mod_in_bse(BasePlugin):
         """
         self.pledgesDataExtractedFlag = False
         self.count_history_to_fetch = 1
-        self.pluginState = Types.STATE_GET_URL_LIST
+        self.pluginState = PluginTypes.STATE_GET_URL_LIST
         super().__init__()
 
     def getURLsListForDate(self, runDate, sessionHistoryDB):
@@ -116,10 +116,10 @@ class mod_in_bse(BasePlugin):
                          self.app_config.recursion_level, e)
         return(listOfURLS)
 
-    def fetchDataFromURL(self, uRLtoFetch, WorkerID):
+    def fetchDataFromURL(self, uRLtoFetch: str, WorkerID: int):
         """ Fetch data From given URL
         """
-        self.pluginState = Types.STATE_FETCH_CONTENT
+        self.pluginState = PluginTypes.STATE_FETCH_CONTENT
         fullPathName = ""
         dirPathName = ""
         sizeOfDataDownloaded = -1
@@ -159,7 +159,8 @@ class mod_in_bse(BasePlugin):
                                                            dirPathName,
                                                            WorkerID,
                                                            str(publishDate.strftime("%Y%m%d")))
-                    uncompressSize = uncompressSize + self.fetchPledgesData(self.master_data_dir, publishDate)
+                    pledgesData = self.fetchPledgesData(self.master_data_dir, publishDate)
+                    uncompressSize = uncompressSize + len(pledgesData)
                 except Exception as theError:
                     logger.error("Error saving downloaded data to zip file '%s': %s", fullPathName, theError)
             else:
@@ -175,7 +176,7 @@ class mod_in_bse(BasePlugin):
             logger.error("While fetching data, Exception was: %s", e)
         return(resultVal)
 
-    def parseFetchedData2(self, zipFileName: str, dataDirForDate: str, WorkerID: str, publishDateStr: str) -> int:
+    def parseFetchedData2(self, zipFileName: str, dataDirForDate: str, WorkerID: int, publishDateStr: str) -> int:
         """Parse the fetched Data
 
         :param zipFileName: Name of downloaded archive for given date
@@ -208,7 +209,7 @@ class mod_in_bse(BasePlugin):
         os.remove(zipFileName)  # delete zip file since its no longer required
         return(expandedSize)
 
-    def extractUniqueIDFromURL(self, URLToFetch):
+    def extractUniqueIDFromURL(self, URLToFetch: str):
         """ Get Unique ID From URL by extracting RegEx patterns matching any of urlMatchPatterns
         """
         # use today's date as default
@@ -229,7 +230,7 @@ class mod_in_bse(BasePlugin):
                                  urlPattern)
         return((date_obj, uniqueString))
 
-    def fetchPledgesData(self, dirPathName, publishDate):
+    def fetchPledgesData(self, dirPathName: str, publishDate) -> bytes:
         """ fetch Pledges Data"""
         resp = None
         fetchTimeout = self.app_config.fetch_timeout

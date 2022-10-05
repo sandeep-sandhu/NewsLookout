@@ -35,7 +35,7 @@ import logging
 # import web retrieval and text processing python libraries:
 from bs4 import BeautifulSoup
 
-from data_structs import Types
+from data_structs import PluginTypes
 from scraper_utils import cutStrBetweenTags, filterRepeatedchars, deDupeList
 # from data_structs import ScrapeError
 from base_plugin import BasePlugin
@@ -51,7 +51,7 @@ class mod_en_in_forbes(BasePlugin):
     """
     minArticleLengthInChars = 400
 
-    pluginType = Types.MODULE_NEWS_CONTENT  # implies web-scraper for news content
+    pluginType = PluginTypes.MODULE_NEWS_CONTENT  # implies web-scraper for news content
 
     mainURL = 'https://www.forbesindia.com/'
     all_rss_feeds = ["https://www.forbesindia.com/rssfeeds/rss_all.xml"]
@@ -176,7 +176,7 @@ class mod_en_in_forbes(BasePlugin):
             logger.error("Exception extracting article via tags: %s", e)
         return(articleText)
 
-    def checkAndCleanText(self, inputText, rawData):
+    def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
         """
         cleanedText = inputText

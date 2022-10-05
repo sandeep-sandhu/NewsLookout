@@ -36,7 +36,7 @@ import re
 # import web retrieval and text processing python libraries:
 from bs4 import BeautifulSoup
 
-from data_structs import Types
+from data_structs import PluginTypes
 # from data_structs import ScrapeError
 from base_plugin import BasePlugin
 from scraper_utils import deDupeList, filterRepeatedchars
@@ -54,7 +54,7 @@ class mod_en_in_hindu(BasePlugin):
     minArticleLengthInChars = 200
 
     # implies web-scraper for news content, see data_structs.py for other types
-    pluginType = Types.MODULE_NEWS_CONTENT
+    pluginType = PluginTypes.MODULE_NEWS_CONTENT
 
     # archive URL: https://www.thehindu.com/archive/
     mainURL = 'https://www.thehindu.com/business/'
@@ -192,7 +192,7 @@ class mod_en_in_hindu(BasePlugin):
             logger.error("Error extracting article text via tags: %s", e)
         return(articleText)
 
-    def checkAndCleanText(self, inputText, rawData):
+    def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
         """
         cleanedText = inputText

@@ -134,6 +134,8 @@ def testPluginSubClass():
         dbAccessSemaphore)
     (urlCount, SQLiteVersion) = sessionHistoryDB.printDBStats()
     print(f'Completed URL count = {urlCount}, SQlite version = {SQLiteVersion}')
+    # try getting html from test data directory:
+    _ = read_bz2html_file("file1.html.bz2")
     urlList = [
         'https://economictimes.indiatimes.com/blogs/et-editorials/systemic-remedies-beyond-yes-bank/fakeurl',
         'https://economictimes.indiatimes.com/blogs/et-editorials/how-to-really-get-banks-to-lend-more/anotherfake']
@@ -156,7 +158,7 @@ def testPluginSubClass():
     pluginClassInst.putQueueEndMarker()
     assert pluginClassInst.getNextItemFromFetchQueue() == urlList[1], "mod_en_in_ecotimes - Cannot retrieve item 2!"
     assert pluginClassInst.getNextItemFromFetchQueue() == None, "mod_en_in_ecotimes - Cannot retrieve queue sentinel!"
-    assert pluginClassInst.pluginState == data_structs.Types.STATE_FETCH_CONTENT,\
+    assert pluginClassInst.pluginState == data_structs.PluginTypes.STATE_FETCH_CONTENT,\
         "mod_en_in_ecotimes - Queue sentinel marker did not set the correct state"
     assert pluginClassInst.isQueueEmpty() is True, "mod_en_in_ecotimes - Queue is not empty!"
     datePath = pluginClassInst.identifyDataPathForRunDate(pluginClassInst.baseDirName, runDateString)

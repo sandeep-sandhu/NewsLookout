@@ -33,7 +33,7 @@ import logging
 
 # import web retrieval and text processing python libraries:
 
-from data_structs import Types
+from data_structs import PluginTypes
 from base_plugin import BasePlugin
 from news_event import NewsEvent
 from datetime import datetime
@@ -52,7 +52,7 @@ class mod_json_to_csv(BasePlugin):
     minArticleLengthInChars = 400
 
     # implies web-scraper for news content, see data_structs.py for other types
-    pluginType = Types.MODULE_DATA_PROCESSOR
+    pluginType = PluginTypes.MODULE_DATA_PROCESSOR
 
     # main webpage URL
     mainURL = ""

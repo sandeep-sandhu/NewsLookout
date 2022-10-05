@@ -43,12 +43,12 @@ from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_fi
 
 
 def test_decodeNameFromIntVal():
-    from data_structs import Types
-    assert Types.decodeNameFromIntVal(10) == 'STATE_GET_URL_LIST',\
+    from data_structs import PluginTypes
+    assert PluginTypes.decodeNameFromIntVal(10) == 'STATE_GET_URL_LIST',\
         'test_decodeNameFromIntVal() is not decoding types into names correctly'
-    assert Types.decodeNameFromIntVal(20) == 'STATE_FETCH_CONTENT', \
+    assert PluginTypes.decodeNameFromIntVal(20) == 'STATE_FETCH_CONTENT', \
         'test_decodeNameFromIntVal() is not decoding types into names correctly'
-    assert Types.decodeNameFromIntVal(80) == 'STATE_STOPPED', \
+    assert PluginTypes.decodeNameFromIntVal(80) == 'STATE_STOPPED', \
         'test_decodeNameFromIntVal() is not decoding types into names correctly'
 
 

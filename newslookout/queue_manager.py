@@ -55,7 +55,7 @@ import queue
 
 # import this project's python libraries:
 import data_structs
-from data_structs import Types
+from data_structs import PluginTypes
 from data_structs import QueueStatus
 from session_hist import SessionHistory
 from worker import PluginWorker
@@ -264,24 +264,24 @@ class QueueManager:
         # initialize the plugins:
         for keyitem in self.pluginNameToObjMap.keys():
             logger.debug("Initializing plugin: %s", keyitem)
-            if self.pluginNameToObjMap[keyitem].pluginType not in [Types.MODULE_NEWS_AGGREGATOR,
-                                                                   Types.MODULE_DATA_PROCESSOR]:
+            if self.pluginNameToObjMap[keyitem].pluginType not in [PluginTypes.MODULE_NEWS_AGGREGATOR,
+                                                                   PluginTypes.MODULE_DATA_PROCESSOR]:
                 self.pluginNameToObjMap[keyitem].config(self.app_config)
                 self.pluginNameToObjMap[keyitem].initNetworkHelper()
                 self.URL_frontier[keyitem] = queue.Queue()
                 self.pluginNameToObjMap[keyitem].setURLQueue(self.URL_frontier[keyitem])
                 self.allowedDomainsList = self.allowedDomainsList + self.pluginNameToObjMap[keyitem].allowedDomains
-            elif self.pluginNameToObjMap[keyitem].pluginType == Types.MODULE_NEWS_AGGREGATOR:
+            elif self.pluginNameToObjMap[keyitem].pluginType == PluginTypes.MODULE_NEWS_AGGREGATOR:
                 self.pluginNameToObjMap[keyitem].config(self.app_config)
                 self.pluginNameToObjMap[keyitem].initNetworkHelper()
-            elif self.pluginNameToObjMap[keyitem].pluginType == Types.MODULE_DATA_PROCESSOR:
+            elif self.pluginNameToObjMap[keyitem].pluginType == PluginTypes.MODULE_DATA_PROCESSOR:
                 self.pluginNameToObjMap[keyitem].config(self.app_config)
                 self.pluginNameToObjMap[keyitem].additionalConfig(self.sessionHistoryDB)
             # make map with .allowedDomains -> pluginName from plugins:
-            if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_NEWS_CONTENT,
-                                                               Types.MODULE_NEWS_AGGREGATOR,
-                                                               Types.MODULE_DATA_CONTENT,
-                                                               Types.MODULE_NEWS_API]:
+            if self.pluginNameToObjMap[keyitem].pluginType in [PluginTypes.MODULE_NEWS_CONTENT,
+                                                               PluginTypes.MODULE_NEWS_AGGREGATOR,
+                                                               PluginTypes.MODULE_DATA_CONTENT,
+                                                               PluginTypes.MODULE_NEWS_API]:
                 self.totalPluginsURLSrcCount = self.totalPluginsURLSrcCount + 1
                 modname = self.pluginNameToObjMap[keyitem].pluginName
                 domains = self.pluginNameToObjMap[keyitem].allowedDomains
@@ -297,21 +297,21 @@ class QueueManager:
         logger.debug("Initializing the worker threads to identify URLs.")
         workerNumber = 0
         for keyitem in self.pluginNameToObjMap.keys():
-            if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_NEWS_CONTENT,
-                                                               Types.MODULE_NEWS_API,
-                                                               Types.MODULE_DATA_CONTENT,
-                                                               Types.MODULE_NEWS_AGGREGATOR]:
+            if self.pluginNameToObjMap[keyitem].pluginType in [PluginTypes.MODULE_NEWS_CONTENT,
+                                                               PluginTypes.MODULE_NEWS_API,
+                                                               PluginTypes.MODULE_DATA_CONTENT,
+                                                               PluginTypes.MODULE_NEWS_AGGREGATOR]:
                 workerNumber = workerNumber + 1
                 self.urlSrcWorkers[workerNumber] = PluginWorker(
                     self.pluginNameToObjMap[keyitem],
-                    Types.TASK_GET_URL_LIST,
+                    PluginTypes.TASK_GET_URL_LIST,
                     self.sessionHistoryDB,
                     self,
                     name=workerNumber,
                     daemon=False)
                 self.urlSrcWorkers[workerNumber].setRunDate(self.runDate)
             # for news aggregators, set extra parameters: domain name to plugin map, and all Plugins
-            if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_NEWS_AGGREGATOR]:
+            if self.pluginNameToObjMap[keyitem].pluginType in [PluginTypes.MODULE_NEWS_AGGREGATOR]:
                 self.urlSrcWorkers[workerNumber].setDomainMapAndPlugins(self.domainToPluginMap,
                                                                         self.pluginNameToObjMap)
         # after this, the self.urlSrcWorkers dict has the structure: workers[1] = <instantiated PluginWorker object>
@@ -323,12 +323,12 @@ class QueueManager:
         logger.debug("Initializing the content fetching worker threads.")
         workerNumber = 0
         for keyitem in self.pluginNameToObjMap.keys():
-            if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_NEWS_CONTENT,
-                                                               Types.MODULE_NEWS_API,
-                                                               Types.MODULE_DATA_CONTENT]:
+            if self.pluginNameToObjMap[keyitem].pluginType in [PluginTypes.MODULE_NEWS_CONTENT,
+                                                               PluginTypes.MODULE_NEWS_API,
+                                                               PluginTypes.MODULE_DATA_CONTENT]:
                 workerNumber = workerNumber + 1
                 self.contentFetchWorkers[workerNumber] = PluginWorker(self.pluginNameToObjMap[keyitem],
-                                                                      Types.TASK_GET_DATA,
+                                                                      PluginTypes.TASK_GET_DATA,
                                                                       self.sessionHistoryDB,
                                                                       self,
                                                                       name=str(workerNumber + len(self.urlSrcWorkers)),
@@ -351,7 +351,7 @@ class QueueManager:
             for keyitem in self.pluginNameToObjMap.keys():
                 logger.debug(f'Checking data proc plugin for: {self.pluginNameToObjMap[keyitem]},' +
                              f' Type = {self.pluginNameToObjMap[keyitem].pluginType}')
-                if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_DATA_PROCESSOR]:
+                if self.pluginNameToObjMap[keyitem].pluginType in [PluginTypes.MODULE_DATA_PROCESSOR]:
                     priorityVal = self.pluginNameToObjMap[keyitem].executionPriority
                     allPriorityValues.append(priorityVal)
                     self.dataProcPluginsMap[priorityVal] = self.pluginNameToObjMap[keyitem]
@@ -441,10 +441,10 @@ class QueueManager:
         # fetch and  read data that was processed by each plugin:
         for pluginName in self.pluginNameToObjMap.keys():
             thisPlugin = self.pluginNameToObjMap[pluginName]
-            if thisPlugin.pluginType == Types.MODULE_DATA_PROCESSOR:
+            if thisPlugin.pluginType == PluginTypes.MODULE_DATA_PROCESSOR:
                 thisPlugin.processData(forDate)
                 # in the end mark completion by changing state:
-                thisPlugin.pluginState = Types.STATE_STOPPED
+                thisPlugin.pluginState = PluginTypes.STATE_STOPPED
                 logger.debug('Completed processing data from plugin: %s', pluginName)
 
 

@@ -42,7 +42,7 @@ import logging
 
 # import this project's python libraries:
 from base_plugin import BasePlugin
-from data_structs import Types
+from data_structs import PluginTypes
 from news_event import NewsEvent
 
 # nlp libraries:
@@ -67,7 +67,7 @@ class mod_eventclass(BasePlugin):
     For classifying news events.
     """
     minArticleLengthInChars = 400
-    pluginType = Types.MODULE_DATA_PROCESSOR  # implies data post-processor
+    pluginType = PluginTypes.MODULE_DATA_PROCESSOR  # implies data post-processor
 
     dataFrame = None
     device = None

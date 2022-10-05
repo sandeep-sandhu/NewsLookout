@@ -113,7 +113,7 @@ def test_fetchDataFromURL():
     assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
     assert resultVal.publishDate == '2021-01-27', 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.articleID == '49865912', 'fetchDataFromURL() not identifying unique ID correctly.'
-    assert resultVal.textSize == 10807, 'fetchDataFromURL() not parsing text body correctly.'
+    assert resultVal.textSize == 10548, 'fetchDataFromURL() not parsing text body correctly.'
     assert resultVal.savedDataFileName == os.path.join('./data', '2021-01-27', 'mod_en_in_indiakanoon_49865912'), \
         'fetchDataFromURL() not saving parsed data correctly.'
     assert len(resultVal.additionalLinks) == 6, 'fetchDataFromURL() not extracting additional links correctly.'

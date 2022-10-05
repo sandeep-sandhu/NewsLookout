@@ -37,7 +37,8 @@ from datetime import datetime
 
 # import this project's python libraries:
 from base_plugin import BasePlugin
-from data_structs import Types
+from data_structs import PluginTypes
+from news_event import NewsEvent
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import spacy
@@ -54,7 +55,7 @@ class mod_dedupe(BasePlugin):
     For de-duplicating already downloaded data
     """
     minArticleLengthInChars = 400
-    pluginType = Types.MODULE_DATA_PROCESSOR  # implies data post-processor
+    pluginType = PluginTypes.MODULE_DATA_PROCESSOR  # implies data post-processor
     sizeDiff = 0.0
     similarPct = 1.0
     listOfFiles = []
@@ -90,11 +91,11 @@ class mod_dedupe(BasePlugin):
         except Exception as e:
             logger.error("Error loading the NLP model for de-dupe: %s", e)
 
-    def processDataObj(self, newsEventObj):
+    def processDataObj(self, newsEventObj: NewsEvent):
         """ Process data in the given data object with this plugin.
 
         :param newsEventObj: The ExecutionResult object to be processed.
-        :type newsEventObj: data_structs.ExecutionResult
+        :type newsEventObj: NewsEvent
         """
         # TODO: lock file to avoid conflicting writes, release lock at the end of the method
         runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')

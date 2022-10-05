@@ -16,3 +16,7 @@ pytorch_pretrained_bert
 sklearn
 numpy
 openpyxl
+flake8
+pytest
+pytest-html
+pytest-cov

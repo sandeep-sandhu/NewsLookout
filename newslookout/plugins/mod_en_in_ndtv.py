@@ -37,7 +37,7 @@ from bs4 import BeautifulSoup
 # import this project's python libraries:
 from base_plugin import BasePlugin
 from scraper_utils import retainValidArticles, deDupeList, filterRepeatedchars
-from data_structs import Types
+from data_structs import PluginTypes
 
 ##########
 
@@ -52,7 +52,7 @@ class mod_en_in_ndtv(BasePlugin):
     minArticleLengthInChars = 250
 
     # implies web-scraper for news content, see data_structs.py for other types
-    pluginType = Types.MODULE_NEWS_CONTENT
+    pluginType = PluginTypes.MODULE_NEWS_CONTENT
 
     # main webpage URL
     mainURL = "https://www.ndtv.com/business?pfrom=home-ndtv_header-globalnav"
@@ -303,7 +303,7 @@ class mod_en_in_ndtv(BasePlugin):
         authors = []
         return(authors)
 
-    def checkAndCleanText(self, inputText, rawData):
+    def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
         """
         cleanedText = inputText

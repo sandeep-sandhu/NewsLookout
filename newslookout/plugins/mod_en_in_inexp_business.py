@@ -37,7 +37,7 @@ from bs4 import BeautifulSoup
 # import this project's python libraries:
 from base_plugin import BasePlugin
 from scraper_utils import deDupeList, filterRepeatedchars
-from data_structs import Types
+from data_structs import PluginTypes
 
 ##########
 
@@ -52,7 +52,7 @@ class mod_en_in_inexp_business(BasePlugin):
 
     minArticleLengthInChars = 250
 
-    pluginType = Types.MODULE_NEWS_CONTENT  # implies web-scraper for news content
+    pluginType = PluginTypes.MODULE_NEWS_CONTENT  # implies web-scraper for news content
 
     mainURL = 'https://www.newindianexpress.com/business/'
 
@@ -169,7 +169,7 @@ class mod_en_in_inexp_business(BasePlugin):
 
         return(articleText)
 
-    def checkAndCleanText(self, inputText, rawData):
+    def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
         """
         cleanedText = inputText

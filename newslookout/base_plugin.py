@@ -63,10 +63,11 @@ from datetime import datetime
 from bs4 import BeautifulSoup
 import newspaper
 from newspaper import Article
+from newspaper import network as newspaper_network
 
 # import this project's python libraries:
 from network import NetworkFetcher
-from data_structs import Types, ScrapeError, ExecutionResult
+from data_structs import PluginTypes, ScrapeError, ExecutionResult
 from news_event import NewsEvent
 
 import scraper_utils
@@ -107,7 +108,7 @@ class BasePlugin:
     mainURLDateFormatted = None
     all_rss_feeds = []
     pluginType = None
-    pluginState = Types.STATE_GET_URL_LIST
+    pluginState = PluginTypes.STATE_GET_URL_LIST
     URLToFetch = None
     listOfURLS = []
     networkHelper = None
@@ -191,7 +192,7 @@ class BasePlugin:
         Logs an error and exits if these are not found in the plugin.
         """
         self.pluginName = type(self).__name__
-        if self.pluginType in [Types.MODULE_NEWS_CONTENT]:
+        if self.pluginType in [PluginTypes.MODULE_NEWS_CONTENT]:
             # check required attributes:
             attributesTocheck = ['mainURL', 'validURLStringsToCheck', 'invalidURLSubStrings',
                                  'allowedDomains', 'urlUniqueRegexps', 'pluginType',
@@ -209,8 +210,8 @@ class BasePlugin:
                     logger.error("%s plugin must implement method: %s",
                                  self.pluginName, methodName)
                     sys.exit(-1)
-        elif self.pluginType in [Types.MODULE_DATA_PROCESSOR]:
-            self.pluginState = Types.STATE_PROCESS_DATA
+        elif self.pluginType in [PluginTypes.MODULE_DATA_PROCESSOR]:
+            self.pluginState = PluginTypes.STATE_PROCESS_DATA
             # check required methods:
             methodsTocheck = ['processDataObj', 'additionalConfig']
             for methodName in methodsTocheck:
@@ -238,7 +239,7 @@ class BasePlugin:
             logger.error("%s: Could not read configuration parameters: %s", self.pluginName, e)
         try:
             logger.debug("%s: Applying the configuration parameters", self.pluginName)
-            if self.pluginType not in [Types.MODULE_NEWS_AGGREGATOR, Types.MODULE_DATA_PROCESSOR]:
+            if self.pluginType not in [PluginTypes.MODULE_NEWS_AGGREGATOR, PluginTypes.MODULE_DATA_PROCESSOR]:
                 for urlRegex in self.urlUniqueRegexps:
                     # logger.debug("Compiling match pattern for URL identification: %s", urlRegex)
                     self.urlMatchPatterns.append(re.compile(urlRegex))
@@ -258,12 +259,12 @@ class BasePlugin:
         :return: String indicating the state of this plugin, e.g. 'State = FETCH DATA'
         """
         statusString = ''
-        if self.pluginType in [Types.MODULE_NEWS_CONTENT, Types.MODULE_DATA_CONTENT]:
-            statusString = 'State = ' + Types.decodeNameFromIntVal(self.pluginState)
-        elif self.pluginType in [Types.MODULE_DATA_PROCESSOR]:
-            statusString = 'State = ' + Types.decodeNameFromIntVal(self.pluginState)
-        elif self.pluginType in [Types.MODULE_NEWS_AGGREGATOR]:
-            statusString = 'State = ' + Types.decodeNameFromIntVal(self.pluginState)
+        if self.pluginType in [PluginTypes.MODULE_NEWS_CONTENT, PluginTypes.MODULE_DATA_CONTENT]:
+            statusString = 'State = ' + PluginTypes.decodeNameFromIntVal(self.pluginState)
+        elif self.pluginType in [PluginTypes.MODULE_DATA_PROCESSOR]:
+            statusString = 'State = ' + PluginTypes.decodeNameFromIntVal(self.pluginState)
+        elif self.pluginType in [PluginTypes.MODULE_NEWS_AGGREGATOR]:
+            statusString = 'State = ' + PluginTypes.decodeNameFromIntVal(self.pluginState)
         return(statusString)
 
     def initNetworkHelper(self):
@@ -306,17 +307,17 @@ class BasePlugin:
     def putQueueEndMarker(self):
         """ Adds an end-of-queue marker sentinel object 'None' and update the state of this plugin.
 
-        For news or data content plugins, changes the state of the plugin to -> Types.STATE_FETCH_CONTENT
+        For news or data content plugins, changes the state of the plugin to -> PluginTypes.STATE_FETCH_CONTENT
 
-        For news aggregator plugin, changes state to -> Types.STATE_STOPPED
+        For news aggregator plugin, changes state to -> PluginTypes.STATE_STOPPED
         """
         # add sentinel object at the end
         self.urlQueue.put(None)
         # change state of plugin to indicate url gathering is over.
-        self.pluginState = Types.STATE_FETCH_CONTENT
+        self.pluginState = PluginTypes.STATE_FETCH_CONTENT
         # nothing more to do for a news aggregator:
-        if self.pluginType == Types.MODULE_NEWS_AGGREGATOR:
-            self.pluginState = Types.STATE_STOPPED
+        if self.pluginType == PluginTypes.MODULE_NEWS_AGGREGATOR:
+            self.pluginState = PluginTypes.STATE_STOPPED
         # empty out the url list in the plugin:
         self.listOfURLS = []
         logger.info("%s: Final count of articles to be retrieved = %s, Current Queue Size = %s",
@@ -374,7 +375,7 @@ class BasePlugin:
         return(filesList)
 
     @staticmethod
-    def identifyDataPathForRunDate(baseDirName: str, runDateString: str) -> str:
+    def identifyDataPathForRunDate(baseDirName: str, runDateString: str|datetime) -> str:
         """ Identify the data directory path for a given run-date
 
         :rtype: str
@@ -533,7 +534,7 @@ class BasePlugin:
         listOfURLS = []
         try:
             # replace default HTTP get method with custom method:
-            newspaper.network.get_html_2XX_only = NetworkFetcher.NewsPpr_get_html_2XX_only
+            newspaper_network.get_html_2XX_only = NetworkFetcher.NewsPpr_get_html_2XX_only
             # instantiate the source object for newspaper
             thisNewsPSource = newspaper.source.Source(self.mainURL,
                                                       config=self.app_config.newspaper_config)
@@ -582,7 +583,7 @@ class BasePlugin:
                 rawData = self.networkHelper.fetchRawDataFromURL(thisFeedURL, self.pluginName)
                 # if retrieved HTML data is of sufficient size, then parse it using the xml parser:
                 if len(rawData) > self.minArticleLengthInChars:
-                    docRoot = BeautifulSoup(rawData, 'lxml-xml')
+                    docRoot = BeautifulSoup(markup=rawData, features='lxml-xml')
                     # get the <channel> element at the root of the XML document
                     if docRoot.channel is not None:
                         # loop through each <item> element to get the <link> tags
@@ -708,7 +709,7 @@ class BasePlugin:
         return(allURLs)
 
     @staticmethod
-    def extractPublishedDate(htmlText: object,
+    def extractPublishedDate(htmlText: bytes|str,
                              date_regex_patterns: dict,
                              URL: str = '',
                              plugin_name: str = '') -> datetime:
@@ -722,16 +723,21 @@ class BasePlugin:
         """
         date_obj = datetime.now()
         currentDateTime = datetime.now()
+
+        # convert to string if the input is in bytes:
         if type(htmlText) == bytes:
             htmlText = htmlText.decode('UTF-8')
+
         dateString = ""
         errorFlag = True
         for dateRegex in date_regex_patterns.keys():
             (datePattern, datetimeFormatStr) = date_regex_patterns[dateRegex]
             try:
                 result = datePattern.search(htmlText)
+                logger.debug("For date pattern = %s , Result = %s", datePattern, result)
                 if result is not None:
                     dateString = result.group(2)
+                    # logger.debug("Matched and extracted date string: %s", dateString)
                     date_obj = datetime.strptime(dateString, datetimeFormatStr).replace(tzinfo=None)
                     if date_obj > currentDateTime:
                         logger.debug(f"{plugin_name}: ERROR: Publish date is in the future: {date_obj}, for URL: {URL}")
@@ -843,12 +849,12 @@ class BasePlugin:
                          uniqueString)
             raise ScrapeError("Invalid article since it does not have a unique identifier.")
 
-    def downloadDataArchive(self, url: str, pluginName: str) -> object:
+    def downloadDataArchive(self, url: str, pluginName: str) -> bytes:
         """ Download data archive using HTTP(s) GET protocol.
 
         :param url: URL to fetch
         :param pluginName: Name of the plugin
-        :return:
+        :return: bytes
         """
         htmlcontent = b""
         try:
@@ -859,7 +865,7 @@ class BasePlugin:
             logger.error("%s: Error when downloading Data Archive: %s", pluginName, e)
         return(htmlcontent)
 
-    def fetchDataFromURL(self, uRLtoFetch, WorkerID):
+    def fetchDataFromURL(self, uRLtoFetch: str, WorkerID: int) -> ExecutionResult:
         """ Fetch complete cleaned data From given URL
         The return value is an ExecutionResult object.
         """
@@ -888,7 +894,7 @@ class BasePlugin:
                 if htmlContent is not None and len(htmlContent) > self.minArticleLengthInChars:
                     resultVal.rawDataSize = len(htmlContent)
                     logger.debug("%s: Fetched %s characters of html data", self.pluginName, len(htmlContent))
-                    # clean htmlContent of non UTF-8 and other repeated characters:
+                    # clean html_content of non UTF-8 and other repeated characters:
                     htmlContent = NewsEvent.cleanText(htmlContent)
                     # extract additional links and return in result object:
                     additionalLinks = self.filterNonContentURLs(self.extractLinksFromHTML(uRLtoFetch, htmlContent))
@@ -933,7 +939,7 @@ class BasePlugin:
         self.URLToFetch = None
         return(resultVal)
 
-    def checkAndCleanText(self, inputText: str, rawData: str) -> str:
+    def checkAndCleanText(self, inputText: str, rawData: str, url: str) -> str:
         pass
 
     def parseFetchedData(self, uRLtoFetch, newpArticleObj, WorkerID):
@@ -941,8 +947,9 @@ class BasePlugin:
          and then extract vital elements if these are missing.
          Return a NewsEvent object with complete and cleaned data
         """
-        logger.debug("%s: Parsing the fetched Data, WorkerID = %s",
+        logger.debug("%s: Parsing the fetched Data from %s, WorkerID = %s",
                      self.pluginName,
+                     uRLtoFetch,
                      WorkerID)
         articleUniqueID = None
         # all data will be stored in this object:
@@ -954,7 +961,8 @@ class BasePlugin:
         except Exception as e:
             logger.error("%s: Error parsing raw HTML from URL %s: %s", self.pluginName, uRLtoFetch, e)
         # run custom clean-up code on the text:
-        newpArticleObj.text = self.checkAndCleanText(newpArticleObj.text, newpArticleObj.html)
+        newpArticleObj.text = self.checkAndCleanText(newpArticleObj.text, newpArticleObj.html, newpArticleObj.url)
+        logger.debug("Published date: %s", newpArticleObj.publish_date)
         # check date validity:
         if (newpArticleObj.publish_date is None or newpArticleObj.publish_date == '' or
                 (not newpArticleObj.publish_date) or (type(newpArticleObj.publish_date) == 'datetime.datetime' and

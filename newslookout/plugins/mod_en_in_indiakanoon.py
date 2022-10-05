@@ -38,7 +38,7 @@ from bs4 import BeautifulSoup
 import bs4
 
 from base_plugin import BasePlugin
-from data_structs import Types
+from data_structs import PluginTypes
 # from data_structs import ScrapeError
 from scraper_utils import deDupeList, filterRepeatedchars
 
@@ -57,7 +57,7 @@ class mod_en_in_indiakanoon(BasePlugin):
     minArticleLengthInChars = 400
 
     # implies web-scraper for news content, see data_structs.py for other types
-    pluginType = Types.MODULE_NEWS_CONTENT
+    pluginType = PluginTypes.MODULE_NEWS_CONTENT
 
     # main webpage URL
     mainURL = "https://indiankanoon.org/"
@@ -147,21 +147,21 @@ class mod_en_in_indiakanoon(BasePlugin):
 
     # TODO: Fix date regex to prevent part of URL being parsed into date
     articleDateRegexps = {
+        r'(<TITLE>.* )([0-9]{1,2} [January|February|March|April|May|June|July|August|September|October|November' +
+        r'|December]{3,}, [2|1][0|1][0-9]{2})': '%d %B, %Y',
+        r'(.)([0-9]{1,2}th [January|February|March|April|May|June|July|August|September|October|November' +
+        r'|December]{3,} [2|1][0|1][0-9]{2})': '%dth %B %Y',
+        r'(.)([0-9]{1,2}st [January|February|March|April|May|June|July|August|September|October|November' +
+        r'|December]{3,} [2|1][0|1][0-9]{2})': '%dst %B %Y',
+        r'(.)([0-9]{1,2}nd [January|February|March|April|May|June|July|August|September|October|November' +
+        r'|December]{3,} [2|1][0|1][0-9]{2})': '%dnd %B %Y',
+        r'(.)([0-9]{1,2}th, [January|February|March|April|May|June|July|August|September|October|November' +
+        r'|December]{3,} [2|1][0|1][0-9]{2})': '%dth %B, %Y',
+        r'(.)([0-9]{1,2}th DAY OF [January|February|March|April|May|June|July|August|September|October' +
+        r'|November|December]{3,}, [2|1][0|1][0-9]{2})': '%dth DAY OF %B, %Y',
         r'(on )([0-9]+ [a-zA-Z]{3}, [0-9]{4})(<\/TITLE>)': '%d %b, %Y',
         r'(on )([0-9]+ [a-zA-Z]{3,}, [0-9]{4})(<\/TITLE>)': '%d %B, %Y',
-        r'(Date: )([0-9]{2}\/[0-9]{2}\/20[0-9]{2})': '%d/%m/%Y',
-        r'(.)([0-9]{1,2} [January|February|March|April|May|June|July|August|September|October|November' +
-        r'|December]{3,}, [2|1][0-9]{2})': '%d %B, %Y',
-        r'(.)([0-9]{1,2}th DAY OF [January|February|March|April|May|June|July|August|September|October' +
-        r'|November|December]{3,}, [2|1][0-9]{2})': '%dth DAY OF %B, %Y',
-        r'(.)([0-9]{1,2}th [January|February|March|April|May|June|July|August|September|October|November' +
-        r'|December]{3,} [2|1][0-9]{2})': '%dth %B %Y',
-        r'(.)([0-9]{1,2}st [January|February|March|April|May|June|July|August|September|October|November' +
-        r'|December]{3,} [2|1][0-9]{2})': '%dst %B %Y',
-        r'(.)([0-9]{1,2}nd [January|February|March|April|May|June|July|August|September|October|November' +
-        r'|December]{3,} [2|1][0-9]{2})': '%dnd %B %Y',
-        r'(.)([0-9]{1,2}th, [January|February|March|April|May|June|July|August|September|October|November' +
-        r'|December]{3,} [2|1][0-9]{2})': '%dth %B, %Y'
+        r'(Date: )([0-9]{2}\/[0-9]{2}\/20[0-9]{2})': '%d/%m/%Y'
         }
 
     invalidTextStrings = []
@@ -250,7 +250,7 @@ class mod_en_in_indiakanoon(BasePlugin):
             logger.error(f"Error retrieving child tags from parent: {e}", e)
         return(allText)
 
-    def checkAndCleanText(self, inputText, rawData):
+    def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
         """
         cleanedText = inputText

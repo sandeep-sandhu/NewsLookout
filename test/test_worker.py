@@ -36,7 +36,7 @@ import sys
 import os
 import threading
 
-from data_structs import Types
+from data_structs import PluginTypes
 from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_file
 
 
@@ -60,7 +60,7 @@ def test_worker_init():
     sessionHistoryDB = session_hist.SessionHistory(':memory:', dbAccessSem)
     from worker import PluginWorker, ProgressWatcher, DataProcessor
     workerInst = PluginWorker(pluginInst,
-                              Types.TASK_GET_URL_LIST,
+                              PluginTypes.TASK_GET_URL_LIST,
                               sessionHistoryDB,
                               app_inst.app_queue_manager)
     assert type(workerInst) == PluginWorker, 'Worker object is not initialising correctly'

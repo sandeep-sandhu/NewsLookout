@@ -45,7 +45,7 @@ import requests
 # import this project's python libraries:
 from base_plugin import BasePlugin
 from scraper_utils import getPreviousDaysDate
-from data_structs import Types, ExecutionResult
+from data_structs import PluginTypes, ExecutionResult
 from news_event import NewsEvent
 
 ##########
@@ -59,7 +59,7 @@ class mod_in_nse(BasePlugin):
     """
 
     minArticleLengthInChars = 10000
-    pluginType = Types.MODULE_DATA_CONTENT  # implies data content fetcher
+    pluginType = PluginTypes.MODULE_DATA_CONTENT  # implies data content fetcher
 
     mainURL = 'https://www1.nseindia.com/archives/equities/bhavcopy/pr/PR'
     mainURL_suffix = ".zip"
@@ -100,7 +100,7 @@ class mod_in_nse(BasePlugin):
         """
         self.pledgesDataExtractedFlag = False
         self.count_history_to_fetch = 1
-        self.pluginState = Types.STATE_GET_URL_LIST
+        self.pluginState = PluginTypes.STATE_GET_URL_LIST
         super().__init__()
 
     def getURLsListForDate(self, runDate, sessionHistoryDB):
@@ -136,7 +136,7 @@ class mod_in_nse(BasePlugin):
     def fetchDataFromURL(self, uRLtoFetch, WorkerID):
         """ Fetch data From given URL
         """
-        self.pluginState = Types.STATE_FETCH_CONTENT
+        self.pluginState = PluginTypes.STATE_FETCH_CONTENT
         fullPathName = ""
         dirPathName = ""
         rawData = ""
@@ -423,7 +423,10 @@ class mod_in_nse(BasePlugin):
                                 self.identifyDataPathForRunDate(self.baseDirName, thisArticle.getPublishDate()),
                                 articleUniqueID,
                                 URL=archiveURL)
-                            thisArticle.writeFiles(filename, self.app_config.data_dir, announceContent)
+                            thisArticle.writeFiles(
+                                os.path.join(self.app_config.data_dir,filename),
+                                announceContent,
+                                False)
                         else:
                             logger.debug("Skipping record %s as it is not properly formatted.", index)
                 except Exception as e:

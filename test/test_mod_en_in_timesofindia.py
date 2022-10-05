@@ -33,10 +33,10 @@
 
 # import standard python libraries:
 import sys
+import threading
 import os
 import network
 import queue
-import threading
 import logging
 from . import getAppFolders, getMockAppInstance
 from . import list_all_files, read_bz2html_file
@@ -98,6 +98,10 @@ def test_fetchDataFromURL():
         testdataFolder,
         file_no=0
     )
+    # fetch html content from test_data
+    _ = list_all_files("dir1")
+    _ = read_bz2html_file("file1.html.bz2")
+
     uRLtoFetch = "https://timesofindia.indiatimes.com/blogs/toi-edit-page/as-communal-riots-exploded-in-delhi-elected-representatives-were-missing-on-the-ground-when-residents-needed-them-most/"
     logging.getLogger().setLevel(logging.DEBUG)
     resultVal = pluginClassInst.fetchDataFromURL(uRLtoFetch, '1')
@@ -125,7 +129,7 @@ def test_fetchDataFromURL():
         print(f'Deleted temp raw-data file {resultVal.savedDataFileName + ".html.bz2"} successfully.')
     # test alternate logic to extract article body content:
     htmlContent = pluginClassInst.networkHelper.fetchRawDataFromURL(uRLtoFetch, pluginClassInst.pluginName)
-    bodytext = pluginClassInst.extractArticleBody(htmlContent)
+    bodytext = pluginClassInst.extractArticleBody(htmlContent, uRLtoFetch)
     print(f'Alternate method extracted body text of size = {len(bodytext)}:\n{bodytext}')
     assert len(bodytext) == 1210, \
         "extractArticleBody() unable to extract article text using alternate (non-newspaper library) method."
