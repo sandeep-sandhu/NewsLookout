@@ -37,6 +37,7 @@ from datetime import datetime
 from base_plugin import BasePlugin
 from data_structs import PluginTypes
 from news_event import NewsEvent
+from session_hist import SessionHistory
 
 ##########
 
@@ -60,7 +61,7 @@ class mod_dataprep(BasePlugin):
         """
         super().__init__()
 
-    def additionalConfig(self, sessionHistoryObj):
+    def additionalConfig(self, sessionHistoryObj: SessionHistory):
         """ Perform additional configuration that is specific to this plugin.
 
         :param sessionHistoryObj: The session history object to be used by this plugin
@@ -70,8 +71,9 @@ class mod_dataprep(BasePlugin):
         self.workDir = self.app_config.data_dir
         self.sessionHistDB = sessionHistoryObj
 
-    def processDataObj(self, newsEventObj):
-        """ Process given data object by this plugin.
+    def processDataObj(self, newsEventObj: NewsEvent):
+        """ Process given data object by this plugin, read the contents from the file and
+        directly write back the transformed data back to the same file.
 
         :param newsEventObj: The NewsEvent object to be processed.
         :type newsEventObj: NewsEvent
@@ -79,7 +81,7 @@ class mod_dataprep(BasePlugin):
         try:
             assert type(newsEventObj) == NewsEvent
             # TODO: lock file to avoid conflicting writes, release lock at the end of the method
-            runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')
+            runDate = newsEventObj.getPublishDate()
             logger.debug("Started data pre-processing for news event data in: %s for date: %s",
                          newsEventObj.getFileName(), runDate)
             newsEventObj.setText(
@@ -92,7 +94,7 @@ class mod_dataprep(BasePlugin):
         except Exception as e:
             logger.error(f'Error processing data: {e}')
 
-    def cleanText(self, inputText):
+    def cleanText(self, inputText: str) -> str:
         """
         Examine and clean the text from the document and return cleaned text.
 
@@ -103,6 +105,6 @@ class mod_dataprep(BasePlugin):
         """
         # TODO: apply text cleaning logic
         outputText = inputText.strip()
-        return(outputText)
+        return outputText
 
 # # end of file ##

@@ -106,8 +106,18 @@ class ConfigManager:
         self.readOperationsCfg()
         self.applyNetworkConfig()
 
-    def checkAndSanitizeConfigString(self, sectionName, configParamName, default=None):
-        """ Check and sanitize config string value """
+    def checkAndSanitizeConfigString(self,
+                                     sectionName: str,
+                                     configParamName: str,
+                                     default: str = None) -> str:
+        """
+        Check and sanitize config string value.
+
+        :param sectionName:
+        :param configParamName:
+        :param default:
+        :return:
+        """
         configParamValue = default
         try:
             paramStr = self.config_parser.get(sectionName, configParamName).strip()
@@ -116,10 +126,24 @@ class ConfigManager:
             print(f"Error reading parameter {configParamName} from configuration file, exception was: {e}")
             if default is None:
                 print(f"Error reading parameter {configParamName} from configuration file: default value missing.")
-        return(configParamValue)
+        return configParamValue
 
-    def checkAndSanitizeConfigInt(self, sectionName, configParamName, default=None, maxValue=None, minValue=None):
-        """ Check and sanitize config integer value """
+    def checkAndSanitizeConfigInt(self,
+                                  sectionName: str,
+                                  configParamName: str,
+                                  default: int = None,
+                                  maxValue: int = None,
+                                  minValue: int = None) -> int:
+        """
+        Check and sanitize configuration parameter integer value
+
+        :param sectionName: Section name of the configuraiton file
+        :param configParamName: Name of the configuraiton parameter
+        :param default: Default vlaue of this configuration parameter
+        :param maxValue:
+        :param minValue:
+        :return: Cleaned configuration parameter value
+        """
         configParamValue = default
         try:
             paramVal = self.config_parser.getint(sectionName, configParamName)
@@ -136,31 +160,31 @@ class ConfigManager:
                   e)
             if default is None:
                 print(f"Error reading parameter {configParamName} from configuration file: default value missing.")
-        return(configParamValue)
+        return configParamValue
 
     @staticmethod
-    def checkAndParseDate(dateStr):
+    def checkAndParseDate(dateStr: str) -> datetime:
         """ Check and Parse Date String, set it to today's date if its in future
         """
-        runDate = datetime.now()
+        business_date = datetime.now()
         logger.debug("Checking date string: %s", dateStr)
         try:
             if type(dateStr).__name__ == 'datetime':
-                runDate = dateStr
+                business_date = dateStr
             elif type(dateStr).__name__ == 'str':
-                runDate = datetime.strptime(dateStr, '%Y-%m-%d')
+                business_date = datetime.strptime(dateStr, '%Y-%m-%d')
         except Exception as e:
             logger.error("Invalid date for retrieval (%s): %s; using todays date instead.",
                          dateStr, e)
         # get the current local date
         today = date.today()
-        if runDate.date() > today:
+        if business_date.date() > today:
             logger.error("Date for retrieval (%s) cannot be after today's date; using todays date instead.",
-                         runDate.date())
-            runDate = datetime.now()
-        return(runDate)
+                         business_date.date())
+            business_date = datetime.now()
+        return business_date
 
-    def processItemInSection(self, key, item):
+    def processItemInSection(self, key: str, item: str):
         if key.startswith('plugin'):
             name_priority = removeStartTrailQuotes(item.strip()).split('|')
             pluginName = name_priority[0].strip()

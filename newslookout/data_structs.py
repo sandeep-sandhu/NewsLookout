@@ -67,12 +67,12 @@ class PluginTypes:
     STATE_NOT_STARTED = 160
 
     @staticmethod
-    def decodeNameFromIntVal(typeIntValue):
+    def decodeNameFromIntVal(typeIntValue: int) -> str:
         attrNames = dir(PluginTypes)
         for name in attrNames:
             attrIntVal = getattr(PluginTypes, name, None)
             if attrIntVal == typeIntValue:
-                return(name)
+                return name
 
 
 ##########
@@ -97,8 +97,16 @@ class ExecutionResult:
     articleID = None
     additionalLinks = []
 
-    def __init__(self, sURL, htmlContentLen, textContentLen, publishDate, pluginName,
-                 dataFileName=None, rawDataFile=None, success=False, additionalLinks=None):
+    def __init__(self,
+                 sURL: str,
+                 htmlContentLen: int,
+                 textContentLen: int,
+                 publishDate: any,
+                 pluginName: str,
+                 dataFileName: str = None,
+                 rawDataFile: str = None,
+                 success: bool = False,
+                 additionalLinks: list = None):
         self.URL = sURL
         self.rawDataFileName = rawDataFile
         self.savedDataFileName = dataFileName
@@ -112,8 +120,10 @@ class ExecutionResult:
         else:
             self.additionalLinks = []
 
-    def getAsTuple(self):
-        return((self.URL, self.pluginName, self.publishDate, self.rawDataSize, self.textSize))
+    def getAsTuple(self) -> tuple:
+        """" Get execution result details as a tuple.
+        """
+        return (self.URL, self.pluginName, self.publishDate, self.rawDataSize, self.textSize)
 
 
 class QueueStatus:
@@ -146,7 +156,7 @@ class QueueStatus:
     # - Data process completed queue size
     dataOutputQsize = 0
 
-    def __init__(self, queue_manager):
+    def __init__(self, queue_manager: object):
         """ Instantiate the Queue status object.
 
         :param queue_manager: The QueueManager instance
@@ -154,18 +164,18 @@ class QueueStatus:
         self.queue_mgr = queue_manager
         self.totalPluginsURLSourcing = self.queue_mgr.totalPluginsURLSrcCount
 
-    def get_plugin_state(self, plugin_name):
-        """ Get the state of the queried plugin
+    def get_plugin_state(self, plugin_name: str) -> str:
+        """ Get the state of the queried plugin.
 
         :param plugin_name: Name of the plugin being queried
         :param plugin_name: str
         :return: pluginState value expressed as a PluginTypes attribute value
-        :rtype: int
+        :rtype: str
         """
         pluginStateInt = self.queue_mgr.pluginNameToObjMap[plugin_name].pluginState
-        return(PluginTypes.decodeNameFromIntVal(pluginStateInt))
+        return PluginTypes.decodeNameFromIntVal(pluginStateInt)
 
-    def any_newsagg_isactive(self):
+    def any_newsagg_isactive(self) -> bool:
         """ Check if any news aggregator is still actively fetching URL listing.
         Specifically, check if any plugin that is of news aggregator type is in URL listing state.
 
@@ -173,13 +183,14 @@ class QueueStatus:
         :rtype: bool
         """
         result = False
-        for pluginName in self.queue_mgr.pluginNameToObjMap.keys():
-            if self.queue_mgr.pluginNameToObjMap[pluginName].pluginType == PluginTypes.MODULE_NEWS_AGGREGATOR:
-                result = result or self.queue_mgr.pluginNameToObjMap[pluginName].pluginState == PluginTypes.STATE_GET_URL_LIST
-        return(result)
+        plugin_map = self.queue_mgr.pluginNameToObjMap
+        for pluginName in plugin_map.keys():
+            if plugin_map[pluginName].pluginType == PluginTypes.MODULE_NEWS_AGGREGATOR:
+                result = result or plugin_map[pluginName].pluginState == PluginTypes.STATE_GET_URL_LIST
+        return result
 
     @staticmethod
-    def getStatusChange(previousState, currentState):
+    def getStatusChange(previousState, currentState) -> list:
         """ Format the status change detected from comparing the previous state of plugins to its current state
         and output these are a list of messages to be logged into the event log.
         """
@@ -198,7 +209,7 @@ class QueueStatus:
                         currentState[pluginName].replace('STATE_', '').replace('_', ' '))
             except Exception as e:
                 logger.error("Progress watcher thread: Error comparing previous state of plugin: %s", e)
-        return(statusMessages)
+        return statusMessages
 
     def updateStatus(self):
         """ Update the queue status

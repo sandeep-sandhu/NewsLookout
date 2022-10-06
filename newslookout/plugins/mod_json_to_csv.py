@@ -76,7 +76,6 @@ class mod_json_to_csv(BasePlugin):
     # remove these substrings from text during cleanup
     subStringsToFilter = []
 
-
     # write the following regexps dict with each key as regexp to match the required date text,
     # group 2 of this regular expression should match the date string
     # in this dict, put the key will be the date format expression
@@ -113,8 +112,7 @@ class mod_json_to_csv(BasePlugin):
         """
         pass
 
-
-    def processDataObj(self, newsEventObj):
+    def processDataObj(self, newsEventObj: NewsEvent):
         """ Process given data object by this plugin.
 
         :param newsEventObj: The NewsEvent object to be processed.
@@ -123,15 +121,13 @@ class mod_json_to_csv(BasePlugin):
         try:
             assert type(newsEventObj) == NewsEvent
             # TODO: lock file to avoid conflicting writes, release lock at the end of the method
-            runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')
+            runDate = newsEventObj.getPublishDate()
             logger.debug("JSON-to-CSV: Adding news event data in: %s for date: %s",
                          newsEventObj.getFileName(), runDate)
             # open csv of given date, read csv into a pandas dataframe.
             # check if news event already exists in dataframe
             # if not, then extract all attributes from newsEventObj and add to pandas dataframe
             # write to csv file, without text body of news event.
-
-
         except Exception as e:
             logger.error(f'Error processing data: {e}')
 

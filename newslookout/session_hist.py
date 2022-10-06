@@ -37,6 +37,7 @@ import datetime
 import logging
 import os
 import sqlite3 as lite
+import threading
 
 # import internal libraries
 import data_structs
@@ -68,14 +69,21 @@ class SessionHistory:
                                  '(url TEXT, plugin varchar(100), pubdate DATE, filename TEXT)')
     db_connect_timeout = 180
 
-    def __init__(self, dataFileName, dbAccessSemaphore):
-        """ Initialize the object """
+    def __init__(self,
+                 dataFileName: str,
+                 dbAccessSemaphore: threading.Semaphore):
+        """
+         Initialize the history tracking and persistence object
+
+        :param dataFileName:
+        :param dbAccessSemaphore:
+        """
         self.dbFileName = dataFileName
         self.dbAccessSemaphore = dbAccessSemaphore
         super().__init__()
 
     @staticmethod
-    def openConnFromfile(dataFileName):
+    def openConnFromfile(dataFileName: str) -> lite.Connection:
         """ Read SQLite database file and get its connection.
         This db stores previously saved URLs.
         """
@@ -91,9 +99,9 @@ class SessionHistory:
         cur.execute(SessionHistory.ddl_failed_urls_table)
         cur.execute(SessionHistory.ddl_deleted_dups_table)
         sqlCon.commit()
-        return(sqlCon)
+        return sqlCon
 
-    def printDBStats(self):
+    def printDBStats(self) -> tuple:
         """ Print SQLite database statistics and the SQLite version number.
         """
         sqlCon = None
@@ -112,7 +120,7 @@ class SessionHistory:
                 logger.info("Total count of URLs retrieved = %s, History Dataset SQLite version: %s",
                             data[0],
                             SQLiteVersion)
-                return(data[0], SQLiteVersion)
+                return (data[0], SQLiteVersion)
         except Exception as e:
             logger.error(f"While showing previously retrieved URLs stats: {e}")
         finally:
@@ -154,7 +162,7 @@ class SessionHistory:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
             logger.debug(f"Search already fetched URLs for plugin {pluginName}: Released exclusive db access")
-        return(searchResult)
+        return searchResult
 
     def removeAlreadyFetchedURLs(self, newURLsList: list, pluginName: str) -> list:
         """ Remove already fetched URLs from given list by searching history database
@@ -187,7 +195,7 @@ class SessionHistory:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
             logger.debug("Removed already fetched URLs for plugin %s: Released exclusive db access", pluginName)
-        return(filteredList)
+        return filteredList
 
     def retrieveTodoURLList(self, pluginName: str) -> list:
         """ Retrieve URL list from the pending_urls table for the given plugin name
@@ -219,7 +227,7 @@ class SessionHistory:
             logger.debug("Fetched pending url list for plugin %s: Released exclusive db access.", pluginName)
         URLsFromSQLite = deDupeList(URLsFromSQLite)
         logger.info(f'{pluginName}: Identified {len(URLsFromSQLite)} URLs from pending table of history database.')
-        return(URLsFromSQLite)
+        return URLsFromSQLite
 
     def addURLsToPendingTable(self, urlList: list, pluginName: str):
         """ Add newly identified URLs to the pending Table.
@@ -337,7 +345,7 @@ class SessionHistory:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
             logger.debug("Save newly retrieved URLs to history db: Released exclusive db access")
-        return(writeCount)
+        return writeCount
 
     def addDupURLToDeleteTbl(self, sURL: str, pluginName: str, pubdate: datetime.datetime, filename: str):
         """ Add duplicate URLs To deleted table. Query this using the statement:

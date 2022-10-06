@@ -65,8 +65,9 @@ import logging
 
 # import web retrieval and text processing python libraries:
 import nltk
-
 from tld import get_tld
+#import tld.utils
+from bs4 import BeautifulSoup
 
 
 # setup logging
@@ -84,7 +85,7 @@ def retainValidArticles(articleList: list, validURLPatternsList: list) -> list:
     """
     valid_articles = []
     if len(validURLPatternsList) < 1 or len(articleList) < 1:
-        return(articleList)
+        return articleList
     else:
         for article in articleList:
             # only keep following URLs which contain strings matching pattern
@@ -102,7 +103,7 @@ def retainValidArticles(articleList: list, validURLPatternsList: list) -> list:
                 except Exception as e:
                     logger.error("ERROR retaining valid article list: %s", e)
     logger.debug(f"Filtered to retain valid articles, count after filtering = {len(valid_articles)}")
-    return(valid_articles)
+    return valid_articles
 
 
 def removeInValidArticles(articleList: list, invalidURLPatternsList: list) -> list:
@@ -126,10 +127,10 @@ def removeInValidArticles(articleList: list, invalidURLPatternsList: list) -> li
                 valid_articles.append(article)
         except Exception as e:
             logger.error("ERROR filtering out invalid article list: %s", e)
-    return(valid_articles)
+    return valid_articles
 
 
-def clean_non_utf8(input_text) -> str:
+def clean_non_utf8(input_text: bytes | str) -> str:
     """ Remove any non utf-8 characters by encoding/decoding into UTF-8
 
     :param input_text: Text to clean up.
@@ -146,7 +147,7 @@ def clean_non_utf8(input_text) -> str:
             output_text = input_text.encode('utf-8', errors="replace").decode('utf-8', errors='replace')
     except Exception as err:
         logger.error(f"Error encoding-decoding UTF-8: {err}, for content type: {type(input_text)}")
-    return(output_text)
+    return output_text
 
 
 def removeStartTrailQuotes(textString: str) -> str:
@@ -156,10 +157,10 @@ def removeStartTrailQuotes(textString: str) -> str:
     :return: Cleaned up text
     """
     resultString = textString.strip('\"').strip("'")
-    return(resultString)
+    return resultString
 
 
-def decodeSecret(encodedText, keyValue):
+def decodeSecret(encodedText, keyValue) -> str:
     """ Decode Secret, use Base64 for now, ignore the keyValue
     """
     decodedText = ""
@@ -169,7 +170,7 @@ def decodeSecret(encodedText, keyValue):
         decodedText = decoded_bytes.decode('utf-8')
     except Exception as e:
         logger.error("Error decoding secret: %s", e)
-    return(decodedText)
+    return decodedText
 
 
 def saveObjToJSON(jsonFileName: str, objToSave: dict):
@@ -186,7 +187,10 @@ def saveObjToJSON(jsonFileName: str, objToSave: dict):
         fp.close()
 
 
-def checkAndSanitizeConfigString(configObj, sectionName, configParamName, default=None):
+def checkAndSanitizeConfigString(configObj,
+                                 sectionName: str,
+                                 configParamName: str,
+                                 default: str = None) -> str:
     """ Check and sanitize config string value """
     configParamValue = default
     try:
@@ -196,10 +200,15 @@ def checkAndSanitizeConfigString(configObj, sectionName, configParamName, defaul
         print("Error reading parameter '", configParamName, "' from configuration file, exception was:", e)
         if default is None:
             print("Error reading parameter '", configParamName, "' from configuration file: default value missing.")
-    return(configParamValue)
+    return configParamValue
 
 
-def checkAndSanitizeConfigInt(configObj, sectionName, configParamName, default=None, maxValue=None, minValue=None):
+def checkAndSanitizeConfigInt(configObj,
+                              sectionName: str,
+                              configParamName: str,
+                              default: int = None,
+                              maxValue: int = None,
+                              minValue: int = None) -> int:
     """ Check and sanitize config integer value """
     configParamValue = default
     try:
@@ -219,7 +228,7 @@ def checkAndSanitizeConfigInt(configObj, sectionName, configParamName, default=N
             print("Error reading parameter '",
                   configParamName,
                   "' from configuration file: default value missing.")
-    return(configParamValue)
+    return configParamValue
 
 
 def deDupeList(input_list: list) -> list:
@@ -233,16 +242,16 @@ def deDupeList(input_list: list) -> list:
                  input_list
                 )
             )
-    return(de_duplicated_list)
+    return de_duplicated_list
 
 
-def regex_space_after_dot(matchobj):
+def regex_space_after_dot(matchobj) -> str:
     """ Function called by fixSentenceGaps() when searching for sentence split checking regex to clean text """
     if matchobj is not None:
         if matchobj.group(0) == '-':
-            return(' ')
+            return ' '
         else:
-            return(matchobj.group(1) + matchobj.group(2) + " " + matchobj.group(3))
+            return matchobj.group(1) + matchobj.group(2) + " " + matchobj.group(3)
     else:
         logger.error('Error extracting match data: empty object passed to function regex_space_after_dot()')
 
@@ -269,10 +278,10 @@ def fixSentenceGaps(input_text: str) -> str:
                               input_text)
     except Exception as e:
         logger.error(f'When fixing sentence gaps, error: {e}')
-    return(cleaned_text)
+    return cleaned_text
 
 
-def filterRepeatedchars(baseText, charList):
+def filterRepeatedchars(baseText: str, charList: list) -> str:
     """ Filter out repeated characters from given text.
 
     :param baseText:
@@ -284,10 +293,10 @@ def filterRepeatedchars(baseText, charList):
         doubleChars = singleChar + singleChar
         while cleanText.find(doubleChars) > -1:
             cleanText = cleanText.replace(doubleChars, singleChar)
-    return(cleanText)
+    return cleanText
 
 
-def cutStrBetweenTags(sourceStr, startTagStr, endTagStr):
+def cutStrBetweenTags(sourceStr, startTagStr, endTagStr) -> str:
     """ Cut source string between given substring Tags
     """
     resultStr = ""
@@ -300,10 +309,10 @@ def cutStrBetweenTags(sourceStr, startTagStr, endTagStr):
                 resultStr = snipped_string[:end_pos]
     except Exception as e:
         logger.error("ERROR extracting string between two tags: %s", e)
-    return(resultStr)
+    return resultStr
 
 
-def checkAndParseDate(dateStr):
+def checkAndParseDate(dateStr: str | datetime) -> datetime:
     """ Check and Parse Date String, set it to todays date if its in future
     """
     runDate = datetime.now()
@@ -322,10 +331,10 @@ def checkAndParseDate(dateStr):
         logger.error("Date for retrieval (%s) cannot be after today's date; using todays date instead.",
                      runDate.date())
         runDate = datetime.now()
-    return(runDate)
+    return runDate
 
 
-def getNextDaysDate(runDate):
+def getNextDaysDate(runDate: datetime) -> datetime:
     """ Given a date input, get date object of next day
 
     :parameter runDate: The query date
@@ -341,10 +350,10 @@ def getNextDaysDate(runDate):
             logger.error("runDate parameter is of type: %s", type(runDate).__name__)
     except Exception as e:
         logger.error("While calculating date value of next day: %s", e)
-    return(businessDate)
+    return businessDate
 
 
-def getPreviousDaysDate(runDate):
+def getPreviousDaysDate(runDate: str | datetime) -> datetime:
     """ Given a date input, get date object of the previous day.
 
     :parameter runDate: The query date
@@ -363,10 +372,10 @@ def getPreviousDaysDate(runDate):
             logger.error("runDate parameter is of type: %s", type(runDate).__name__)
     except Exception as e:
         logger.error("While calculating date value of previous day: %s", e)
-    return(businessDate)
+    return businessDate
 
 
-def instClassFromFile(modulesPackageName, modName):
+def instClassFromFile(modulesPackageName: str, modName: str) -> object:
     """ Instantiate the class object from given file name
     """
     classInst = None
@@ -377,10 +386,10 @@ def instClassFromFile(modulesPackageName, modName):
         classInst = classObj()
     except Exception as e:
         logger.error("While instantiating plugin %s got exception: %s", modName, e)
-    return(classInst)
+    return classInst
 
 
-def getNetworkLocFromURL(URLStr):
+def getNetworkLocFromURL(URLStr: str) -> str:
     """
     Derive network location from the given URL
     res.parsed_url contains the structure of the parsed URL
@@ -388,7 +397,7 @@ def getNetworkLocFromURL(URLStr):
     res = get_tld(URLStr, as_object=True)
     # Resulting object is: SplitResult(scheme = 'https', netloc = 'auto.economictimes.indiatimes.com'
     # , path = '/news/auto-components/abcd', query = '', fragment = '')
-    return(res.parsed_url.netloc)
+    return res.parsed_url.netloc
 
 
 def is_valid_url(url_to_check: str) -> bool:
@@ -399,15 +408,15 @@ def is_valid_url(url_to_check: str) -> bool:
     """
     try:
         if url_to_check is None or url_to_check == '':
-            return(False)
+            return False
         get_tld(url_to_check, as_object=True)
-        return(True)
+        return True
     except Exception as e:
         logger.debug(f'Error when checking is_valid_url: {e}')
-        return(False)
+    return False
 
 
-def sameURLWithoutQueryParams(url1, url2):
+def sameURLWithoutQueryParams(url1: str, url2: str) -> bool:
     """
     Compare two URLs and return True if they are the same
     Ignore any Query parameters
@@ -426,10 +435,10 @@ def sameURLWithoutQueryParams(url1, url2):
     except Exception as e:
         logger.debug(f"While comparing whether two URLs are the same, got exception: {e}")
         logger.debug(f"Comparing URL #1 = {url1} with URL #2 = {url2}")
-    return(comparisonDecision)
+    return comparisonDecision
 
 
-def extractLinks(url, docRoot):
+def extractLinks(url: str, docRoot: BeautifulSoup) -> list:
     """ Extract all Links from beautifulSoup document object of HTML content
     Detect and fix URL errors, such as relative links starting with /
     Ignore invalid tags such as - javascript: , whatsappp:, mailto:, etc.
@@ -465,10 +474,10 @@ def extractLinks(url, docRoot):
                             allLinks.append(linkValue)
     except Exception as e:
         logger.error("Error extracting all Links from html document: %s", e)
-    return(allLinks)
+    return allLinks
 
 
-def normalizeURL(articleURL):
+def normalizeURL(articleURL: str) -> str:
     """ Normalize the URL. Break into the structure:
      res.scheme = 'https'
      res.netloc = 'auto.economictimes.indiatimes.com'
@@ -480,8 +489,8 @@ def normalizeURL(articleURL):
     normalisedURL = articleURL.lower()
     # res = get_tld(URLStr, as_object = True)
     # run path through url decoder to get common representation:
-    # expand and resolve relative urls, for example: ../
-    return(normalisedURL)
+    # expand and resolve relative urls, for example: '../' and similar patterns
+    return normalisedURL
 
 
 def checkAndGetNLTKData():
@@ -522,11 +531,11 @@ def checkAndGetNLTKData():
         logger.debug("Download of universal_treebanks_v20 successful? %s", downloadResult)
 
 
-def calculateCRC32(text):
+def calculateCRC32(text: str) -> str:
     """ use zlib's CRC32 function
     """
     crc = zlib.crc32(text) % (2 ** 32)
-    return(hex(crc))
+    return hex(crc)
 
 
 def printAppVersion():

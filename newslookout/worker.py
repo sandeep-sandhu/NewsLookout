@@ -60,7 +60,7 @@ import session_hist
 from data_structs import PluginTypes
 import scraper_utils
 from data_structs import QueueStatus
-from queue_manager import QueueManager
+# from queue_manager import QueueManager
 
 # #########
 
@@ -114,12 +114,16 @@ class PluginWorker(threading.Thread):
     def setRunDate(self, runDate: datetime):
         self.runDate = runDate
 
-    def setDomainMapAndPlugins(self, domainToPluginMap: dict, allPluginObjs: dict):
+    def setDomainMapAndPlugins(self,
+                               domainToPluginMap: dict,
+                               allPluginObjs: dict):
         self.domainToPluginMap = domainToPluginMap
         self.pluginNameToObjMap = allPluginObjs
 
     @staticmethod
-    def aggregator_url2domain_map(urlList: list, pluginNameToObjMap: dict, domainToPluginMap: dict) -> dict:
+    def aggregator_url2domain_map(urlList: list,
+                                  pluginNameToObjMap: dict,
+                                  domainToPluginMap: dict) -> dict:
         """ Collect URLs in a dictionary mapped to each plugin
 
         :param urlList: Mixed list of all URLs for various news sites/domains
@@ -127,7 +131,6 @@ class PluginWorker(threading.Thread):
         :param domainToPluginMap: Dictionary/map with keys as domain names -> plugin-name as values
         :return: Dictionary map with keys as plugin-name -> URL list as values
         """
-
         plugin_to_url_list_map = dict()
         # initialize the dictionary:
         for pluginItem in pluginNameToObjMap.keys():
@@ -142,7 +145,7 @@ class PluginWorker(threading.Thread):
                 thisPlugin = domainToPluginMap[domainName]
                 logger.debug(f'For plugin: {thisPlugin}, and domain: {domainName}, adding URL: {urlItem}')
                 plugin_to_url_list_map[thisPlugin].append(urlItem)
-        return(plugin_to_url_list_map)
+        return plugin_to_url_list_map
 
     def assign_urls_to_queues(self, plugin_to_url_list_map: dict,
                               pluginName: str,
@@ -289,8 +292,14 @@ class DataProcessor(threading.Thread):
     queue_manager = None
     sortedPriorityKeys = []
 
-    def __init__(self, dataProcPluginsMap, sortedPriorityKeys, queue_manager, queue_status,
-                 daemon=None, target=None, name=None):
+    def __init__(self,
+                 dataProcPluginsMap: dict,
+                 sortedPriorityKeys: list,
+                 queue_manager,
+                 queue_status,
+                 daemon=None,
+                 target=None,
+                 name=None):
         """  Initialize the worker thread
 
         :param dataProcPluginsMap: The dictionary of data processing plugins as priority -> objects
@@ -312,7 +321,11 @@ class DataProcessor(threading.Thread):
         super().__init__(daemon=daemon, target=target, name=name)
 
     @staticmethod
-    def processItem(queue_manager, itemInQueue, sortedPriorityKeys, dataProcPluginsMap, workerID):
+    def processItem(queue_manager,
+                    itemInQueue,
+                    sortedPriorityKeys: list,
+                    dataProcPluginsMap: dict,
+                    workerID: str):
         item_doc = None
         queue_manager.alreadyDataProcList.append(itemInQueue.URL)
         queue_manager.addToDataProcessedQueue(itemInQueue)
@@ -343,8 +356,11 @@ class DataProcessor(threading.Thread):
                 # if anything in queue, pick it up and process it:
                 itemInQueue = self.queue_manager.fetchFromDataProcInputQ(block=True, timeout=self.queueBlockTimeout)
                 if itemInQueue is not None and itemInQueue.URL not in self.queue_manager.alreadyDataProcList:
-                    DataProcessor.processItem(self.queue_manager, itemInQueue, self.sortedPriorityKeys,
-                                              self.dataProcPluginsMap, self.workerID)
+                    DataProcessor.processItem(self.queue_manager,
+                                              itemInQueue,
+                                              self.sortedPriorityKeys,
+                                              self.dataProcPluginsMap,
+                                              self.workerID)
                 else:
                     self.queue_manager.addToDataProcessedQueue(itemInQueue)
                     if itemInQueue is not None:
@@ -385,7 +401,7 @@ class ProgressWatcher(threading.Thread):
 
     def __init__(self, pluginNameObjMap: dict,
                  sessionHistoryDB: session_hist.SessionHistory,
-                 queue_manager: QueueManager,
+                 queue_manager: any,
                  queue_status: QueueStatus,
                  progressRefreshInt: int,
                  daemon=None, target=None, name=None):
@@ -405,6 +421,7 @@ class ProgressWatcher(threading.Thread):
         self.historyDB = sessionHistoryDB
         self.refreshIntervalSecs = progressRefreshInt
         self.queue_manager = queue_manager
+        assert type(self.queue_manager).__name__ == "QueueManager", "queue manager not valid object."
         self.q_status = queue_status
         self.q_status.updateStatus()
         self.enlighten_manager = enlighten.get_manager()

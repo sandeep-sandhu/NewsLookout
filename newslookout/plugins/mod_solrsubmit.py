@@ -37,6 +37,7 @@ from datetime import datetime
 from base_plugin import BasePlugin
 from data_structs import PluginTypes
 from news_event import NewsEvent
+from session_hist import SessionHistory
 
 ##########
 
@@ -60,7 +61,7 @@ class mod_solrsubmit(BasePlugin):
         """
         super().__init__()
 
-    def additionalConfig(self, sessionHistoryObj):
+    def additionalConfig(self, sessionHistoryObj: SessionHistory):
         """ Perform additional configuration that is specific to this plugin.
 
         :param sessionHistoryObj: The session history object to be used by this plugin
@@ -70,8 +71,9 @@ class mod_solrsubmit(BasePlugin):
         self.workDir = self.app_config.data_dir
         self.sessionHistDB = sessionHistoryObj
 
-    def processDataObj(self, newsEventObj):
-        """ Process given data object by this plugin.
+    def processDataObj(self, newsEventObj: NewsEvent):
+        """ Submit relevant fields from the given document object to
+         the SOLR search engine indexer using this plugin.
 
         :param newsEventObj: The NewsEvent object to be processed.
         :type newsEventObj: NewsEvent
@@ -79,12 +81,13 @@ class mod_solrsubmit(BasePlugin):
         try:
             assert type(newsEventObj) == NewsEvent
             # TODO: lock file to avoid conflicting writes, release lock at the end of the method
-            runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')
+            runDate = newsEventObj.getPublishDate()
             logger.debug("Submitting document %s of date: %s to SOLR search engine",
                          newsEventObj.getFileName(), runDate)
+            # TODO: prepare the HTTP POST to submit the document to the SOLR search engine
             self.submitText(newsEventObj)
             # write to log file:
-            logger.debug(f'Submitted news article data to solr for indexing')
+            logger.debug(f'Submitted news article data to solr for indexing: {newsEventObj.getURL()}')
         except Exception as e:
             logger.error(f'Error processing data: {e}')
 
@@ -97,6 +100,6 @@ class mod_solrsubmit(BasePlugin):
         """
         # TODO: write logic to submit to solr engine using HTTP POST
         outputText = newsEventObj.getText().strip()
-        return
+
 
 # # end of file ##
