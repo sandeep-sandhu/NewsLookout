@@ -34,6 +34,8 @@
 # import standard python libraries:
 import sys
 import os
+from datetime import datetime
+
 import network
 import queue
 import threading
@@ -147,7 +149,7 @@ def test_fetchDataFromURL():
         logger.debug("NLTK punkt tokenizers is available.")
         assert resultVal.wasSuccessful is True, 'fetchDataFromURL() did not complete successfully'
         assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
-        assert resultVal.publishDate == '2021-07-08', 'fetchDataFromURL() not parsing published date correctly.'
+        assert resultVal.publishDate == datetime.strptime('2021-07-08','%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
         assert resultVal.textSize == 7374, 'fetchDataFromURL() not parsing text body correctly.'
         assert resultVal.savedDataFileName == os.path.join('./data', '2021-07-08', 'mod_en_in_forbes_73837853'), \
             'fetchDataFromURL() not saving parsed data correctly.'

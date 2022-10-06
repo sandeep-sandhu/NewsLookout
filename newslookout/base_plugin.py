@@ -664,7 +664,9 @@ class BasePlugin:
     def getURLsListForDate(self, runDate: datetime, sessionHistoryDB: SessionHistory) -> list:
         """ Retrieve the URLs List for the given run date
         """
-        logger.debug("%s: Fetching list of urls for date: %s", self.pluginName, str(runDate.strftime("%Y-%m-%d")))
+        logger.debug("%s: Fetching list of urls for date: %s",
+                     self.pluginName,
+                     str(runDate.strftime("%Y-%m-%d")))
         self.listOfURLS = []
         allURLs = []
         try:
@@ -926,7 +928,8 @@ class BasePlugin:
                         # write news article object 'validData' to file:
                         savefileNameWithOutExt = BasePlugin.makeUniqueFileName(
                             self.pluginName,
-                            self.identifyDataPathForRunDate(self.baseDirName, str(validData.getPublishDate())),
+                            self.identifyDataPathForRunDate(self.baseDirName,
+                                                            validData.getPublishDate().strftime("%Y-%m-%d")),
                             validData.getArticleID(),
                             URL=validData.getURL())
                         validData.writeFiles(savefileNameWithOutExt,

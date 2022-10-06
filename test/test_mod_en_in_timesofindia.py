@@ -35,6 +35,8 @@
 import sys
 import threading
 import os
+from datetime import datetime
+
 import network
 import queue
 import logging
@@ -115,7 +117,7 @@ def test_fetchDataFromURL():
     assert type(resultVal) == data_structs.ExecutionResult, 'fetchDataFromURL() not returning exec result correctly.'
     assert resultVal.wasSuccessful is True, 'fetchDataFromURL() did not complete successfully'
     assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.publishDate == '2020-03-14', 'fetchDataFromURL() not parsing published date correctly.'
+    assert resultVal.publishDate == datetime.strptime('2020-03-14','%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.articleID == '134129', 'fetchDataFromURL() not identifying unique ID correctly.'
     assert resultVal.textSize == 1212, 'fetchDataFromURL() not parsing text body correctly.'
     assert resultVal.savedDataFileName == os.path.join('./data', '2020-03-14', 'mod_en_in_timesofindia_134129'), \
