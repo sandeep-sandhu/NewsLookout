@@ -115,7 +115,7 @@ class mod_keywordflags(BasePlugin):
         :type newsEventObj: NewsEvent
         """
         assert type(newsEventObj) == NewsEvent, "processDataObj() received an object that is not of type NewsEvent"
-        runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')
+        runDate = newsEventObj.getPublishDate()
         logger.debug("Started keyword based flag derivation for news event: %s for date: %s",
                      newsEventObj.getFileName(), runDate.strftime('%Y-%m-%d'))
         self.identifyTriggerWordFlags(newsEventObj)

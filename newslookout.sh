@@ -14,5 +14,6 @@ else
 fi
 
 
-$PYTHON_BIN newslookout/scraper_app.py -c conf/newslookout_unix.conf -d $RUN_DATE $2
+$PYTHON_BIN /opt/newslookout/scraper_app.py -c /etc/newslookout/newslookout.conf -d $RUN_DATE $2
 
+sleep 3

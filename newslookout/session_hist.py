@@ -38,6 +38,7 @@ import logging
 import os
 import sqlite3 as lite
 import threading
+from typing import List
 
 # import internal libraries
 import data_structs
@@ -164,7 +165,7 @@ class SessionHistory:
             logger.debug(f"Search already fetched URLs for plugin {pluginName}: Released exclusive db access")
         return searchResult
 
-    def removeAlreadyFetchedURLs(self, newURLsList: list, pluginName: str) -> list:
+    def removeAlreadyFetchedURLs(self, newURLsList: List[str], pluginName: str) -> list:
         """ Remove already fetched URLs from given list by searching history database
         """
         filteredList = []

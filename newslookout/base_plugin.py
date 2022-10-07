@@ -394,9 +394,12 @@ class BasePlugin:
         :type business_date: str
         :return: Full path for the directory storing files for the given run-date
         """
+        date_string = ""
+        if type(business_date) == str:
+            date_string = str(business_date)
         if type(business_date) == datetime:
-            business_date = business_date.strftime('%Y-%m-%d')
-        return os.path.join(data_directory, business_date)
+            date_string = business_date.strftime('%Y-%m-%d')
+        return os.path.join(data_directory, date_string)
 
     @staticmethod
     def identifyFilesForDate(baseDirName: str, runDate: datetime, dayspan: int = 0) -> list:
@@ -835,7 +838,7 @@ class BasePlugin:
         crcValue = "zzz-zzz-zzz"
         try:
             # calculate CRC string if url are not usable:
-            crcValue = str(calculateCRC32(URLToFetch))
+            crcValue = calculateCRC32(URLToFetch)
             uniqueString = crcValue
         except Exception as e:
             logger.error("%s: When calculating CRC32 of URL: %s , URL was: %s",

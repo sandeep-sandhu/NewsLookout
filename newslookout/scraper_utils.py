@@ -534,7 +534,7 @@ def checkAndGetNLTKData():
 def calculateCRC32(text: str) -> str:
     """ use zlib's CRC32 function
     """
-    crc = zlib.crc32(text) % (2 ** 32)
+    crc: int = zlib.crc32(text.encode('UTF-8')) % (2 ** 32)
     return hex(crc)
 
 
