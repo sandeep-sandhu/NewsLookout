@@ -217,7 +217,7 @@ class ConfigManager:
         return configParamValue
 
     @staticmethod
-    def checkAndParseDate(dateStr: str | datetime) -> datetime:
+    def checkAndParseDate(dateStr) -> datetime:
         """ Check and Parse Date String, set it to today's date if its in future
         """
         business_date = datetime.now()
@@ -461,8 +461,6 @@ class ConfigManager:
             else:
                 os.environ['HTTP_PROXY'] = ''
                 os.environ['HTTPS_PROXY'] = ''
-                self.proxy_url_http = None
-                self.proxy_url_https = None
                 self.proxies = {}
 
             nltk.set_proxy(self.proxies)

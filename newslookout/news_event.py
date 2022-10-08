@@ -79,7 +79,8 @@ class NewsEvent(JSONEncoder):
     def getHTML(self) -> str:
         return self.html
 
-    def getBase64FromHTML(articleHTMLText: str | bytes) -> str:
+    @staticmethod
+    def getBase64FromHTML(articleHTMLText) -> str:
         """ Get Base64 text data From HTML text
         """
         encodedBytes = b""
@@ -94,8 +95,9 @@ class NewsEvent(JSONEncoder):
         # on error, return empty string
         return ""
 
+    @staticmethod
     def getHTMLFromBase64(htmlBase64: str) -> str:
-        """ get HTML text From Base64 data
+        """ Get HTML text from Base64 data
         """
         decoded_bytes = ""
         try:

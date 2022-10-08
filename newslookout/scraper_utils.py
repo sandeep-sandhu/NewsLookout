@@ -130,7 +130,7 @@ def removeInValidArticles(articleList: list, invalidURLPatternsList: list) -> li
     return valid_articles
 
 
-def clean_non_utf8(input_text: bytes | str) -> str:
+def clean_non_utf8(input_text) -> str:
     """ Remove any non utf-8 characters by encoding/decoding into UTF-8
 
     :param input_text: Text to clean up.
@@ -312,8 +312,8 @@ def cutStrBetweenTags(sourceStr, startTagStr, endTagStr) -> str:
     return resultStr
 
 
-def checkAndParseDate(dateStr: str | datetime) -> datetime:
-    """ Check and Parse Date String, set it to todays date if its in future
+def checkAndParseDate(dateStr) -> datetime:
+    """ Check and Parse Date String, if its in the future then set it to today's date
     """
     runDate = datetime.now()
     logger.debug("Checking date string: %s", dateStr)
@@ -353,7 +353,7 @@ def getNextDaysDate(runDate: datetime) -> datetime:
     return businessDate
 
 
-def getPreviousDaysDate(runDate: str | datetime) -> datetime:
+def getPreviousDaysDate(runDate) -> datetime:
     """ Given a date input, get date object of the previous day.
 
     :parameter runDate: The query date

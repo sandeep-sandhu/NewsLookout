@@ -384,7 +384,7 @@ class BasePlugin:
         return list_of_files
 
     @staticmethod
-    def identifyDataPathForRunDate(data_directory: str, business_date: str | datetime) -> str:
+    def identifyDataPathForRunDate(data_directory: str, business_date) -> str:
         """ Identify the data directory path for a given run-date
 
         :rtype: str
@@ -729,7 +729,7 @@ class BasePlugin:
         return allURLs
 
     @staticmethod
-    def extractPublishedDate(htmlText: bytes | str,
+    def extractPublishedDate(htmlText,
                              date_regex_patterns: dict,
                              URL: str = '',
                              plugin_name: str = '') -> datetime:
