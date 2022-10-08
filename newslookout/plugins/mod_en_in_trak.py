@@ -141,7 +141,7 @@ class mod_en_in_trak(BasePlugin):
         super().__init__()
 
     # Special function for this plugin
-    def extractUniqueIDFromContent(self, htmlContent: str|bytes, URLToFetch: str) -> str:
+    def extractUniqueIDFromContent(self, htmlContent, URLToFetch: str) -> str:
         """ Identify Unique ID From content
         Pattern: <link rel='shortlink' href='https://trak.in/?p=119415' />
         """
