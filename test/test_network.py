@@ -59,10 +59,10 @@ from . import getAppFolders, getMockAppInstance #, list_all_files, read_bz2html_
 def app_inst(tmpdir):
     """Connect to db before tests, disconnect after."""
     # Setup : start app
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
 
     yield
     # Teardown : stop app
@@ -71,10 +71,10 @@ def app_inst(tmpdir):
 
 def test_fetchRawDataFromURL():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     import network
     allowedDomains = ['google.com']
     netw_inst = network.NetworkFetcher(app_inst.app_config, allowedDomains)
@@ -85,7 +85,7 @@ def test_fetchRawDataFromURL():
 
 
 def test_sleepBeforeNextFetch():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import network
     startTime = datetime.now()
     network.NetworkFetcher.sleepBeforeNextFetch()

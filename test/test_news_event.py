@@ -42,7 +42,7 @@ from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_fi
 
 
 def test_setClassification():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import news_event
     thisObj = news_event.NewsEvent()
     classificationScores = {'positive': 0.90, 'neutral': 0.10, 'negative': 0.25}
@@ -52,7 +52,7 @@ def test_setClassification():
 
 
 def test_setModuleName():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import news_event
     thisObj = news_event.NewsEvent()
     thisObj.setModuleName('mod_myplugin_zyx')
@@ -60,7 +60,7 @@ def test_setModuleName():
 
 
 def test_setTriggerWordFlag():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import news_event
     thisObj = news_event.NewsEvent()
     thisObj.setTriggerWordFlag('key1', 0)
@@ -71,7 +71,7 @@ def test_setTriggerWordFlag():
 
 
 def test_toJSON():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import news_event
     import json
     thisObj = news_event.NewsEvent()
@@ -86,7 +86,7 @@ def test_toJSON():
 
 
 def test_setIndustries():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import news_event
     thisObj = news_event.NewsEvent()
     articleIndustryList = ['Auto', 'BFSI']
@@ -95,7 +95,7 @@ def test_setIndustries():
 
 
 def test_setArticleID():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import news_event
     thisObj = news_event.NewsEvent()
     uniqueID = '102847593'
@@ -104,7 +104,7 @@ def test_setArticleID():
 
 
 def test_readFromJSON():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import news_event
     thisObj = news_event.NewsEvent()
     # get json from test-data folder
@@ -116,7 +116,7 @@ def test_readFromJSON():
         'readFromJSON() is not working correctly, title not read correctly.'
 
 def test_cleanText():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import news_event
     testData = ' This is SOME dirty text.â€™🙂â™\t '
     resultData = news_event.NewsEvent.cleanText(testData)
@@ -137,7 +137,7 @@ def test_writeFiles():
     assert 1==1, 'writeFiles() is not working correctly'
 
 def test_importNewspaperArticleData():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import news_event
     thisObj = news_event.NewsEvent()
     from newspaper import Article

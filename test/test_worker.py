@@ -46,11 +46,11 @@ global app_inst
 
 def test_worker_init():
     # Test PluginWorker object init.
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     global app_inst
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     app_inst.app_queue_manager.config(app_inst.app_config)
     from plugins.mod_en_in_inexp_business import mod_en_in_inexp_business
     import data_structs
@@ -100,11 +100,11 @@ def test_worker_init():
 
 def test_ProgressWatcher_init():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     global app_inst
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     app_inst.app_queue_manager.config(app_inst.app_config)
     from plugins.mod_en_in_inexp_business import mod_en_in_inexp_business
     import data_structs

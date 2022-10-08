@@ -68,10 +68,10 @@ class NewsLookout:
     Main class that runs the entire application.
     """
 
-    config_file = os.path.join('conf', 'newslookout.conf')
-    run_date = datetime.now().strftime('%Y-%m-%d')
-    app_config = None
-    app_queue_manager = None
+    config_file: str = os.path.join('conf', 'newslookout.conf')
+    run_date: str = datetime.now().strftime('%Y-%m-%d')
+    app_config: ConfigManager = None
+    app_queue_manager: QueueManager = None
 
     def __init__(self):
         """

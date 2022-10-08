@@ -39,6 +39,8 @@ import network
 import queue
 import threading
 import logging
+
+
 from . import getAppFolders, getMockAppInstance
 from . import list_all_files, read_bz2html_file
 from . import altfetchRawDataFromURL, get_network_substitute_fun
@@ -99,13 +101,13 @@ def test_clearQueue():
 def testPluginSubClass():
     """Test case Base Plugin Class
     """
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     runDateString = '2021-06-10'
     global app_inst
     global pluginClassInst
     app_inst = getMockAppInstance(parentFolder,
                                   runDateString,
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     # import application specific modules:
     from plugins.mod_en_in_ecotimes import mod_en_in_ecotimes
     import data_structs
@@ -171,11 +173,11 @@ def testPluginSubClass():
 
 def test_filterNonContentURLs():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     from plugins.mod_en_in_ecotimes import mod_en_in_ecotimes
     pluginClassInst = mod_en_in_ecotimes()
     longURL1 = "https://economictimes.indiatimes.com/industry/banking/finance/pnb-housing-finance-carlyle-deal-" +\
@@ -201,7 +203,7 @@ def test_getArticlesListFromRSS():
     # Test getArticlesListFromRSS()
     global pluginClassInst
     print(f'Instantiated plugin name: {pluginClassInst.pluginName}')
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     listofFiles = [i for i in list_all_files(testdataFolder) if i.find('mod_en_in_ecotimes') >= 0 and i.find('.xml')> 0]
     rssFileName = listofFiles[0]
     # monkey patch to prevent network fetch!
@@ -220,7 +222,7 @@ def test_getArticlesListFromRSS():
 def test_loadDocument():
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     jsonFileName = os.path.join(testdataFolder, 'test_readFromJSON.json')
     document = pluginClassInst.loadDocument(jsonFileName)
     assert document.getFileName() == jsonFileName, "loadDocument() could not set the proper file name."
@@ -242,8 +244,9 @@ def test_fetchDataFromURL():
     :return:
     """
     global pluginClassInst
+    global app_inst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import data_structs
     # monkey patch to substitute network fetch.
     pluginClassInst.networkHelper.fetchRawDataFromURL = get_network_substitute_fun(
@@ -268,7 +271,7 @@ def test_fetchDataFromURL():
     assert resultVal.publishDate == datetime.strptime('2020-02-01','%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.articleID == '73837853', 'fetchDataFromURL() not identifying unique ID correctly.'
     assert resultVal.textSize == 2687, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.savedDataFileName == os.path.join('./data', '2020-02-01', 'mod_en_in_ecotimes_73837853'),\
+    assert resultVal.savedDataFileName == os.path.join(app_inst.app_config.data_dir, '2020-02-01', 'mod_en_in_ecotimes_73837853'),\
         'fetchDataFromURL() not saving parsed data correctly.'
     assert len(resultVal.additionalLinks) == 40, 'fetchDataFromURL() not extracting additional links correctly.'
     if os.path.isfile(resultVal.savedDataFileName + ".json"):

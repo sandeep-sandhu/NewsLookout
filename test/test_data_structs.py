@@ -72,13 +72,13 @@ def test_ExecutionResult_init():
 
 def test_QueueStatus_init():
     # TODO: implement this - instantiation of object of type QueueStatus()
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     runDateString = '2021-06-10'
     global app_inst
     global pluginClassInst
     app_inst = getMockAppInstance(parentFolder,
                                   runDateString,
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     app_inst.app_queue_manager.config(app_inst.app_config)
     qstatusobj = QueueStatus(app_inst.app_queue_manager)
     qstatusobj.updateStatus()

@@ -53,13 +53,13 @@ logger = logging.getLogger(__name__)
 def testPluginSubClass():
     """Test case Base Plugin Class
     """
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     runDateString = '2021-06-10'
     global app_inst
     global pluginClassInst
     app_inst = getMockAppInstance(parentFolder,
                                   runDateString,
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     # import application specific modules:
     from plugins.mod_in_gdelt import mod_in_gdelt
     import data_structs
@@ -91,7 +91,7 @@ def test_prepare_url_datadir_for_date():
     print(f'resultURL1 = {resultURL1} and resultDir1 = {resultDir1}')
     expectedURL1 = 'http://data.gdeltproject.org/events/20210228.export.CSV.zip'
     assert resultURL1 == expectedURL1, 'prepare_url_datadir_for_date() not preparing GDELT URL1 correctly.'
-    assert resultDir1 == os.path.join('./data', '2021-02-28'),\
+    assert resultDir1 == os.path.join(app_inst.app_config.data_dir, '2021-02-28'),\
         'prepare_url_datadir_for_date() not calculating data directory correctly.'
     date_obj_2 = datetime.datetime.strptime('2020-03-02', '%Y-%m-%d')
     resultURL2, resultDir2 = pluginClassInst.prepare_url_datadir_for_date(date_obj_2)
@@ -109,7 +109,7 @@ def test_extract_csvlist_from_archive():
     # Test extract_csvlist_from_archive(archive_bytes, dataDirForDate)
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     test_files_list = [i for i in list_all_files(testdataFolder)
                        if i.find(pluginClassInst.pluginName) > -1 and i.endswith('.zip')]
     print(f'Test file: {test_files_list[0]}')
@@ -120,7 +120,7 @@ def test_extract_csvlist_from_archive():
     csv_filenames = pluginClassInst.extract_csvlist_from_archive(zipcontent, dataDirForDate)
     print(f'Extracted data files from archive: {csv_filenames}')
     assert len(csv_filenames) == 1, 'extract_csvlist_from_archive() extracted incorrect number of data files'
-    assert os.path.join('./data', '2021-02-01','mod_in_gdelt_20210203.txt') == csv_filenames[0],\
+    assert os.path.join(app_inst.app_config.data_dir, '2021-02-01','mod_in_gdelt_20210203.txt') == csv_filenames[0],\
         'extract_csvlist_from_archive() incorrectly extracting data files from archive'
     run_extract_urls_from_csv(csv_filenames[0])
     if os.path.isfile(csv_filenames[0]):

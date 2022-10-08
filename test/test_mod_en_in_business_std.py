@@ -55,7 +55,7 @@ logger = logging.getLogger(__name__)
 def testPluginSubClass():
     """Test case Base Plugin Class
     """
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     nltk_path = os.path.join(testdataFolder, 'nltk_data')
     print(f'Path for NLTK data is: {nltk_path}')
     os.environ["NLTK_DATA"] = nltk_path
@@ -64,7 +64,7 @@ def testPluginSubClass():
     global pluginClassInst
     app_inst = getMockAppInstance(parentFolder,
                                   runDateString,
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     # import application specific modules:
     from plugins.mod_en_in_business_std import mod_en_in_business_std
     import data_structs
@@ -95,7 +95,7 @@ def test_fetchDataFromURL():
     """
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     nltk_path = os.path.join(testdataFolder, 'nltk_data')
     print(f'Path for NLTK data is: {nltk_path}')
     os.environ["NLTK_DATA"] = nltk_path

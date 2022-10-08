@@ -378,18 +378,26 @@ class mod_in_nse(BasePlugin):
                                  urlPattern)
         return((date_obj, uniqueString))
 
-    def processAnnouncements(self, announceFileFullPath, archiveURL):
-        """ Process all company Announcements to the exchange
+    def processAnnouncements(self, announceFileFullPath: str, archiveURL: str):
+        """
+        Process all company Announcements to the exchange. Write extracted announcements to a file.
+
+        :param announceFileFullPath:
+        :param archiveURL:
+        :return:
         """
         logger.debug("Processing announcements for file: %s", announceFileFullPath)
         try:
+            # each announcement record is supposed to be on a single line as key-value pairs (key:value)
             recordPrefixPat = re.compile(r'([a-zA-Z0-9\(\)¿ \-.^:]{3,})([ ]+[a-zA-Z0-9\-]{2,})([ ]+:)')
             with open(announceFileFullPath, 'rt') as fp:
                 fileRecords = fp.readlines()
                 fp.close()
-            logger.debug("Read %s announcements.", len(fileRecords))
+            logger.debug(f"Read {len(fileRecords)} announcements from file {announceFileFullPath}.")
+            # iterate through all lines in the file:
             for index, announceRecord in enumerate(fileRecords):
                 try:
+                    # some records contain newlines, hence span multiple lines, identify and ignore those lines:
                     if (index > 0 and announceRecord.find(':') > -1 and
                             announceRecord.lower().find("declaration of nav ") < 0 and
                             announceRecord.lower().find("recommended final dividend") < 0 and
@@ -399,14 +407,17 @@ class mod_in_nse(BasePlugin):
                             announceRecord.lower().find("suspension of trading") < 0 and
                             announceRecord.lower().find("postal ballot") < 0):
                         recordPrefix = announceRecord[: announceRecord.find(':')+1]
+                        logger.debug(f"Identified valid record, the record key is: {recordPrefix}")
                         announceContent = announceRecord[announceRecord.find(':')+1:]
                         if index+1 < len(fileRecords) and fileRecords[index+1].find(':') == -1:
+                            logger.debug(f"Adding partial record from {index+1}th line: {fileRecords[index+1]}")
                             announceContent = announceContent + " " + fileRecords[index+1]
                         searchRes = recordPrefixPat.search(recordPrefix)
                         if searchRes is not None:
                             entityName = searchRes.group(1)
                             companySymbol = searchRes.group(2).strip()
-                            thisArticle = NewsEvent()  # make article for each announcement
+                            logger.debug(f"Identified an announcement, constructing article object for: {entityName}")
+                            thisArticle = NewsEvent()
                             thisArticle.setPublishDate(self.app_config.rundate)
                             thisArticle.setModuleName(self.pluginName)
                             thisArticle.setIndustries([companySymbol])
@@ -416,6 +427,7 @@ class mod_in_nse(BasePlugin):
                             thisArticle.setURL(archiveURL)
                             # save each article to its unique filename: company symbol, limited to 10 characters
                             articleUniqueID = str(companySymbol.strip()[:10])
+                            logger.debug(f"Identified announcement unique ID as: {articleUniqueID}")
                             thisArticle.setArticleID(articleUniqueID)
                             thisArticle.setSource('NSE')
                             filename = BasePlugin.makeUniqueFileName(
@@ -423,12 +435,13 @@ class mod_in_nse(BasePlugin):
                                 self.identifyDataPathForRunDate(self.baseDirName, thisArticle.getPublishDate()),
                                 articleUniqueID,
                                 URL=archiveURL)
+                            logger.debug(f"Writing to unique file: {filename}")
                             thisArticle.writeFiles(
                                 os.path.join(self.app_config.data_dir,filename),
                                 announceContent,
                                 False)
                         else:
-                            logger.debug("Skipping record %s as it is not properly formatted.", index)
+                            logger.debug("Skipping NSE announcement record %s as it is not properly formatted.", index)
                 except Exception as e:
                     logger.error("Error processing NSE announcement no %s: %s", index, e)
         except Exception as e:

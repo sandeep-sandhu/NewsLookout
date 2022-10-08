@@ -54,13 +54,13 @@ logger = logging.getLogger(__name__)
 def testPluginSubClass():
     """Test case Base Plugin Class
     """
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     runDateString = '2021-06-10'
     global app_inst
     global pluginClassInst
     app_inst = getMockAppInstance(parentFolder,
                                   runDateString,
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     # import application specific modules:
     from plugins.mod_en_in_ndtv import mod_en_in_ndtv
     import data_structs
@@ -92,7 +92,7 @@ def test_fetchDataFromURL():
     """
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import data_structs
     # monkey patch to substitute network fetch.
     pluginClassInst.networkHelper.fetchRawDataFromURL = get_network_substitute_fun(
@@ -116,7 +116,7 @@ def test_fetchDataFromURL():
     assert resultVal.publishDate == datetime.strptime('2021-02-18','%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.articleID == '2373245', 'fetchDataFromURL() not identifying unique ID correctly.'
     assert resultVal.textSize == 3519, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.savedDataFileName == os.path.join('./data', '2021-02-18', 'mod_en_in_ndtv_2373245'), \
+    assert resultVal.savedDataFileName == os.path.join(app_inst.app_config.data_dir, '2021-02-18', 'mod_en_in_ndtv_2373245'), \
         'fetchDataFromURL() not saving parsed data correctly.'
     assert len(resultVal.additionalLinks) == 15, 'fetchDataFromURL() not extracting additional links correctly.'
     if os.path.isfile(resultVal.savedDataFileName + ".json"):

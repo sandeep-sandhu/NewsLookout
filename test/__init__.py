@@ -30,6 +30,7 @@
 import sys
 import os
 
+
 def getAppFolders():
     testfolder = os.path.dirname(os.path.realpath(__file__))
     parentFolder = os.path.dirname(testfolder)
@@ -38,10 +39,11 @@ def getAppFolders():
     sys.path.append(os.path.join(sourceFolder, 'plugins'))
     sys.path.append(os.path.join(sourceFolder, 'plugins_contrib'))
     testdataFolder = os.path.join(parentFolder, 'test-data')
-    return((parentFolder, sourceFolder, testdataFolder))
+    config_file = os.path.join(testdataFolder, 'newslookout_test.conf')
+    return((parentFolder, sourceFolder, testdataFolder, config_file))
 
 
-def getMockAppInstance(parentFolder, rundate, configfile):
+def getMockAppInstance(parentFolder: str, rundate: str, configfile: str):
     from scraper_app import NewsLookout
     mock_sys_argv = ['python.exe', '-c', configfile,
                      '-d', rundate]
@@ -101,7 +103,7 @@ def get_network_substitute_fun(plugin_name: str, testdata_dir: str, file_no: int
     return(replacement_fun)
 
 
-(parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+(parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
 os.chdir(parentFolder)
 
 __version__ = '2.0.0'
