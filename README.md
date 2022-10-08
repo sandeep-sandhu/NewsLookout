@@ -35,7 +35,7 @@ A few notable ones are:
 - [x] Extensible data processing plugins to customize the data processing required after web scraping
 - [x] Enables web-scraping news archives to get news from previous dates for establishing history for analysis
 - [x] Saves the current session state and resumes downloading unfinished URLs in case the application is shut-down midway during web scraping
-
+- [x] Docker file available to build and deploy the application in a container either standalone or in a Kubernetes cluster
 
 ## Installation
 Install the dependencies using pip:

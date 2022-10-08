@@ -13,5 +13,5 @@ exclude_lines =
 
 [paths]
 source =
-    src
+    newslookout
     test
