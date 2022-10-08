@@ -4,11 +4,17 @@ FROM python:latest
 
 WORKDIR /opt
 
+RUN mkdir -p /var/log/newslookout \
+    && mkdir -p /var/cache/newslookout_data \
+    && mkdir -p /var/run/newslookout \
+    && mkdir -p /etc/newslookout \
+    && mkdir -p /opt/newslookout/models/nltk \
+    && mkdir -p /opt/newslookout/models/bert_models
 
-RUN mkdir -p /var/log/newslookout && mkdir -p /var/cache/newslookout_data && mkdir -p /var/run/newslookout && mkdir -p /etc/newslookout
-
-ENV NLTK_DATA="/var/cache/newslookout_data/nltk"
-ENV NEWSLOKOUT_DATA="/var/cache/newslookout_data"
+ENV NLTK_DATA="/opt/newslookout/models/nltk"
+ENV NEWSLOOKOUT_DATA="/var/cache/newslookout_data"
+ENV NEWSLOOKOUT_HOME="/opt/newslookout"
+ENV NEWSLOOKOUT_CONFIG="/etc/newslookout/newslookout.conf"
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
@@ -16,6 +22,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # install the models for natural language processing:
 RUN python3 -m spacy download en_core_web_lg \
     && python3 -c "import nltk; nltk.download('punkt'); nltk.download('maxent_treebank_pos_tagger'); nltk.download('reuters'); nltk.download('universal_treebanks_v20')"
+
+# copy finbert model weights
+COPY models/finbert /opt/newslookout/models/bert_models
 
 LABEL \
     maintainer="sandeep.sandhu@gmx.com" \
@@ -29,7 +38,7 @@ LABEL \
 
 ENV GITHUB_RELEASE_URL=https://github.com/sandeep-sandhu/NewsLookout/releases/latest
 
-RUN useradd -ms /bin/bash newslookout && mkdir -p /opt/models
+RUN useradd -ms /bin/bash newslookout
 
 # Assumes the latest NewsLookout release has been downloaded
 # from the Github release page to the local directory:
@@ -37,7 +46,7 @@ COPY newslookout /opt/newslookout
 
 COPY newslookout.sh /opt/
 
-COPY conf/newslookout_unix.conf /etc/newslookout/newslookout.conf
+COPY docker/newslookout_docker.conf $NEWSLOOKOUT_CONFIG
 
 CMD [ "bash", "/opt/newslookout.sh" ]
 

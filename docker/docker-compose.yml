@@ -11,52 +11,29 @@ services:
     container_name: newslookout
 
     environment:
-      - NLTK_DATA="/opt/models/nltk"
-      - "TZ=Asia/Kolkata"
+      - NLTK_DATA="/opt/newslookout/models/nltk"
+      - NEWSLOOKOUT_DATA="/var/cache/newslookout_data"
+      - NEWSLOOKOUT_HOME="/opt/newslookout"
+      - NEWSLOOKOUT_CONFIG="/etc/newslookout/newslookout.conf"
+      # set default time zone to: Indian Standard Time
+      - TZ="Asia/Kolkata"
+      # this flag will make main script wait after application run has finished,
+      # remove this to make it exit when program run is completed.
+      - NEWSLOOKOUT_PERSIST_AFTER_RUN="True"
 
     volumes:
-      # - host_config:/etc/newslookout:rw
-      - host_dataset:/var/cache/newslookout_data:rw
-      - host_models:/opt/models:rw
-      - host_logs:/var/log/newslookout:rw
+      - C:\shared\newslookout\conf:/etc/newslookout:rw
+      - c:\shared\newslookout\web_scraped_data:/var/cache/newslookout_data:rw
+      - c:\shared\newslookout\models:/opt/models:rw
+      - c:\shared\newslookout\logs:/var/log/newslookout:rw
 
     # networks:
       # - newslookout_network
 
     ports:
       - '22:1022'
+      - '80:8080'
 
 networks:
   # The presence of these objects is sufficient to define them
   newslookout_network: {}
-
-volumes:
-
-  host_config:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: C:\shared\newslookout\conf
-
-  host_dataset:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: c:\shared\newslookout\web_scraped_data
-
-  host_models:
-    # for storing the BERT and other NLP model files.
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: c:\shared\newslookout\models
-
-  host_logs:
-    driver: local
-    driver_opts:
-      type: none
-      o: bind
-      device: c:\shared\newslookout\logs
