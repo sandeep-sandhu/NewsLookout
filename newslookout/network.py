@@ -290,7 +290,7 @@ class NetworkFetcher:
     def getHTTPData(self,
                     uRLtoFetch: str,
                     postHeaders: dict = None,
-                    pluginName: str = None) -> requests.Response | None:
+                    pluginName: str = None) -> requests.Response:
         """Fetch data using HTTP(s) GET Method, send back response object.
         Uses custom agent, proxy and timeouts configured for the network Fetcher object
 
