@@ -199,7 +199,7 @@ class mod_en_in_trak(BasePlugin):
                          industryPattern)
         return(industries)
 
-    def extractAuthors(self, htmlText: str|bytes) -> list:
+    def extractAuthors(self, htmlText) -> list:
         """ Extract the author from the html content
         """
         authors = []
@@ -220,7 +220,7 @@ class mod_en_in_trak(BasePlugin):
                              e, authorStr, self.URLToFetch)
         return(authors)
 
-    def extractArticleBody(self, htmlContent: str|bytes) -> str:
+    def extractArticleBody(self, htmlContent) -> str:
         """ extract the text body of the article
         """
         body_text = ""
