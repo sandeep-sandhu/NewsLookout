@@ -226,7 +226,7 @@ class NetworkFetcher:
 
     def getDataFromHTTPResponse(self,
                                 httpsResponse: requests.Response,
-                                getBytes: bool) -> str | None:
+                                getBytes: bool) -> str:
         """ Get data From HTTP response.
 
         :param httpsResponse:
