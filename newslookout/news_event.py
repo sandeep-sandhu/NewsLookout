@@ -63,33 +63,38 @@ class NewsEvent(JSONEncoder):
     uniqueID = ""
     html = None
 
-    def getPublishDate(self):
-        return(self.urlData["pubdate"])
+    def getPublishDate(self) -> datetime:
+        if type(self.urlData["pubdate"]) == datetime:
+            return self.urlData["pubdate"]
+        else:
+            return datetime.strptime(self.urlData["pubdate"], '%Y-%m-%d')
 
-    def getURL(self):
-        return(self.urlData["URL"])
+    def getURL(self) -> str:
+        return self.urlData["URL"]
 
-    def getModuleName(self):
+    def getModuleName(self) -> str:
         """ get the name of the module that generated this news item"""
-        return(self.urlData["module"])
+        return self.urlData["module"]
 
-    def getHTML(self):
-        return(self.html)
+    def getHTML(self) -> str:
+        return self.html
 
-    def getBase64FromHTML(articleHTMLText):
+    def getBase64FromHTML(articleHTMLText: str | bytes) -> str:
         """ Get Base64 text data From HTML text
         """
-        htmlBase64 = ""
+        encodedBytes = b""
         try:
-            encodedBytes = base64.b64encode(articleHTMLText.encode("utf-8"))
-            htmlBase64 = str(encodedBytes, "ascii")
-
+            if type(articleHTMLText) == str:
+                encodedBytes = base64.b64encode(articleHTMLText.encode("utf-8"))
+            elif type(articleHTMLText) == bytes:
+                encodedBytes = base64.b64encode(articleHTMLText)
+            return str(encodedBytes, "ascii")
         except Exception as e:
             logger.error("Error setting html content: %s", e)
+        # on error, return empty string
+        return ""
 
-        return(htmlBase64)
-
-    def getHTMLFromBase64(htmlBase64):
+    def getHTMLFromBase64(htmlBase64: str) -> str:
         """ get HTML text From Base64 data
         """
         decoded_bytes = ""
@@ -98,15 +103,15 @@ class NewsEvent(JSONEncoder):
             decoded_bytes = base64.b64decode(base64_bytes)
         except Exception as e:
             logger.error("Error setting html content: %s", e)
-        return(decoded_bytes.decode('utf-8'))
+        return decoded_bytes.decode('utf-8')
 
-    def getText(self):
+    def getText(self) -> str:
         textContent = ""
         if "text" in self.urlData.keys():
             textContent = self.urlData["text"]
         else:
             logger.error("Article does not have any text field")
-        return(textContent)
+        return textContent
 
     def getClassification(self):
         classContent = None
@@ -114,41 +119,41 @@ class NewsEvent(JSONEncoder):
             classContent = self.urlData['classification']
         else:
             logger.debug("Article does not have any classification field")
-        return(classContent)
+        return classContent
 
-    def getTextSize(self):
+    def getTextSize(self) -> int:
         textSize = 0
         try:
             textSize = len(self.getText())
         except Exception as e:
             logger.error("Error getting text size of article: %s", e)
-        return(textSize)
+        return textSize
 
-    def getHTMLSize(self):
+    def getHTMLSize(self) -> int:
         htmlSize = 0
         try:
             htmlSize = len(self.html)
         except Exception as e:
             logger.error("Error getting html size of article: %s", e)
-        return(htmlSize)
+        return htmlSize
 
-    def getAuthors(self):
-        return(self.urlData["sourceName"])
+    def getAuthors(self) -> list:
+        return self.urlData["sourceName"]
 
     def getTriggerWords(self):
-        return(self.triggerWordFlags)
+        return self.triggerWordFlags
 
-    def getKeywords(self):
-        return(self.urlData["keywords"])
+    def getKeywords(self) -> list:
+        return self.urlData["keywords"]
 
-    def getArticleID(self):
-        return(self.urlData["uniqueID"])
+    def getArticleID(self) -> int:
+        return self.urlData["uniqueID"]
 
     def getTextEmbedding(self):
-        return(self.nlpDoc)
+        return self.nlpDoc
 
-    def getFileName(self):
-        return(self.fileName)
+    def getFileName(self) -> str:
+        return self.fileName
 
     def setClassification(self, classificationObj):
         self.urlData['classification'] = classificationObj
@@ -159,7 +164,7 @@ class NewsEvent(JSONEncoder):
     def setHTML(self, htmlContent):
         self.html = htmlContent
 
-    def setFileName(self, fileName):
+    def setFileName(self, fileName: str):
         self.fileName = fileName
 
     def setPublishDate(self, publishDate):
@@ -170,11 +175,11 @@ class NewsEvent(JSONEncoder):
             logger.error("Error setting publish date of article: %s", e)
             self.urlData["pubdate"] = str(datetime.now().strftime("%Y-%m-%d"))
 
-    def setModuleName(self, moduleName):
+    def setModuleName(self, moduleName: str):
         """ Set the name of the module that generated this news item"""
         self.urlData["module"] = moduleName
 
-    def setTriggerWordFlag(self, triggerKey, triggerFlag):
+    def setTriggerWordFlag(self, triggerKey: str, triggerFlag):
         """ Add trigger word flag value for given article"""
         self.triggerWordFlags[triggerKey] = triggerFlag
 
@@ -192,7 +197,7 @@ class NewsEvent(JSONEncoder):
                         self.setTriggerWordFlag(key, 0)
         self.urlData["triggerwords"] = self.triggerWordFlags
 
-    def setTitle(self, articleTitle):
+    def setTitle(self, articleTitle: str):
         """ Set the title """
         self.urlData["title"] = str(articleTitle)
 
@@ -232,13 +237,13 @@ class NewsEvent(JSONEncoder):
         elif type(sourceNames) == list:
             self.urlData["sourceName"] = sourceNames
 
-    def toJSON(self):
+    def toJSON(self) -> str:
         """ Converts python object into json.
         See reference page at - https://docs.python.org/3/library/json.html
         """
         return json.dumps(self.urlData)
 
-    def readFromJSON(self, jsonFileName):
+    def readFromJSON(self, jsonFileName: str):
         """ read from JSON file into object
         """
         # logger.debug("Reading JSON file to load previously saved article %s", jsonFileName)
@@ -250,7 +255,7 @@ class NewsEvent(JSONEncoder):
             logger.error("Exception caught reading JSON file %s: %s", jsonFileName, theError)
 
     @staticmethod
-    def cleanText(textInput):
+    def cleanText(textInput) -> str:
         """ Clean text - replace unicode characters, fix space gaps, remove repeated characters, etc.
 
         :parameter textInput: The text string to clean
@@ -303,9 +308,9 @@ class NewsEvent(JSONEncoder):
                 cleanText = cleanText.strip()
             except Exception as e:
                 logger.error(f"Error cleaning text encoding: {e}")
-        return(cleanText)
+        return cleanText
 
-    def writeFiles(self, fileNameWithOutExt, htmlContent, saveHTMLFile=False):
+    def writeFiles(self, fileNameWithOutExt: str, htmlContent, saveHTMLFile: bool = False):
         """ Write news event data urlData to JSON file.
          Optionally, saves HTML data into a corresponding html file.
 

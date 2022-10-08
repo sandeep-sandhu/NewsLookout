@@ -40,7 +40,7 @@ import zipfile
 from io import BytesIO
 
 import scraper_utils
-from data_structs import Types
+from data_structs import PluginTypes
 from base_plugin import BasePlugin
 from scraper_utils import deDupeList
 
@@ -61,7 +61,7 @@ class mod_in_gdelt(BasePlugin):
     minArticleLengthInChars = 400
 
     # implies web-scraper for news content, see data_structs.py for other types
-    pluginType = Types.MODULE_NEWS_AGGREGATOR
+    pluginType = PluginTypes.MODULE_NEWS_AGGREGATOR
 
     # main webpage URL
     mainURL = "http://data.gdeltproject.org/events/YYYYMMDD.export.CSV.zip"
@@ -118,7 +118,7 @@ class mod_in_gdelt(BasePlugin):
 
     def getURLsListForDate(self, runDate: datetime, sessionHistoryDB: SessionHistory) -> list:
         """ Extract article list from the main URL.
-        Since this is only a news aggregator, sets the plugin state to Types.STATE_STOPPED
+        Since this is only a news aggregator, sets the plugin state to PluginTypes.STATE_STOPPED
          at the end of this method.
 
         :param sessionHistoryDB: Not used in this function
@@ -143,14 +143,14 @@ class mod_in_gdelt(BasePlugin):
         except Exception as e:
             logger.error("%s: When Extracting URL list from main URL, error was: %s",
                          self.pluginName, e)
-        self.pluginState = Types.STATE_STOPPED
+        self.pluginState = PluginTypes.STATE_STOPPED
         return(urlList)
 
-    def prepare_url_datadir_for_date(self, rundate_obj: datetime) -> str:
+    def prepare_url_datadir_for_date(self, rundate_obj: datetime) -> tuple:
         """ Prepare URL from given Date.
 
         :param rundate_obj: Date for the URL
-        :return: The destination directory to save the data for this date.
+        :return: A tuple with the URL and the destination directory to save the data for this date.
         """
         url_prepared_for_date = None
         prevDay = scraper_utils.getPreviousDaysDate(rundate_obj)

@@ -33,10 +33,14 @@
 # import standard python libraries:
 import sys
 import os
+from datetime import datetime
+
 import network
 import queue
 import threading
 import logging
+
+
 from . import getAppFolders, getMockAppInstance
 from . import list_all_files, read_bz2html_file
 from . import altfetchRawDataFromURL, get_network_substitute_fun
@@ -97,13 +101,13 @@ def test_clearQueue():
 def testPluginSubClass():
     """Test case Base Plugin Class
     """
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     runDateString = '2021-06-10'
     global app_inst
     global pluginClassInst
     app_inst = getMockAppInstance(parentFolder,
                                   runDateString,
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     # import application specific modules:
     from plugins.mod_en_in_ecotimes import mod_en_in_ecotimes
     import data_structs
@@ -134,6 +138,8 @@ def testPluginSubClass():
         dbAccessSemaphore)
     (urlCount, SQLiteVersion) = sessionHistoryDB.printDBStats()
     print(f'Completed URL count = {urlCount}, SQlite version = {SQLiteVersion}')
+    # try getting html from test data directory:
+    _ = read_bz2html_file("file1.html.bz2")
     urlList = [
         'https://economictimes.indiatimes.com/blogs/et-editorials/systemic-remedies-beyond-yes-bank/fakeurl',
         'https://economictimes.indiatimes.com/blogs/et-editorials/how-to-really-get-banks-to-lend-more/anotherfake']
@@ -156,7 +162,7 @@ def testPluginSubClass():
     pluginClassInst.putQueueEndMarker()
     assert pluginClassInst.getNextItemFromFetchQueue() == urlList[1], "mod_en_in_ecotimes - Cannot retrieve item 2!"
     assert pluginClassInst.getNextItemFromFetchQueue() == None, "mod_en_in_ecotimes - Cannot retrieve queue sentinel!"
-    assert pluginClassInst.pluginState == data_structs.Types.STATE_FETCH_CONTENT,\
+    assert pluginClassInst.pluginState == data_structs.PluginTypes.STATE_FETCH_CONTENT,\
         "mod_en_in_ecotimes - Queue sentinel marker did not set the correct state"
     assert pluginClassInst.isQueueEmpty() is True, "mod_en_in_ecotimes - Queue is not empty!"
     datePath = pluginClassInst.identifyDataPathForRunDate(pluginClassInst.baseDirName, runDateString)
@@ -167,11 +173,11 @@ def testPluginSubClass():
 
 def test_filterNonContentURLs():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     from plugins.mod_en_in_ecotimes import mod_en_in_ecotimes
     pluginClassInst = mod_en_in_ecotimes()
     longURL1 = "https://economictimes.indiatimes.com/industry/banking/finance/pnb-housing-finance-carlyle-deal-" +\
@@ -197,7 +203,7 @@ def test_getArticlesListFromRSS():
     # Test getArticlesListFromRSS()
     global pluginClassInst
     print(f'Instantiated plugin name: {pluginClassInst.pluginName}')
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     listofFiles = [i for i in list_all_files(testdataFolder) if i.find('mod_en_in_ecotimes') >= 0 and i.find('.xml')> 0]
     rssFileName = listofFiles[0]
     # monkey patch to prevent network fetch!
@@ -216,7 +222,7 @@ def test_getArticlesListFromRSS():
 def test_loadDocument():
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     jsonFileName = os.path.join(testdataFolder, 'test_readFromJSON.json')
     document = pluginClassInst.loadDocument(jsonFileName)
     assert document.getFileName() == jsonFileName, "loadDocument() could not set the proper file name."
@@ -238,8 +244,9 @@ def test_fetchDataFromURL():
     :return:
     """
     global pluginClassInst
+    global app_inst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import data_structs
     # monkey patch to substitute network fetch.
     pluginClassInst.networkHelper.fetchRawDataFromURL = get_network_substitute_fun(
@@ -261,10 +268,10 @@ def test_fetchDataFromURL():
     assert type(resultVal) == data_structs.ExecutionResult, 'fetchDataFromURL() not returning exec result correctly.'
     assert resultVal.wasSuccessful is True, 'fetchDataFromURL() did not complete successfully'
     assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.publishDate == '2020-02-01', 'fetchDataFromURL() not parsing published date correctly.'
+    assert resultVal.publishDate == datetime.strptime('2020-02-01','%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.articleID == '73837853', 'fetchDataFromURL() not identifying unique ID correctly.'
     assert resultVal.textSize == 2687, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.savedDataFileName == os.path.join('./data', '2020-02-01', 'mod_en_in_ecotimes_73837853'),\
+    assert resultVal.savedDataFileName == os.path.join(app_inst.app_config.data_dir, '2020-02-01', 'mod_en_in_ecotimes_73837853'),\
         'fetchDataFromURL() not saving parsed data correctly.'
     assert len(resultVal.additionalLinks) == 40, 'fetchDataFromURL() not extracting additional links correctly.'
     if os.path.isfile(resultVal.savedDataFileName + ".json"):

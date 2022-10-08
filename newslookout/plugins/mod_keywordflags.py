@@ -39,7 +39,7 @@ from datetime import datetime
 
 # import this project's python libraries:
 from base_plugin import BasePlugin
-from data_structs import Types
+from data_structs import PluginTypes
 from news_event import NewsEvent
 
 ##########
@@ -54,7 +54,7 @@ class mod_keywordflags(BasePlugin):
     For generating indicator variables based on keywords matched in the downloaded data
     """
     minArticleLengthInChars = 400
-    pluginType = Types.MODULE_DATA_PROCESSOR  # implies data post-processor
+    pluginType = PluginTypes.MODULE_DATA_PROCESSOR  # implies data post-processor
     listOfFiles = []
 
     keyword_flag_regex = {
@@ -115,7 +115,7 @@ class mod_keywordflags(BasePlugin):
         :type newsEventObj: NewsEvent
         """
         assert type(newsEventObj) == NewsEvent, "processDataObj() received an object that is not of type NewsEvent"
-        runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')
+        runDate = newsEventObj.getPublishDate()
         logger.debug("Started keyword based flag derivation for news event: %s for date: %s",
                      newsEventObj.getFileName(), runDate.strftime('%Y-%m-%d'))
         self.identifyTriggerWordFlags(newsEventObj)

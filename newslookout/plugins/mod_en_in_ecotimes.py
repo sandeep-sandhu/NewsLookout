@@ -52,7 +52,7 @@ from bs4 import BeautifulSoup
 # import this project's python libraries:
 from base_plugin import BasePlugin
 from scraper_utils import getNetworkLocFromURL, filterRepeatedchars, deDupeList
-from data_structs import Types
+from data_structs import PluginTypes
 
 ##########
 
@@ -68,7 +68,7 @@ class mod_en_in_ecotimes(BasePlugin):
 
     minArticleLengthInChars = 400
 
-    pluginType = Types.MODULE_NEWS_CONTENT  # implies web-scraper for news content
+    pluginType = PluginTypes.MODULE_NEWS_CONTENT  # implies web-scraper for news content
 
     mainURL = 'https://economictimes.indiatimes.com/industry'
 
@@ -763,7 +763,7 @@ class mod_en_in_ecotimes(BasePlugin):
             logger.error("When extracting article content in format 5: %s", e)
         return(body_text)
 
-    def checkAndCleanText(self, inputText, rawData):
+    def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
         """
         cleanedText = inputText

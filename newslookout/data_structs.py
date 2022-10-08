@@ -9,7 +9,7 @@
 # Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com  #
 #                                                                                                         #
 # Provides:                                                                                               #
-#    Types                                                                                                #
+#    PluginTypes                                                                                                #
 #    ScrapeError                                                                                          #
 #    ExecutionResult                                                                                      #
 #    QueueStatus                                                                                          #
@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 ##########
 
 
-class Types:
+class PluginTypes:
     MODULE_NEWS_CONTENT = 1
     MODULE_NEWS_AGGREGATOR = 2
     MODULE_NEWS_API = 4
@@ -67,12 +67,12 @@ class Types:
     STATE_NOT_STARTED = 160
 
     @staticmethod
-    def decodeNameFromIntVal(typeIntValue):
-        attrNames = dir(Types)
+    def decodeNameFromIntVal(typeIntValue: int) -> str:
+        attrNames = dir(PluginTypes)
         for name in attrNames:
-            attrIntVal = getattr(Types, name, None)
+            attrIntVal = getattr(PluginTypes, name, None)
             if attrIntVal == typeIntValue:
-                return(name)
+                return name
 
 
 ##########
@@ -97,8 +97,16 @@ class ExecutionResult:
     articleID = None
     additionalLinks = []
 
-    def __init__(self, sURL, htmlContentLen, textContentLen, publishDate, pluginName,
-                 dataFileName=None, rawDataFile=None, success=False, additionalLinks=[]):
+    def __init__(self,
+                 sURL: str,
+                 htmlContentLen: int,
+                 textContentLen: int,
+                 publishDate: any,
+                 pluginName: str,
+                 dataFileName: str = None,
+                 rawDataFile: str = None,
+                 success: bool = False,
+                 additionalLinks: list = None):
         self.URL = sURL
         self.rawDataFileName = rawDataFile
         self.savedDataFileName = dataFileName
@@ -107,10 +115,15 @@ class ExecutionResult:
         self.publishDate = publishDate
         self.pluginName = pluginName
         self.wasSuccessful = success
-        self.additionalLinks = additionalLinks
+        if additionalLinks is not None:
+            self.additionalLinks = additionalLinks
+        else:
+            self.additionalLinks = []
 
-    def getAsTuple(self):
-        return((self.URL, self.pluginName, self.publishDate, self.rawDataSize, self.textSize))
+    def getAsTuple(self) -> tuple:
+        """" Get execution result details as a tuple.
+        """
+        return (self.URL, self.pluginName, self.publishDate, self.rawDataSize, self.textSize)
 
 
 class QueueStatus:
@@ -143,7 +156,7 @@ class QueueStatus:
     # - Data process completed queue size
     dataOutputQsize = 0
 
-    def __init__(self, queue_manager):
+    def __init__(self, queue_manager: object):
         """ Instantiate the Queue status object.
 
         :param queue_manager: The QueueManager instance
@@ -151,18 +164,18 @@ class QueueStatus:
         self.queue_mgr = queue_manager
         self.totalPluginsURLSourcing = self.queue_mgr.totalPluginsURLSrcCount
 
-    def get_plugin_state(self, plugin_name):
-        """ Get the state of the queried plugin
+    def get_plugin_state(self, plugin_name: str) -> str:
+        """ Get the state of the queried plugin.
 
         :param plugin_name: Name of the plugin being queried
         :param plugin_name: str
-        :return: pluginState value expressed as a Types attribute value
-        :rtype: int
+        :return: pluginState value expressed as a PluginTypes attribute value
+        :rtype: str
         """
         pluginStateInt = self.queue_mgr.pluginNameToObjMap[plugin_name].pluginState
-        return(Types.decodeNameFromIntVal(pluginStateInt))
+        return PluginTypes.decodeNameFromIntVal(pluginStateInt)
 
-    def any_newsagg_isactive(self):
+    def any_newsagg_isactive(self) -> bool:
         """ Check if any news aggregator is still actively fetching URL listing.
         Specifically, check if any plugin that is of news aggregator type is in URL listing state.
 
@@ -170,13 +183,14 @@ class QueueStatus:
         :rtype: bool
         """
         result = False
-        for pluginName in self.queue_mgr.pluginNameToObjMap.keys():
-            if self.queue_mgr.pluginNameToObjMap[pluginName].pluginType == Types.MODULE_NEWS_AGGREGATOR:
-                result = result or self.queue_mgr.pluginNameToObjMap[pluginName].pluginState == Types.STATE_GET_URL_LIST
-        return(result)
+        plugin_map = self.queue_mgr.pluginNameToObjMap
+        for pluginName in plugin_map.keys():
+            if plugin_map[pluginName].pluginType == PluginTypes.MODULE_NEWS_AGGREGATOR:
+                result = result or plugin_map[pluginName].pluginState == PluginTypes.STATE_GET_URL_LIST
+        return result
 
     @staticmethod
-    def getStatusChange(previousState, currentState):
+    def getStatusChange(previousState, currentState) -> list:
         """ Format the status change detected from comparing the previous state of plugins to its current state
         and output these are a list of messages to be logged into the event log.
         """
@@ -195,7 +209,7 @@ class QueueStatus:
                         currentState[pluginName].replace('STATE_', '').replace('_', ' '))
             except Exception as e:
                 logger.error("Progress watcher thread: Error comparing previous state of plugin: %s", e)
-        return(statusMessages)
+        return statusMessages
 
     def updateStatus(self):
         """ Update the queue status
@@ -217,15 +231,15 @@ class QueueStatus:
             self.isPluginStillFetchingoverNetwork = (
                 self.isPluginStillFetchingoverNetwork or
                 self.queue_mgr.pluginNameToObjMap[pluginName].pluginState in [
-                    Types.STATE_GET_URL_LIST, Types.STATE_FETCH_CONTENT]
+                    PluginTypes.STATE_GET_URL_LIST, PluginTypes.STATE_FETCH_CONTENT]
                 )
             self.areAllPluginsStopped = (
-                self.areAllPluginsStopped and
-                self.queue_mgr.pluginNameToObjMap[pluginName].pluginState == Types.STATE_STOPPED)
-            self.currentState[pluginName] = Types.decodeNameFromIntVal(
+                    self.areAllPluginsStopped and
+                    self.queue_mgr.pluginNameToObjMap[pluginName].pluginState == PluginTypes.STATE_STOPPED)
+            self.currentState[pluginName] = PluginTypes.decodeNameFromIntVal(
                 self.queue_mgr.pluginNameToObjMap[pluginName].pluginState
                 )
-            if self.queue_mgr.pluginNameToObjMap[pluginName].pluginState == Types.STATE_GET_URL_LIST:
+            if self.queue_mgr.pluginNameToObjMap[pluginName].pluginState == PluginTypes.STATE_GET_URL_LIST:
                 self.countOfPluginsInURLSrcState = self.countOfPluginsInURLSrcState + 1
         # update other queue parameters from the queue manager object
         self.fetchCompletQsize = self.queue_mgr.fetchCompletedQueue.qsize()

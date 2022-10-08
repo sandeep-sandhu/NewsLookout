@@ -1,0 +1,39 @@
+version: '3.2'
+
+# use this to startup the NewsLookout web scraper
+
+services:
+
+  newslookout_web_scraper:
+
+    image: newslookout:2.1.0
+
+    container_name: newslookout
+
+    environment:
+      - NLTK_DATA="/opt/newslookout/models/nltk"
+      - NEWSLOOKOUT_DATA="/var/cache/newslookout_data"
+      - NEWSLOOKOUT_HOME="/opt/newslookout"
+      - NEWSLOOKOUT_CONFIG="/etc/newslookout/newslookout.conf"
+      # set default time zone to: Indian Standard Time
+      - TZ="Asia/Kolkata"
+      # this flag will make main script wait after application run has finished,
+      # remove this to make it exit when program run is completed.
+      - NEWSLOOKOUT_PERSIST_AFTER_RUN="True"
+
+    volumes:
+      - C:\shared\newslookout\conf:/etc/newslookout:rw
+      - c:\shared\newslookout\web_scraped_data:/var/cache/newslookout_data:rw
+      - c:\shared\newslookout\models:/opt/models:rw
+      - c:\shared\newslookout\logs:/var/log/newslookout:rw
+
+    # networks:
+      # - newslookout_network
+
+    ports:
+      - '22:1022'
+      - '80:8080'
+
+networks:
+  # The presence of these objects is sufficient to define them
+  newslookout_network: {}

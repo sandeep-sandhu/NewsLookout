@@ -30,7 +30,7 @@
  Purpose: Manage worker threads and the job queues of all the scraper plugins for the application
  Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
- Provides:                                                                                             
+ Provides:
     QueueManager
         config
         initPlugins
@@ -55,12 +55,13 @@ import queue
 
 # import this project's python libraries:
 import data_structs
-from data_structs import Types
+from data_structs import PluginTypes
 from data_structs import QueueStatus
 from session_hist import SessionHistory
 from worker import PluginWorker
 from worker import ProgressWatcher
 from worker import DataProcessor
+from config import ConfigManager
 
 # #
 # setup logging
@@ -117,7 +118,7 @@ class QueueManager:
         self.dataProcCompletedQueue = queue.Queue()
         self.q_status = QueueStatus(self)
 
-    def config(self, app_config):
+    def config(self, app_config: ConfigManager):
         """ Read and apply the configuration data passed by the main application
         """
         self.app_config = app_config
@@ -139,33 +140,33 @@ class QueueManager:
             self.dbAccessSemaphore)
         self.sessionHistoryDB.printDBStats()
 
-    def getFetchResultFromQueue(self, block=True, timeout=30):
+    def getFetchResultFromQueue(self, block: bool = True, timeout: int = 30):
         resultObj = self.fetchCompletedQueue.get(block=block,
                                                  timeout=timeout)
         self.fetchCompletedQueue.task_done()
-        return(resultObj)
+        return resultObj
 
-    def isFetchQEmpty(self):
-        return(self.fetchCompletedQueue.empty())
+    def isFetchQEmpty(self) -> bool:
+        return self.fetchCompletedQueue.empty()
 
-    def isDataProcInputQEmpty(self):
-        return(self.dataProcQueue.empty())
+    def isDataProcInputQEmpty(self) -> bool:
+        return self.dataProcQueue.empty()
 
-    def getCompletedQueueSize(self):
-        return(self.dataProcQueue.qsize())
+    def getCompletedQueueSize(self) -> int:
+        return self.dataProcQueue.qsize()
 
-    def getDataProcessedQueueSize(self):
-        return(self.dataProcCompletedQueue.qsize())
+    def getDataProcessedQueueSize(self) -> int:
+        return self.dataProcCompletedQueue.qsize()
 
     def addToScrapeCompletedQueue(self, fetchResult):
         self.fetchCompletedCount = self.fetchCompletedCount + 1
         self.fetchCompletedQueue.put(fetchResult)
         self.dataProcQueue.put(fetchResult)
 
-    def fetchFromDataProcInputQ(self, block=True, timeout=30):
+    def fetchFromDataProcInputQ(self, block: bool = True, timeout: int = 30):
         resultObj = self.dataProcQueue.get(block=block, timeout=timeout)
         self.dataProcQueue.task_done()
-        return(resultObj)
+        return resultObj
 
     def addToDataProcessedQueue(self, fetchResult: data_structs.ExecutionResult):
         """ Add ExecutionResult to data processed Queue
@@ -178,11 +179,14 @@ class QueueManager:
         except Exception as e:
             logger.error("When adding item to data processing completed queue, error was: %s", e)
 
-    def getTotalSrcPluginCount(self):
-        return(self.totalPluginsURLSrcCount)
+    def getTotalSrcPluginCount(self) -> int:
+        return self.totalPluginsURLSrcCount
 
     @staticmethod
-    def loadPlugins(app_dir: str, plugins_dir: str, contrib_plugins_dir: str, enabledPluginNames: list) -> dict:
+    def loadPlugins(app_dir: str,
+                    plugins_dir: str,
+                    contrib_plugins_dir: str,
+                    enabledPluginNames: list) -> dict:
         """ Load only enabled plugins from the modules in the plugins directory.
         The class names of plugins are expected to be the same as their module names.
 
@@ -222,10 +226,11 @@ class QueueManager:
                     logger.error("While importing plugin %s got exception: %s", modName, e)
         contribPluginsDict = QueueManager.loadPluginsContrib(contrib_plugins_dir, enabledPluginNames)
         pluginsDict.update(contribPluginsDict)
-        return(pluginsDict)
+        return pluginsDict
 
     @staticmethod
-    def loadPluginsContrib(contrib_plugins_dir: str, enabledPluginNames: list):
+    def loadPluginsContrib(contrib_plugins_dir: str,
+                           enabledPluginNames: list) -> dict:
         """ Load the contributed plugins for web-scraping
 
         :param contrib_plugins_dir:
@@ -251,7 +256,7 @@ class QueueManager:
                     pluginsDict[modName] = classObj()
                 except Exception as e:
                     logger.error("While importing contributed plugin %s got exception: %s", modName, e)
-        return(pluginsDict)
+        return pluginsDict
 
     def initPlugins(self):
         """ Load, configure and initialize all plugins
@@ -264,24 +269,24 @@ class QueueManager:
         # initialize the plugins:
         for keyitem in self.pluginNameToObjMap.keys():
             logger.debug("Initializing plugin: %s", keyitem)
-            if self.pluginNameToObjMap[keyitem].pluginType not in [Types.MODULE_NEWS_AGGREGATOR,
-                                                                   Types.MODULE_DATA_PROCESSOR]:
+            if self.pluginNameToObjMap[keyitem].pluginType not in [PluginTypes.MODULE_NEWS_AGGREGATOR,
+                                                                   PluginTypes.MODULE_DATA_PROCESSOR]:
                 self.pluginNameToObjMap[keyitem].config(self.app_config)
                 self.pluginNameToObjMap[keyitem].initNetworkHelper()
                 self.URL_frontier[keyitem] = queue.Queue()
                 self.pluginNameToObjMap[keyitem].setURLQueue(self.URL_frontier[keyitem])
                 self.allowedDomainsList = self.allowedDomainsList + self.pluginNameToObjMap[keyitem].allowedDomains
-            elif self.pluginNameToObjMap[keyitem].pluginType == Types.MODULE_NEWS_AGGREGATOR:
+            elif self.pluginNameToObjMap[keyitem].pluginType == PluginTypes.MODULE_NEWS_AGGREGATOR:
                 self.pluginNameToObjMap[keyitem].config(self.app_config)
                 self.pluginNameToObjMap[keyitem].initNetworkHelper()
-            elif self.pluginNameToObjMap[keyitem].pluginType == Types.MODULE_DATA_PROCESSOR:
+            elif self.pluginNameToObjMap[keyitem].pluginType == PluginTypes.MODULE_DATA_PROCESSOR:
                 self.pluginNameToObjMap[keyitem].config(self.app_config)
                 self.pluginNameToObjMap[keyitem].additionalConfig(self.sessionHistoryDB)
             # make map with .allowedDomains -> pluginName from plugins:
-            if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_NEWS_CONTENT,
-                                                               Types.MODULE_NEWS_AGGREGATOR,
-                                                               Types.MODULE_DATA_CONTENT,
-                                                               Types.MODULE_NEWS_API]:
+            if self.pluginNameToObjMap[keyitem].pluginType in [PluginTypes.MODULE_NEWS_CONTENT,
+                                                               PluginTypes.MODULE_NEWS_AGGREGATOR,
+                                                               PluginTypes.MODULE_DATA_CONTENT,
+                                                               PluginTypes.MODULE_NEWS_API]:
                 self.totalPluginsURLSrcCount = self.totalPluginsURLSrcCount + 1
                 modname = self.pluginNameToObjMap[keyitem].pluginName
                 domains = self.pluginNameToObjMap[keyitem].allowedDomains
@@ -297,21 +302,21 @@ class QueueManager:
         logger.debug("Initializing the worker threads to identify URLs.")
         workerNumber = 0
         for keyitem in self.pluginNameToObjMap.keys():
-            if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_NEWS_CONTENT,
-                                                               Types.MODULE_NEWS_API,
-                                                               Types.MODULE_DATA_CONTENT,
-                                                               Types.MODULE_NEWS_AGGREGATOR]:
+            if self.pluginNameToObjMap[keyitem].pluginType in [PluginTypes.MODULE_NEWS_CONTENT,
+                                                               PluginTypes.MODULE_NEWS_API,
+                                                               PluginTypes.MODULE_DATA_CONTENT,
+                                                               PluginTypes.MODULE_NEWS_AGGREGATOR]:
                 workerNumber = workerNumber + 1
                 self.urlSrcWorkers[workerNumber] = PluginWorker(
                     self.pluginNameToObjMap[keyitem],
-                    Types.TASK_GET_URL_LIST,
+                    PluginTypes.TASK_GET_URL_LIST,
                     self.sessionHistoryDB,
                     self,
                     name=workerNumber,
                     daemon=False)
                 self.urlSrcWorkers[workerNumber].setRunDate(self.runDate)
             # for news aggregators, set extra parameters: domain name to plugin map, and all Plugins
-            if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_NEWS_AGGREGATOR]:
+            if self.pluginNameToObjMap[keyitem].pluginType in [PluginTypes.MODULE_NEWS_AGGREGATOR]:
                 self.urlSrcWorkers[workerNumber].setDomainMapAndPlugins(self.domainToPluginMap,
                                                                         self.pluginNameToObjMap)
         # after this, the self.urlSrcWorkers dict has the structure: workers[1] = <instantiated PluginWorker object>
@@ -323,12 +328,12 @@ class QueueManager:
         logger.debug("Initializing the content fetching worker threads.")
         workerNumber = 0
         for keyitem in self.pluginNameToObjMap.keys():
-            if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_NEWS_CONTENT,
-                                                               Types.MODULE_NEWS_API,
-                                                               Types.MODULE_DATA_CONTENT]:
+            if self.pluginNameToObjMap[keyitem].pluginType in [PluginTypes.MODULE_NEWS_CONTENT,
+                                                               PluginTypes.MODULE_NEWS_API,
+                                                               PluginTypes.MODULE_DATA_CONTENT]:
                 workerNumber = workerNumber + 1
                 self.contentFetchWorkers[workerNumber] = PluginWorker(self.pluginNameToObjMap[keyitem],
-                                                                      Types.TASK_GET_DATA,
+                                                                      PluginTypes.TASK_GET_DATA,
                                                                       self.sessionHistoryDB,
                                                                       self,
                                                                       name=str(workerNumber + len(self.urlSrcWorkers)),
@@ -351,7 +356,7 @@ class QueueManager:
             for keyitem in self.pluginNameToObjMap.keys():
                 logger.debug(f'Checking data proc plugin for: {self.pluginNameToObjMap[keyitem]},' +
                              f' Type = {self.pluginNameToObjMap[keyitem].pluginType}')
-                if self.pluginNameToObjMap[keyitem].pluginType in [Types.MODULE_DATA_PROCESSOR]:
+                if self.pluginNameToObjMap[keyitem].pluginType in [PluginTypes.MODULE_DATA_PROCESSOR]:
                     priorityVal = self.pluginNameToObjMap[keyitem].executionPriority
                     allPriorityValues.append(priorityVal)
                     self.dataProcPluginsMap[priorityVal] = self.pluginNameToObjMap[keyitem]
@@ -441,10 +446,10 @@ class QueueManager:
         # fetch and  read data that was processed by each plugin:
         for pluginName in self.pluginNameToObjMap.keys():
             thisPlugin = self.pluginNameToObjMap[pluginName]
-            if thisPlugin.pluginType == Types.MODULE_DATA_PROCESSOR:
+            if thisPlugin.pluginType == PluginTypes.MODULE_DATA_PROCESSOR:
                 thisPlugin.processData(forDate)
                 # in the end mark completion by changing state:
-                thisPlugin.pluginState = Types.STATE_STOPPED
+                thisPlugin.pluginState = PluginTypes.STATE_STOPPED
                 logger.debug('Completed processing data from plugin: %s', pluginName)
 
 

@@ -3,11 +3,17 @@
 rem Run the scraper application
 rem Pass the first argument
 
+set APP_ROOT_DIR=%USERPROFILE%\Documents\src\python_projs\NewsLookout
+set PYTHON_SCRIPT=%APP_ROOT_DIR%\newslookout\scraper_app.py
+set APP_CONF_FILE=%APP_ROOT_DIR%\conf\newslookout_win.conf
+
+set NLTK_DATA=C:\shared\datasets\web_scraped_data\models\nltk
+
 cd /d "%~dp0"
 
 if [%1]==[] goto makedate
 rem Else, use date supplied as command-line argument
-python newslookout\scraper_app.py -c conf\newslookout_win.conf -d %1
+python %PYTHON_SCRIPT% -c %APP_CONF_FILE% -d %1
 
 goto end
 
@@ -18,7 +24,7 @@ for /f "skip=1" %%x in ('wmic os get localdatetime') do if not defined MyDate se
 
 set today=%MyDate:~0,4%-%MyDate:~4,2%-%MyDate:~6,2%
 
-python newslookout\scraper_app.py -c conf\newslookout_win.conf -d %today%
+python %PYTHON_SCRIPT% -c %APP_CONF_FILE% -d %today%
 
 :end
 echo Program completed successfully.

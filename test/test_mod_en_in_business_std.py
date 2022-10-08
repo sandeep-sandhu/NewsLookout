@@ -35,6 +35,8 @@
 import json
 import sys
 import os
+from datetime import datetime
+
 import network
 import queue
 import threading
@@ -53,7 +55,7 @@ logger = logging.getLogger(__name__)
 def testPluginSubClass():
     """Test case Base Plugin Class
     """
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     nltk_path = os.path.join(testdataFolder, 'nltk_data')
     print(f'Path for NLTK data is: {nltk_path}')
     os.environ["NLTK_DATA"] = nltk_path
@@ -62,7 +64,7 @@ def testPluginSubClass():
     global pluginClassInst
     app_inst = getMockAppInstance(parentFolder,
                                   runDateString,
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     # import application specific modules:
     from plugins.mod_en_in_business_std import mod_en_in_business_std
     import data_structs
@@ -93,7 +95,7 @@ def test_fetchDataFromURL():
     """
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     nltk_path = os.path.join(testdataFolder, 'nltk_data')
     print(f'Path for NLTK data is: {nltk_path}')
     os.environ["NLTK_DATA"] = nltk_path
@@ -123,7 +125,7 @@ def test_fetchDataFromURL():
         logger.debug("NLTK punkt tokenizers is available.")
         assert resultVal.wasSuccessful is True, 'fetchDataFromURL() did not complete successfully'
         assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
-        assert resultVal.publishDate == '2019-01-18', 'fetchDataFromURL() not parsing published date correctly.'
+        assert resultVal.publishDate == datetime.strptime('2019-01-18','%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
         assert resultVal.articleID == '119011800410', 'fetchDataFromURL() not identifying unique ID correctly.'
         assert resultVal.textSize == 1185, 'fetchDataFromURL() not parsing text body correctly.'
         assert resultVal.savedDataFileName == os.path.join('./data', '2019-01-18', 'mod_en_in_business_std_119011800410'), \

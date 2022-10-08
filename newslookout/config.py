@@ -54,44 +54,46 @@ class ConfigManager:
     """ The configuration manager class performs all the configuration processing for the application
     """
 
-    config_parser = None
-    rundate = datetime.now()
-    rundate_str = datetime.now().strftime('%Y-%m-%d')
-    # default install prefix is parent of 'src' folder:
-    install_prefix = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    config_file = os.path.join('conf', 'newslookout.conf')
+    config_parser: configparser
+    rundate: datetime
+    rundate_str: str
+
+    install_prefix: str
+    config_file: str
+    data_dir: str
+    plugins_dir: str
+    plugins_contributed_dir: str
+    master_data_dir: str
+    completed_urls_datafile: str
+    logfile: str
+    pid_file: str
+
     app_version = 0
-    logfile = os.path.join('logs', 'newslookout.log')
-    logLevelStr = 'INFO'
-    max_logfile_size = 1024 * 1024
-    pid_file = os.path.join('logs', 'newslookout.pid')
+    logLevelStr: str
+    max_logfile_size: int
     newspaper_config = None
-    data_dir = 'data'
-    plugins_dir = os.path.join(install_prefix, 'plugins')
-    plugins_contributed_dir = os.path.join(install_prefix, 'plugins_contrib')
-    master_data_dir = os.path.join(data_dir, 'master_data')
-    completed_urls_datafile = os.path.join('data', 'completed_urls.db')
-    verify_ca_cert = True
-    fetch_timeout = 60
-    connect_timeout = 3
-    retry_wait_rand_max_sec = 10
-    retry_count = 3
-    retry_wait_sec = 10
-    retry_wait_rand_min_sec = 10
-    proxy_url_http = ''
-    proxy_url_https = ''
-    recursion_level = 1
-    user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) AppleWebKit/537.75.14 (KHTML like Gecko) Version/7.0.3"
-    proxy_user = None
-    proxy_password = None
-    proxies = {"http": None, "https": None}
-    logfile_backup_count = 30
-    save_html = 'true'
-    enabledPluginNames = []
+    verify_ca_cert: bool
+    fetch_timeout: int
+    connect_timeout: int
+    retry_wait_rand_max_sec: int
+    retry_count: int
+    retry_wait_sec: int
+    retry_wait_rand_min_sec: int
+    proxy_url_http: str
+    proxy_url_https: str
+    recursion_level: int
+    user_agent: str
+    proxy_user: str
+    proxy_password: str
+    proxies: dict
+    logfile_backup_count: int
+    save_html: str
+    enabledPluginNames: dict
 
     def __init__(self, configFileName, rundate):
         """ Read and apply the configuration data passed by the main application
         """
+        self.det_default_values()
         self.config_file = configFileName
         self.config_parser = configparser.ConfigParser()
         try:
@@ -106,8 +108,70 @@ class ConfigManager:
         self.readOperationsCfg()
         self.applyNetworkConfig()
 
-    def checkAndSanitizeConfigString(self, sectionName, configParamName, default=None):
-        """ Check and sanitize config string value """
+    def det_default_values(self):
+        """
+        Sets the default values used when no configuration is available.
+
+        :return: None
+        """
+        # set today's date as the rundate:
+        self.rundate = datetime.now()
+        self.rundate_str = datetime.now().strftime('%Y-%m-%d')
+
+        # default install prefix is the parent of the 'newslookout' folder:
+        self.install_prefix = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
+        # default config file is located at the relative path: ./conf/newslookout.conf
+        self.config_file = os.path.join('conf', 'newslookout.conf')
+        # default log file is located at the relative path: ./logs/newslookout.log
+        self.logfile = os.path.join('logs', 'newslookout.log')
+        # default PID file is located at the relative path: ./logs/newslookout.pid
+        self.pid_file = os.path.join('logs', 'newslookout.pid')
+        # default data folder is located at the relative path: ./data
+        self.data_dir = os.path.join(self.install_prefix, 'data')
+        # default plugins folder is located at the relative path: ./plugins
+        self.plugins_dir = os.path.join(self.install_prefix, 'plugins')
+        # default contribute plugins folder is located at the relative path: ./plugins_contrib
+        self.plugins_contributed_dir = os.path.join(self.install_prefix, 'plugins_contrib')
+        # default master_data folder is located at the relative path: ./data/master_data
+        self.master_data_dir = os.path.join(self.data_dir, 'master_data')
+        # default session history database file is located at the relative path: ./data/completed_urls.db
+        self.completed_urls_datafile = os.path.join('data', 'completed_urls.db')
+
+        self.app_version = 0
+        self.logLevelStr = 'INFO'
+        self.max_logfile_size = 1024 * 1024
+        self.newspaper_config = None
+        self.verify_ca_cert = True
+        self.fetch_timeout = 60
+        self.connect_timeout = 3
+        self.retry_wait_rand_max_sec = 10
+        self.retry_count = 3
+        self.retry_wait_sec = 10
+        self.retry_wait_rand_min_sec = 10
+        self.proxy_url_http = ''
+        self.proxy_url_https = ''
+        self.recursion_level = 1
+        self.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) " \
+                          + "AppleWebKit/537.75.14 (KHTML like Gecko) Version/7.0.3"
+        self.proxy_user = None
+        self.proxy_password = None
+        self.proxies = {"http": None, "https": None}
+        self.logfile_backup_count = 30
+        self.save_html = 'true'
+        self.enabledPluginNames = dict()
+
+    def checkAndSanitizeConfigString(self,
+                                     sectionName: str,
+                                     configParamName: str,
+                                     default: str = None) -> str:
+        """
+        Check and sanitize config string value.
+
+        :param sectionName:
+        :param configParamName:
+        :param default:
+        :return:
+        """
         configParamValue = default
         try:
             paramStr = self.config_parser.get(sectionName, configParamName).strip()
@@ -116,10 +180,24 @@ class ConfigManager:
             print(f"Error reading parameter {configParamName} from configuration file, exception was: {e}")
             if default is None:
                 print(f"Error reading parameter {configParamName} from configuration file: default value missing.")
-        return(configParamValue)
+        return configParamValue
 
-    def checkAndSanitizeConfigInt(self, sectionName, configParamName, default=None, maxValue=None, minValue=None):
-        """ Check and sanitize config integer value """
+    def checkAndSanitizeConfigInt(self,
+                                  sectionName: str,
+                                  configParamName: str,
+                                  default: int = None,
+                                  maxValue: int = None,
+                                  minValue: int = None) -> int:
+        """
+        Check and sanitize configuration parameter integer value
+
+        :param sectionName: Section name of the configuraiton file
+        :param configParamName: Name of the configuraiton parameter
+        :param default: Default vlaue of this configuration parameter
+        :param maxValue:
+        :param minValue:
+        :return: Cleaned configuration parameter value
+        """
         configParamValue = default
         try:
             paramVal = self.config_parser.getint(sectionName, configParamName)
@@ -136,31 +214,31 @@ class ConfigManager:
                   e)
             if default is None:
                 print(f"Error reading parameter {configParamName} from configuration file: default value missing.")
-        return(configParamValue)
+        return configParamValue
 
     @staticmethod
-    def checkAndParseDate(dateStr):
+    def checkAndParseDate(dateStr: str | datetime) -> datetime:
         """ Check and Parse Date String, set it to today's date if its in future
         """
-        runDate = datetime.now()
+        business_date = datetime.now()
         logger.debug("Checking date string: %s", dateStr)
         try:
             if type(dateStr).__name__ == 'datetime':
-                runDate = dateStr
+                business_date = dateStr
             elif type(dateStr).__name__ == 'str':
-                runDate = datetime.strptime(dateStr, '%Y-%m-%d')
+                business_date = datetime.strptime(dateStr, '%Y-%m-%d')
         except Exception as e:
             logger.error("Invalid date for retrieval (%s): %s; using todays date instead.",
                          dateStr, e)
         # get the current local date
         today = date.today()
-        if runDate.date() > today:
+        if business_date.date() > today:
             logger.error("Date for retrieval (%s) cannot be after today's date; using todays date instead.",
-                         runDate.date())
-            runDate = datetime.now()
-        return(runDate)
+                         business_date.date())
+            business_date = datetime.now()
+        return business_date
 
-    def processItemInSection(self, key, item):
+    def processItemInSection(self, key: str, item: str):
         if key.startswith('plugin'):
             name_priority = removeStartTrailQuotes(item.strip()).split('|')
             pluginName = name_priority[0].strip()
@@ -286,21 +364,19 @@ class ConfigManager:
         """
         try:
             self.proxy_ca_certfile = self.checkAndSanitizeConfigString(
-                'operation',
-                'proxy_ca_certfile',
-                default=None  # os.path.join(self.data_dir, 'proxy_ca.crt')
+                'operation', 'proxy_ca_certfile', default=None  # os.path.join(self.data_dir, 'proxy_ca.crt')
             )
             if len(self.proxy_ca_certfile) < 2:
                 self.proxy_ca_certfile = None
-            self.verify_ca_cert = self.checkAndSanitizeConfigString(
-                'operation',
-                'verify_ca_cert',
-                default='True'
+
+            proxy_cert_option_str = self.checkAndSanitizeConfigString(
+                'operation', 'verify_ca_cert', default='True'
             )
-            if self.verify_ca_cert.upper() == 'FALSE':
+            if proxy_cert_option_str.upper() == 'FALSE':
                 self.verify_ca_cert = False
             else:
                 self.verify_ca_cert = True
+
             self.save_html = self.checkAndSanitizeConfigString('operation', 'save_html')
             self.user_agent = self.checkAndSanitizeConfigString('operation', 'user_agent')
             self.proxy_url_http = self.checkAndSanitizeConfigString('operation', 'proxy_url_http')

@@ -41,54 +41,54 @@ from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_fi
 
 
 def test_appInitRunDate():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     print('testdataFolder = ', testdataFolder)
     print('Initialised application config =', app_inst.app_config)
     assert app_inst.app_config.rundate == datetime.strptime('2021-06-10', '%Y-%m-%d'), 'The rundate not set correctly'
 
 def test_appInitConfigFile():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     print('Initialised application config file =', app_inst.app_config.config_file)
-    assert app_inst.app_config.config_file.endswith('newslookout.conf'), 'The config file was not setup correctly'
+    assert app_inst.app_config.config_file.endswith('newslookout_test.conf'), 'The config file was not setup correctly'
 
 def test_isqueuemanager_initialised():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     from queue_manager import QueueManager
     assert isinstance(app_inst.app_queue_manager, QueueManager), 'The queue manager was not initialised correctly'
 
 def test_isqueuemanager_config():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     app_inst.app_queue_manager.config(app_inst.app_config)
     from session_hist import SessionHistory
     assert isinstance(app_inst.app_queue_manager.sessionHistoryDB, SessionHistory),\
         'The session history was not initialised correctly'
 
 def test_fetchCycleTime_config():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     app_inst.app_queue_manager.config(app_inst.app_config)
     assert app_inst.app_queue_manager.fetchCycleTime > 60, 'Queue manager: fetchCycleTime was not configured correctly.'
 
 
 def test_pidfile_add():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     app_inst.remove_pid_file()
     app_inst.set_pid_file(app_inst.app_config.pid_file)
     assert os.path.isfile(app_inst.app_config.pid_file)==True, 'The PID file was not created.'

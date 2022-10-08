@@ -101,7 +101,7 @@ class NetworkFetcher:
             logger.error("Exception when configuring the network manager: %s", e)
 
     @functools.lru_cache(maxsize=100)
-    def NewsPpr_get_html_2XX_only(url, config=None, response=None):
+    def NewsPpr_get_html_2XX_only(url: str, config=None, response=None):
         """ Replacement for method: newspaper.network.get_html_2XX_only()
         Consolidated logic for http requests from newspaper. Handles error cases:
         - Attempt to find encoding of the html by using HTTP header. Fallback to 'ISO-8859-1' if not provided.
@@ -132,7 +132,9 @@ class NetworkFetcher:
         return html
 
     @staticmethod
-    def sleepBeforeNextFetch(fix_sec: int = 3, min_rand_sec: int = 3, max_rand_sec: int = 7):
+    def sleepBeforeNextFetch(fix_sec: int = 3,
+                             min_rand_sec: int = 3,
+                             max_rand_sec: int = 7):
         """ Sleep for a random time period before the next HTTP(S) fetch.
         In addition to a fixed time period, a random integer is generated
          which has a range of min_rand_sec to max_rand_sec, this is added to the fixed time period.
@@ -147,7 +149,10 @@ class NetworkFetcher:
         time.sleep(pause_time_seconds)
 
     @functools.lru_cache(maxsize=300)
-    def fetchRawDataFromURL(self, uRLtoFetch: str, pluginName: str, getBytes: bool = False) -> object:
+    def fetchRawDataFromURL(self,
+                            uRLtoFetch: str,
+                            pluginName: str,
+                            getBytes: bool = False) -> str:
         """ Fetch raw HTML content from the given URL.
 
         :param uRLtoFetch: URL to be fetched over HTTP(s) GET Protocol
@@ -217,17 +222,19 @@ class NetworkFetcher:
                     NetworkFetcher.sleepBeforeNextFetch(fix_sec=self.retryWaitFixed,
                                                         min_rand_sec=self.retry_wait_rand_min_sec,
                                                         max_rand_sec=self.retry_wait_rand_max_sec)
-        return(self.getDataFromHTTPResponse(httpsResponse, getBytes))
+        return self.getDataFromHTTPResponse(httpsResponse, getBytes)
 
-    def getDataFromHTTPResponse(self, httpsResponse: requests.Response, getBytes: bool) -> str:
+    def getDataFromHTTPResponse(self,
+                                httpsResponse: requests.Response,
+                                getBytes: bool) -> str | None:
         """ Get data From HTTP response.
 
         :param httpsResponse:
         :param getBytes:
-        :return:
+        :return: str
         """
         if httpsResponse is not None and httpsResponse.encoding != 'ISO-8859-1' and getBytes is False:
-            return(httpsResponse.text)
+            return httpsResponse.text
         elif httpsResponse is not None and getBytes is False:
             htmlText = httpsResponse.content
             if 'charset' not in httpsResponse.headers.get('content-type'):
@@ -235,11 +242,11 @@ class NetworkFetcher:
                 if len(encodings) > 0:
                     httpsResponse.encoding = encodings[0]
                     htmlText = httpsResponse.text
-            return(htmlText)
+            return htmlText
         elif httpsResponse is not None:
-            return(httpsResponse.content.decode(encoding="utf-8", errors="ignore"))
+            return httpsResponse.content.decode(encoding="utf-8", errors="ignore")
         else:
-            return(None)
+            return None
 
     def loadAndSetCookies(self, cookieFileName: str) -> object:
         """ Load and Set Cookies from text file
@@ -252,7 +259,7 @@ class NetworkFetcher:
             cookieJar = http.cookiejar.FileCookieJar(cookieFileName)
         except Exception as theError:
             logger.error("Exception caught opening cookie file: %s", theError)
-        return(cookieJar)
+        return cookieJar
 
     def getCookiePolicy(self, listOfAllowedDomains: list) -> object:
         """ Prepare a cookie jar policy to be used in HTTP requests and sessions.
@@ -278,9 +285,12 @@ class NetworkFetcher:
             thisCookiePolicy.set_allowed_domains(listOfAllowedDomains)
         except Exception as e:
             logger.error("Error preparing cookie policy: %s", e)
-        return(thisCookiePolicy)
+        return thisCookiePolicy
 
-    def getHTTPData(self, uRLtoFetch: str, postHeaders: dict = None, pluginName: str = None) -> requests.Response:
+    def getHTTPData(self,
+                    uRLtoFetch: str,
+                    postHeaders: dict = None,
+                    pluginName: str = None) -> requests.Response | None:
         """Fetch data using HTTP(s) GET Method, send back response object.
         Uses custom agent, proxy and timeouts configured for the network Fetcher object
 
@@ -320,7 +330,7 @@ class NetworkFetcher:
                 NetworkFetcher.sleepBeforeNextFetch(fix_sec=self.retryWaitFixed,
                                                     min_rand_sec=self.retry_wait_rand_min_sec,
                                                     max_rand_sec=self.retry_wait_rand_max_sec)
-        return(httpsResponse)
+        return httpsResponse
 
     def postHTTPData(self, uRLtoFetch: str,
                      payload: str,
@@ -370,7 +380,7 @@ class NetworkFetcher:
                 NetworkFetcher.sleepBeforeNextFetch(fix_sec=self.retryWaitFixed,
                                                     min_rand_sec=self.retry_wait_rand_min_sec,
                                                     max_rand_sec=self.retry_wait_rand_max_sec)
-        return(rawDataContent)
+        return rawDataContent
 
     def getDataInSession(self, urlList):
         """ Open a single https session and read several urls """

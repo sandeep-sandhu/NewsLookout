@@ -34,7 +34,7 @@ import logging
 # import web retrieval and text processing python libraries:
 from bs4 import BeautifulSoup
 
-from data_structs import Types
+from data_structs import PluginTypes
 from base_plugin import BasePlugin
 from scraper_utils import filterRepeatedchars, deDupeList
 
@@ -44,8 +44,8 @@ logger = logging.getLogger(__name__)
 
 
 class myplugin(BasePlugin):
-    """ Web Scraping plugin: mod_<lang>_<country>_myplugin
-    Description:
+    """ Web Scraping plugin: Use this naming convention -> mod_<lang>_<country>_mypluginname
+    Description: Provide a detailed description here.
     Language: English
     Country: India
     """
@@ -54,7 +54,7 @@ class myplugin(BasePlugin):
     minArticleLengthInChars = 400
 
     # implies web-scraper for news content, see data_structs.py for other types
-    pluginType = Types.MODULE_NEWS_CONTENT
+    pluginType = PluginTypes.MODULE_NEWS_CONTENT
 
     # main webpage URL
     mainURL = ""
@@ -79,7 +79,7 @@ class myplugin(BasePlugin):
     subStringsToFilter = []
 
     # write regexps in three groups ()()() so that the third group
-    # gives a unique identifier such as a long integer at the end of a URL
+    # gives a unique identifier which is usually a long integer at the end of a news URL
     # this third group will be selected as the unique identifier:
     urlUniqueRegexps = [
                         r'(http.+\/\/)(www\..+\.com\/.+\-)([0-9]{5,})',
@@ -120,7 +120,9 @@ class myplugin(BasePlugin):
         super().__init__()
 
     # *** MANDATORY to implement ***
-    def extractIndustries(self, uRLtoFetch, htmlText):
+    def extractIndustries(self,
+                          uRLtoFetch: str,
+                          htmlText: str) -> list:
         """ Extract the industry of the articles from its URL or contents
         """
         industries = []
@@ -130,24 +132,27 @@ class myplugin(BasePlugin):
             docRoot.find("span", "ag")
         except Exception as e:
             logger.error("Error extracting industries: %s", e)
-        return(industries)
+        return industries
 
     # *** MANDATORY to implement ***
-    def extractAuthors(self, htmlText):
+    def extractAuthors(self, htmlText: str) -> list:
         """ extract the author from the html content
         """
         authors = []
-        return(authors)
+        return authors
 
     # *** MANDATORY to implement ***
-    def extractArticleBody(self, htmlContent):
+    def extractArticleBody(self, htmlContent: str) -> str:
         """ extract the text body of the article
         """
         body_text = ""
-        return(body_text)
+        return body_text
 
     # *** MANDATORY to implement ***
-    def checkAndCleanText(self, inputText, rawData):
+    def checkAndCleanText(self,
+                          inputText: str,
+                          rawData: str,
+                          url: str) -> str:
         """ Check and clean article text
         """
         cleanedText = inputText
@@ -168,6 +173,6 @@ class myplugin(BasePlugin):
                 cleanedText = cleanedText.replace(stringToFilter, " ")
         except Exception as e:
             logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        return cleanedText
 
 # # end of file ##

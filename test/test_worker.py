@@ -36,7 +36,7 @@ import sys
 import os
 import threading
 
-from data_structs import Types
+from data_structs import PluginTypes
 from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_file
 
 
@@ -46,11 +46,11 @@ global app_inst
 
 def test_worker_init():
     # Test PluginWorker object init.
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     global app_inst
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     app_inst.app_queue_manager.config(app_inst.app_config)
     from plugins.mod_en_in_inexp_business import mod_en_in_inexp_business
     import data_structs
@@ -60,7 +60,7 @@ def test_worker_init():
     sessionHistoryDB = session_hist.SessionHistory(':memory:', dbAccessSem)
     from worker import PluginWorker, ProgressWatcher, DataProcessor
     workerInst = PluginWorker(pluginInst,
-                              Types.TASK_GET_URL_LIST,
+                              PluginTypes.TASK_GET_URL_LIST,
                               sessionHistoryDB,
                               app_inst.app_queue_manager)
     assert type(workerInst) == PluginWorker, 'Worker object is not initialising correctly'
@@ -100,11 +100,11 @@ def test_worker_init():
 
 def test_ProgressWatcher_init():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     global app_inst
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     app_inst.app_queue_manager.config(app_inst.app_config)
     from plugins.mod_en_in_inexp_business import mod_en_in_inexp_business
     import data_structs

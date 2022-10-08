@@ -33,10 +33,12 @@
 
 # import standard python libraries:
 import sys
+import threading
 import os
+from datetime import datetime
+
 import network
 import queue
-import threading
 import logging
 from . import getAppFolders, getMockAppInstance
 from . import list_all_files, read_bz2html_file
@@ -52,13 +54,13 @@ logger = logging.getLogger(__name__)
 def testPluginSubClass():
     """Test case Base Plugin Class
     """
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     runDateString = '2021-06-10'
     global app_inst
     global pluginClassInst
     app_inst = getMockAppInstance(parentFolder,
                                   runDateString,
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     # import application specific modules:
     from plugins.mod_en_in_timesofindia import mod_en_in_timesofindia
     import data_structs
@@ -90,7 +92,7 @@ def test_fetchDataFromURL():
     """
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     import data_structs
     # monkey patch to substitute network fetch.
     pluginClassInst.networkHelper.fetchRawDataFromURL = get_network_substitute_fun(
@@ -98,6 +100,10 @@ def test_fetchDataFromURL():
         testdataFolder,
         file_no=0
     )
+    # fetch html content from test_data
+    _ = list_all_files("dir1")
+    _ = read_bz2html_file("file1.html.bz2")
+
     uRLtoFetch = "https://timesofindia.indiatimes.com/blogs/toi-edit-page/as-communal-riots-exploded-in-delhi-elected-representatives-were-missing-on-the-ground-when-residents-needed-them-most/"
     logging.getLogger().setLevel(logging.DEBUG)
     resultVal = pluginClassInst.fetchDataFromURL(uRLtoFetch, '1')
@@ -111,10 +117,10 @@ def test_fetchDataFromURL():
     assert type(resultVal) == data_structs.ExecutionResult, 'fetchDataFromURL() not returning exec result correctly.'
     assert resultVal.wasSuccessful is True, 'fetchDataFromURL() did not complete successfully'
     assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.publishDate == '2020-03-14', 'fetchDataFromURL() not parsing published date correctly.'
+    assert resultVal.publishDate == datetime.strptime('2020-03-14','%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.articleID == '134129', 'fetchDataFromURL() not identifying unique ID correctly.'
     assert resultVal.textSize == 1212, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.savedDataFileName == os.path.join('./data', '2020-03-14', 'mod_en_in_timesofindia_134129'), \
+    assert resultVal.savedDataFileName == os.path.join(app_inst.app_config.data_dir, '2020-03-14', 'mod_en_in_timesofindia_134129'), \
         'fetchDataFromURL() not saving parsed data correctly.'
     assert len(resultVal.additionalLinks) == 17, 'fetchDataFromURL() not extracting additional links correctly.'
     if os.path.isfile(resultVal.savedDataFileName + ".json"):
@@ -125,7 +131,7 @@ def test_fetchDataFromURL():
         print(f'Deleted temp raw-data file {resultVal.savedDataFileName + ".html.bz2"} successfully.')
     # test alternate logic to extract article body content:
     htmlContent = pluginClassInst.networkHelper.fetchRawDataFromURL(uRLtoFetch, pluginClassInst.pluginName)
-    bodytext = pluginClassInst.extractArticleBody(htmlContent)
+    bodytext = pluginClassInst.extractArticleBody(htmlContent, uRLtoFetch)
     print(f'Alternate method extracted body text of size = {len(bodytext)}:\n{bodytext}')
     assert len(bodytext) == 1210, \
         "extractArticleBody() unable to extract article text using alternate (non-newspaper library) method."

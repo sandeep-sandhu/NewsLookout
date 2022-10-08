@@ -34,7 +34,7 @@ import re
 # import web retrieval and text processing python libraries:
 from bs4 import BeautifulSoup
 
-from data_structs import Types, ScrapeError
+from data_structs import PluginTypes, ScrapeError
 from scraper_utils import calculateCRC32, deDupeList, filterRepeatedchars
 from base_plugin import BasePlugin
 
@@ -51,7 +51,7 @@ class mod_en_in_timesofindia(BasePlugin):
     minArticleLengthInChars = 400
 
     # implies web-scraper for news content, see data_structs.py for other types
-    pluginType = Types.MODULE_NEWS_CONTENT
+    pluginType = PluginTypes.MODULE_NEWS_CONTENT
 
     mainURL = 'https://timesofindia.indiatimes.com/blogs/business/'
     all_rss_feeds = ["https://timesofindia.indiatimes.com/blogs/feed/defaultrss"]
@@ -214,13 +214,13 @@ class mod_en_in_timesofindia(BasePlugin):
                            uniqueString)
         raise ScrapeError("Invalid article since it does not have a unique identifier.")
 
-    def extractArticleBody(self, htmlContent):
+    def extractArticleBody(self, html_content, url):
         """ Extract the text body of the article
         """
         body_text = ""
         try:
             logger.debug("Extracting article content.")
-            docRoot = BeautifulSoup(htmlContent, 'lxml')
+            docRoot = BeautifulSoup(html_content, 'lxml')
             if len(docRoot.find_all("div", attrs={"class": "main-content single-article-content"})) > 0:
                 body_root = docRoot.find_all("div", attrs={"class": "main-content single-article-content"})
                 paragraphs = body_root[0].find_all("p")
@@ -228,7 +228,7 @@ class mod_en_in_timesofindia(BasePlugin):
                     for child in para.children:
                         body_text = body_text + child.strip()
         except Exception as e:
-            logger.error("Error extracting article content: %s", e)
+            logger.error("Error extracting article content for URL %s : %s", url, e)
         return(body_text)
 
     def extractIndustries(self, uRLtoFetch, htmlText):
@@ -258,13 +258,13 @@ class mod_en_in_timesofindia(BasePlugin):
             logger.error("Error extracting news agent from text: %s", e)
         return(authors)
 
-    def checkAndCleanText(self, inputText, rawData):
+    def checkAndCleanText(self, inputText: str, rawData: str, url: str):
         """ Check and clean article text
         """
         cleanedText = inputText
         try:
             # ignore the newspaper extracted text, the alternate method text is more accurate:
-            cleanedText = self.extractArticleBody(rawData)
+            cleanedText = self.extractArticleBody(rawData, url)
             for badString in self.invalidTextStrings:
                 if cleanedText.find(badString) >= 0:
                     logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)

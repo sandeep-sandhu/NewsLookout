@@ -57,9 +57,10 @@ import enlighten
 
 # import this project's modules
 import session_hist
-from data_structs import Types
+from data_structs import PluginTypes
 import scraper_utils
 from data_structs import QueueStatus
+# from queue_manager import QueueManager
 
 # #########
 
@@ -90,7 +91,7 @@ class PluginWorker(threading.Thread):
         :type pluginObj: base_plugin.basePlugin
         :param taskType: The task is either fetch url list or fetch data.
          Based on the type of task the relevant plugin method will be invoked by this thread
-        :type taskType: data_structs.Types
+        :type taskType: data_structs.PluginTypes
         :param sessionHistoryDB:
         :type sessionHistoryDB: session_hist.SessionHistory
         :param queue_manager: Queue manager instance
@@ -113,12 +114,16 @@ class PluginWorker(threading.Thread):
     def setRunDate(self, runDate: datetime):
         self.runDate = runDate
 
-    def setDomainMapAndPlugins(self, domainToPluginMap: dict, allPluginObjs: dict):
+    def setDomainMapAndPlugins(self,
+                               domainToPluginMap: dict,
+                               allPluginObjs: dict):
         self.domainToPluginMap = domainToPluginMap
         self.pluginNameToObjMap = allPluginObjs
 
     @staticmethod
-    def aggregator_url2domain_map(urlList: list, pluginNameToObjMap: dict, domainToPluginMap: dict) -> dict:
+    def aggregator_url2domain_map(urlList: list,
+                                  pluginNameToObjMap: dict,
+                                  domainToPluginMap: dict) -> dict:
         """ Collect URLs in a dictionary mapped to each plugin
 
         :param urlList: Mixed list of all URLs for various news sites/domains
@@ -126,7 +131,6 @@ class PluginWorker(threading.Thread):
         :param domainToPluginMap: Dictionary/map with keys as domain names -> plugin-name as values
         :return: Dictionary map with keys as plugin-name -> URL list as values
         """
-
         plugin_to_url_list_map = dict()
         # initialize the dictionary:
         for pluginItem in pluginNameToObjMap.keys():
@@ -141,7 +145,7 @@ class PluginWorker(threading.Thread):
                 thisPlugin = domainToPluginMap[domainName]
                 logger.debug(f'For plugin: {thisPlugin}, and domain: {domainName}, adding URL: {urlItem}')
                 plugin_to_url_list_map[thisPlugin].append(urlItem)
-        return(plugin_to_url_list_map)
+        return plugin_to_url_list_map
 
     def assign_urls_to_queues(self, plugin_to_url_list_map: dict,
                               pluginName: str,
@@ -173,9 +177,9 @@ class PluginWorker(threading.Thread):
             logger.info(f"Started identifying URLs for plugin: {self.pluginName}")
             # fetch URL list using each plugin's function:
             if self.pluginObj.pluginType in [
-                    Types.MODULE_NEWS_CONTENT,
-                    Types.MODULE_DATA_CONTENT,
-                    Types.MODULE_NEWS_API
+                    PluginTypes.MODULE_NEWS_CONTENT,
+                    PluginTypes.MODULE_DATA_CONTENT,
+                    PluginTypes.MODULE_NEWS_API
                     ]:
                 urlList = self.pluginObj.getURLsListForDate(self.runDate, self.sessionHistoryDB)
                 self.pluginObj.addURLsListToQueue(urlList, self.sessionHistoryDB)
@@ -187,7 +191,7 @@ class PluginWorker(threading.Thread):
                     logger.info(f'{self.pluginName} waiting for news aggregator to finish, before closing the queue.')
                     time.sleep(self.queueFillwaitTime)
                 self.pluginObj.putQueueEndMarker()
-            elif self.pluginObj.pluginType == Types.MODULE_NEWS_AGGREGATOR:
+            elif self.pluginObj.pluginType == PluginTypes.MODULE_NEWS_AGGREGATOR:
                 # Recursion is not applicable for news aggregators; simply add url into common queue:
                 urlList = self.pluginObj.getURLsListForDate(self.runDate, self.sessionHistoryDB)
                 plugin_to_url_list_map = PluginWorker.aggregator_url2domain_map(urlList,
@@ -199,7 +203,7 @@ class PluginWorker(threading.Thread):
                                                    self.pluginNameToObjMap,
                                                    self.sessionHistoryDB)
                 # Mark stop state for this News Aggregator plugin
-                self.pluginObj.pluginState = Types.STATE_STOPPED
+                self.pluginObj.pluginState = PluginTypes.STATE_STOPPED
                 self.pluginObj.clearQueue()
             logger.debug(f'Thread {self.workerID} finished getting URL listing for plugin {self.pluginName}')
         except Exception as e:
@@ -213,14 +217,14 @@ class PluginWorker(threading.Thread):
                     self.pluginName,
                     self.pluginObj.getQueueSize()
                     )
-        while (not self.pluginObj.isQueueEmpty()) or (self.pluginObj.pluginState == Types.STATE_GET_URL_LIST):
+        while (not self.pluginObj.isQueueEmpty()) or (self.pluginObj.pluginState == PluginTypes.STATE_GET_URL_LIST):
             sURL = None
             try:
                 if self.pluginObj.isQueueEmpty():
                     logger.debug('%s: Waiting %s seconds for input queue to fill up; plugin state = %s',
                                  self.pluginName,
                                  self.queueFillwaitTime,
-                                 Types.decodeNameFromIntVal(self.pluginObj.pluginState)
+                                 PluginTypes.decodeNameFromIntVal(self.pluginObj.pluginState)
                                  )
                     time.sleep(self.queueFillwaitTime)
                 sURL = self.pluginObj.getNextItemFromFetchQueue(timeout=self.queueFillwaitTime)
@@ -241,7 +245,7 @@ class PluginWorker(threading.Thread):
                             # self.sessionHistoryDB.addURLsToPendingTable(addl_urls, self.pluginName)
                     else:
                         # add url to failed table:
-                        self.sessionHistoryDB.addURLToFailedTable(fetchResult, self.pluginName, datetime.now())
+                        self.sessionHistoryDB.addURLToFailedTable(sURL, self.pluginName, datetime.now())
                 else:
                     logger.info('Got queue end sentinel, stopping data retrieval for plugin %s.',
                                 self.pluginName)
@@ -263,14 +267,14 @@ class PluginWorker(threading.Thread):
                      self.workerID,
                      self.pluginName)
         # at this point, since all data has been fetched, change the plugin's state to process data:
-        self.pluginObj.pluginState = Types.STATE_STOPPED
+        self.pluginObj.pluginState = PluginTypes.STATE_STOPPED
 
     def run(self):
         """ Overridden to enable parent thread object to be called for executing the Plugin jobs
         """
-        if self.taskType == Types.TASK_GET_URL_LIST:
+        if self.taskType == PluginTypes.TASK_GET_URL_LIST:
             self.runURLListGatherTasks()
-        elif self.taskType == Types.TASK_GET_DATA:
+        elif self.taskType == PluginTypes.TASK_GET_DATA:
             self.runDataRetrievalTasks()
 
 
@@ -288,8 +292,14 @@ class DataProcessor(threading.Thread):
     queue_manager = None
     sortedPriorityKeys = []
 
-    def __init__(self, dataProcPluginsMap, sortedPriorityKeys, queue_manager, queue_status,
-                 daemon=None, target=None, name=None):
+    def __init__(self,
+                 dataProcPluginsMap: dict,
+                 sortedPriorityKeys: list,
+                 queue_manager,
+                 queue_status,
+                 daemon=None,
+                 target=None,
+                 name=None):
         """  Initialize the worker thread
 
         :param dataProcPluginsMap: The dictionary of data processing plugins as priority -> objects
@@ -311,7 +321,11 @@ class DataProcessor(threading.Thread):
         super().__init__(daemon=daemon, target=target, name=name)
 
     @staticmethod
-    def processItem(queue_manager, itemInQueue, sortedPriorityKeys, dataProcPluginsMap, workerID):
+    def processItem(queue_manager,
+                    itemInQueue,
+                    sortedPriorityKeys: list,
+                    dataProcPluginsMap: dict,
+                    workerID: str):
         item_doc = None
         queue_manager.alreadyDataProcList.append(itemInQueue.URL)
         queue_manager.addToDataProcessedQueue(itemInQueue)
@@ -342,8 +356,11 @@ class DataProcessor(threading.Thread):
                 # if anything in queue, pick it up and process it:
                 itemInQueue = self.queue_manager.fetchFromDataProcInputQ(block=True, timeout=self.queueBlockTimeout)
                 if itemInQueue is not None and itemInQueue.URL not in self.queue_manager.alreadyDataProcList:
-                    DataProcessor.processItem(self.queue_manager, itemInQueue, self.sortedPriorityKeys,
-                                              self.dataProcPluginsMap, self.workerID)
+                    DataProcessor.processItem(self.queue_manager,
+                                              itemInQueue,
+                                              self.sortedPriorityKeys,
+                                              self.dataProcPluginsMap,
+                                              self.workerID)
                 else:
                     self.queue_manager.addToDataProcessedQueue(itemInQueue)
                     if itemInQueue is not None:
@@ -383,9 +400,9 @@ class ProgressWatcher(threading.Thread):
     q_status = None
 
     def __init__(self, pluginNameObjMap: dict,
-                 sessionHistoryDB,
-                 queue_manager: object,
-                 queue_status: object,
+                 sessionHistoryDB: session_hist.SessionHistory,
+                 queue_manager: any,
+                 queue_status: QueueStatus,
                  progressRefreshInt: int,
                  daemon=None, target=None, name=None):
         """ Initialize this thread's object
@@ -404,6 +421,7 @@ class ProgressWatcher(threading.Thread):
         self.historyDB = sessionHistoryDB
         self.refreshIntervalSecs = progressRefreshInt
         self.queue_manager = queue_manager
+        assert type(self.queue_manager).__name__ == "QueueManager", "queue manager not valid object."
         self.q_status = queue_status
         self.q_status.updateStatus()
         self.enlighten_manager = enlighten.get_manager()

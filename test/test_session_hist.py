@@ -48,13 +48,13 @@ from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_fi
 
 
 def test_SessionHistory_init():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     runDateString = '2021-06-10'
     global app_inst
     global pluginClassInst
     app_inst = getMockAppInstance(parentFolder,
                                   runDateString,
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     # import application specific modules:
     import data_structs
     import session_hist
@@ -86,7 +86,7 @@ def test_SessionHistory_init():
     print(f'Pending URL listing from session history database = {todoURLs}')
 
 def test_url_was_attempted():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     dbAccessSemaphore = threading.Semaphore()
     import session_hist
     sessionHistoryDB = session_hist.SessionHistory(
@@ -97,8 +97,13 @@ def test_url_was_attempted():
 
 
 def test_openConnFromfile():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
-    testdbFile = os.path.join(testdataFolder, 'test11.db')
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
+
+    # Not using config file defined database since
+    # it may be accessed at the same time during test runs
+    # testdbFile = app_inst.app_config.completed_urls_datafile
+    testdbFile = os.path.join(testdataFolder, 'test22.db')
+
     dbAccessSemaphore = threading.Semaphore()
     import session_hist
     sessionHistoryDB = session_hist.SessionHistory(
@@ -149,8 +154,8 @@ def test_openConnFromfile():
 
 def test_addURLsToPendingTable():
     # Test - addURLsToPendingTable()
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
-    testdbFile = os.path.join(testdataFolder, 'test22.db')
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
+    testdbFile = os.path.join(testdataFolder, 'test222.db')
     dbAccessSemaphore = threading.Semaphore()
     import session_hist
     sessionHistoryDB = session_hist.SessionHistory(
@@ -190,7 +195,7 @@ def test_addURLsToPendingTable():
 
 def test_addURLToFailedTable():
     # Test - addURLToFailedTable()
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     testdbFile = os.path.join(testdataFolder, 'test33.db')
     dbAccessSemaphore = threading.Semaphore()
     import session_hist
@@ -226,7 +231,7 @@ def test_addURLToFailedTable():
 
 def test_writeQueueToDB():
     # Test - writeQueueToDB()
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     testdbFile = os.path.join(testdataFolder, 'test44.db')
     dbAccessSemaphore = threading.Semaphore()
     import session_hist
@@ -284,7 +289,7 @@ def test_writeQueueToDB():
 
 def test_addDupURLToDeleteTbl():
     # TODO: implement this - addDupURLToDeleteTbl()
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     testdbFile = os.path.join(testdataFolder, 'test55.db')
     dbAccessSemaphore = threading.Semaphore()
     import session_hist

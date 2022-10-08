@@ -42,21 +42,21 @@ from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_fi
 
 def test_checkAndParseDate():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
 
 
 def test_getNextDaysDate():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
 
 
 def test_getPreviousDaysDate():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
 
@@ -68,21 +68,21 @@ def test_instClassFromFile():
 
 def test_getNetworkLocFromURL():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
 
 
 def test_checkIfURLIsValid():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
 
 
 def test_extractLinks():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
 
@@ -93,7 +93,7 @@ def test_normalizeURL():
 
 def test_calculateCRC32():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
 
@@ -104,27 +104,27 @@ def test_decodeSecret():
 
 def test_checkAndSanitizeConfigString():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
 
 
 def test_checkAndSanitizeConfigInt():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
 
 
 def test_spaceGapAfterDot():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
 
 
 def test_fixSentenceGaps():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
     # TODO: Test the following scenarios of full stop between sentences -
@@ -135,12 +135,10 @@ def test_fixSentenceGaps():
 
 
 def test_sameURLWithoutQueryParams_true():
-    # parentFolder = '..\\'
-    parentFolder = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-    sourceFolder = os.path.join(parentFolder, 'src')
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
-
     import scraper_utils
+
     url1 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=x"
     url2 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=a"
     # url3 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotas?ticker=x"
@@ -150,9 +148,10 @@ def test_sameURLWithoutQueryParams_true():
 
 
 def test_sameURLWithoutQueryParams_false():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
+
     url1 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=x"
     # url2 = "https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=a"
     url3 = "https://economictimes.indiatimes.com/markets/stocks/stooo-qaaaas?ticker=x"
@@ -162,9 +161,10 @@ def test_sameURLWithoutQueryParams_false():
 
 def test_retainValidArticles():
     # check filtering out of valid urls based on valid string pattern
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
+
     articleList = ['https://economictimes.indiatimes.com/news/latest-news/most-commented',
                    'https://www.twitter.com',
                    'https://auto.economictimes.indiatimes.com/xyz']
@@ -180,9 +180,10 @@ def test_retainValidArticles():
 def test_removeInValidArticles():
     """ Test removal of invalid article URLs from url list
     """
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
+
     articleList = ['https://economictimes.indiatimes.com/news/latest-news/most-commented',
                    'https://www.twitter.com/@ecotimes',
                    'https://www.facebook.com/abcd',
@@ -215,9 +216,10 @@ def test_removeInValidArticles():
         '4. removeInValidArticles() is not filtering out invalid URLs!'
 
 def test_removeStartTrailQuotes():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
+
     assert scraper_utils.removeStartTrailQuotes('"some text"') == 'some text',\
         "5. removeStartTrailQuotes() is not removing quotes around text correctly"
     assert scraper_utils.removeStartTrailQuotes('"another " text') == 'another " text', \
@@ -225,9 +227,10 @@ def test_removeStartTrailQuotes():
 
 def test_saveObjToJSON():
     # TODO: implement this
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
+
     jsonFileName = 'test_saveObjToJSON.json'
     objToSave = {'key1': 1, 'key2':'second value'}
     scraper_utils.saveObjToJSON(jsonFileName, objToSave)
@@ -247,9 +250,10 @@ def test_saveObjToJSON():
 
 def test_deDupeList():
     # Test to deduplicate list
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
+
     listWithDuplicates = ['one', 'two', 'two', 'three']
     resultList = scraper_utils.deDupeList(listWithDuplicates)
     print('Resultng list after de-duplicating:', resultList)
@@ -258,9 +262,10 @@ def test_deDupeList():
 
 def test_filterRepeatedchars():
     # test to filter out Repeated charaters
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import scraper_utils
+
     baseText = 'A good sentence with repeated    spaces and tabs \t\t\t and\n\n\n newlines and hyphens---- dots....'
     charList = [' ', '\t', '\n', '-']
     resultText = scraper_utils.filterRepeatedchars(baseText, charList)

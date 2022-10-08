@@ -37,7 +37,9 @@ from datetime import datetime
 
 # import this project's python libraries:
 from base_plugin import BasePlugin
-from data_structs import Types
+from data_structs import PluginTypes
+from news_event import NewsEvent
+from session_hist import SessionHistory
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import spacy
@@ -54,7 +56,7 @@ class mod_dedupe(BasePlugin):
     For de-duplicating already downloaded data
     """
     minArticleLengthInChars = 400
-    pluginType = Types.MODULE_DATA_PROCESSOR  # implies data post-processor
+    pluginType = PluginTypes.MODULE_DATA_PROCESSOR  # implies data post-processor
     sizeDiff = 0.0
     similarPct = 1.0
     listOfFiles = []
@@ -67,7 +69,7 @@ class mod_dedupe(BasePlugin):
         self.similarPct = 0.99
         super().__init__()
 
-    def additionalConfig(self, sessionHistoryObj):
+    def additionalConfig(self, sessionHistoryObj: SessionHistory):
         """ Perform additional configuration that is specific to this plugin.
 
         :param sessionHistoryObj: The session history object to be used by this plugin
@@ -90,14 +92,15 @@ class mod_dedupe(BasePlugin):
         except Exception as e:
             logger.error("Error loading the NLP model for de-dupe: %s", e)
 
-    def processDataObj(self, newsEventObj):
+    def processDataObj(self,
+                       newsEventObj: NewsEvent):
         """ Process data in the given data object with this plugin.
 
         :param newsEventObj: The ExecutionResult object to be processed.
-        :type newsEventObj: data_structs.ExecutionResult
+        :type newsEventObj: NewsEvent
         """
         # TODO: lock file to avoid conflicting writes, release lock at the end of the method
-        runDate = datetime.strptime(newsEventObj.getPublishDate(), '%Y-%m-%d')
+        runDate = newsEventObj.getPublishDate()
         logger.debug("Started data de-duplication for data in file: %s, for date: %s",
                      newsEventObj.getFileName(), runDate)
         # find list of articles newly fetched:
@@ -136,7 +139,7 @@ class mod_dedupe(BasePlugin):
         if deletedCount > 0:
             logger.debug(f'Deleted {deletedCount} duplicate news events.')
 
-    def processAllDataFiles(self, runDate):
+    def processAllDataFiles(self, runDate: datetime):
         """ Process data for runDate.
 
         :param runDate: The business date for which the text needs to be processed.
@@ -180,10 +183,13 @@ class mod_dedupe(BasePlugin):
         # print(tqdm.format_meter(totalComparisonCount, totalComparisonCount, totalTime, ncols=80))
         logger.info('Deleted a total of %s duplicate news articles.', deletedCount)
 
-    def deleteDuplicateFiles(self, similarTuples):
-        """ Delete duplicate files for each set of duplicates identified
+    def deleteDuplicateFiles(self, similarTuples: list) -> int:
         """
-        # for each pair, delete the second document, i.e.: recTuple[index][2]
+        Delete duplicate files from the given list of file-pairs.
+        For each set of duplicates identified for each pair, delete the second document, i.e.: recTuple[index][2]
+        :param similarTuples:
+        :return:
+        """
         counter = 0
         if similarTuples is not None:
             for counter, recTuple in enumerate(similarTuples):
@@ -193,9 +199,13 @@ class mod_dedupe(BasePlugin):
                         self.removeArticle(recTuple[2])
                 except Exception as e:
                     logger.error("Error deleting duplicate files for %s tuple %s: %s", counter, recTuple, e)
-        return(counter + 1)
+        return counter + 1
 
-    def compareTwoArticles(self, doc1, fileName2, compareThreshold=0.99, maxSizePercentDiff=0.20):
+    def compareTwoArticles(self,
+                           doc1: NewsEvent,
+                           fileName2: str,
+                           compareThreshold=0.99,
+                           maxSizePercentDiff=0.20):
         """ Compare two articles using their text embeddings.
         If the similarity score >= compareThreshold, then check size difference.
         If size difference is less than maxSizePercentDiff, then mark as duplicates.
@@ -226,10 +236,10 @@ class mod_dedupe(BasePlugin):
                         else:
                             resultTuple = (similarityScore, doc2, doc1)
             else:
-                return(None)
+                return None
         except Exception as e:
             logger.error(f"Error trying to calculate similarity of documents: {e}")
-        return(resultTuple)
+        return resultTuple
 
     def computeTextEmbeddingDoc(self, document):
         """ Calculate Text Embedding
@@ -244,7 +254,7 @@ class mod_dedupe(BasePlugin):
                 document = None
         except Exception as e:
             logger.error(f"Error trying to calculate similarity of URLs: {e}")
-        return(document)
+        return document
 
     def removeArticle(self, articleObject):
         """ Remove article identified as duplicate

@@ -38,7 +38,7 @@ import logging
 # import this project's python libraries:
 from base_plugin import BasePlugin
 # from scraper_utils import retainValidArticles
-from data_structs import Types
+from data_structs import PluginTypes
 from scraper_utils import deDupeList, filterRepeatedchars
 
 ##########
@@ -54,7 +54,7 @@ class mod_en_in_livemint(BasePlugin):
     minArticleLengthInChars = 400
 
     # implies web-scraper for news content, see data_structs.py for other types
-    pluginType = Types.MODULE_NEWS_CONTENT
+    pluginType = PluginTypes.MODULE_NEWS_CONTENT
 
     # main webpage URL
     mainURL = "https://www.livemint.com/latest-news"
@@ -258,7 +258,7 @@ class mod_en_in_livemint(BasePlugin):
         body_text = ""
         return(body_text)
 
-    def checkAndCleanText(self, inputText, rawData):
+    def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
         """
         cleanedText = inputText

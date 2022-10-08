@@ -3,10 +3,10 @@
 
 # #########################################################################################################
 #                                                                                                         #
-# File name: mod_dataprep.py                                                                              #
+# File name: mod_solrsubmit.py                                                                            #
 # Application: The NewsLookout Web Scraping Application                                                   #
 # Date: 2021-06-23                                                                                        #
-# Purpose: Plugin for custom data processing of news articles text                                        #
+# Purpose: Plugin for submitting each news article for indexing to a SOLR search engine                   #
 # Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com  #
 #                                                                                                         #
 #                                                                                                         #
@@ -46,9 +46,9 @@ logger = logging.getLogger(__name__)
 ###########
 
 
-class mod_dataprep(BasePlugin):
-    """ Web Scraping plugin: mod_dataprep
-    For preparing already downloaded data
+class mod_solrsubmit(BasePlugin):
+    """ Web Scraping plugin: mod_solrsubmit
+    For submitting newly downloaded data to a SOLR search engine for indexing
     """
     minArticleLengthInChars = 400
     pluginType = PluginTypes.MODULE_DATA_PROCESSOR  # implies data post-processor
@@ -72,8 +72,8 @@ class mod_dataprep(BasePlugin):
         self.sessionHistDB = sessionHistoryObj
 
     def processDataObj(self, newsEventObj: NewsEvent):
-        """ Process given data object by this plugin, read the contents from the file and
-        directly write back the transformed data back to the same file.
+        """ Submit relevant fields from the given document object to
+         the SOLR search engine indexer using this plugin.
 
         :param newsEventObj: The NewsEvent object to be processed.
         :type newsEventObj: NewsEvent
@@ -82,29 +82,24 @@ class mod_dataprep(BasePlugin):
             assert type(newsEventObj) == NewsEvent
             # TODO: lock file to avoid conflicting writes, release lock at the end of the method
             runDate = newsEventObj.getPublishDate()
-            logger.debug("Started data pre-processing for news event data in: %s for date: %s",
+            logger.debug("Submitting document %s of date: %s to SOLR search engine",
                          newsEventObj.getFileName(), runDate)
-            newsEventObj.setText(
-                self.cleanText(newsEventObj.getText())
-                )
-            # prepare filename:
-            fileNameWOExt = newsEventObj.getFileName().replace('.json', '')
-            # save document to file:
-            newsEventObj.writeFiles(fileNameWOExt, '', saveHTMLFile=False)
+            # TODO: prepare the HTTP POST to submit the document to the SOLR search engine
+            self.submitText(newsEventObj)
+            # write to log file:
+            logger.debug(f'Submitted news article data to solr for indexing: {newsEventObj.getURL()}')
         except Exception as e:
             logger.error(f'Error processing data: {e}')
 
-    def cleanText(self, inputText: str) -> str:
+    def submitText(self, newsEventObj: NewsEvent):
         """
-        Examine and clean the text from the document and return cleaned text.
+        Submit the document to a solr search engine for indexing.
 
-        :param inputText: Text to be examined and cleaned.
-        :type inputText: str
-        :return: Cleaned text
-        :rtype: str
+        :param newsEventObj: Text article to be examined and cleaned.
+        :type newsEventObj: str
         """
-        # TODO: apply text cleaning logic
-        outputText = inputText.strip()
-        return outputText
+        # TODO: write logic to submit to solr engine using HTTP POST
+        outputText = newsEventObj.getText().strip()
+
 
 # # end of file ##

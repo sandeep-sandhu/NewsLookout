@@ -43,10 +43,10 @@ from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_fi
 
 def test_queue_manager_init_config():
     # Test init() and config():
-    (parentFolder, sourceFolder, testdataFolder) = getAppFolders()
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
-                                  os.path.join(parentFolder, 'conf', 'newslookout.conf'))
+                                  config_file)
     app_inst.app_queue_manager.config(app_inst.app_config)
     assert type(app_inst.app_queue_manager.fetchCompletedQueue) == queue.Queue,\
         'Queue manager: fetchCompletedQueue was not configured correctly.'
