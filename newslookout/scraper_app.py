@@ -92,6 +92,17 @@ class NewsLookout:
         :param sysargs: The command line arguments passed from the OS.
         :return: Nothing
         """
+        # TODO: read config from the following environment variables
+        #      - NLTK_DATA="/opt/newslookout/models/nltk"
+        #      - NEWSLOOKOUT_DATA="/var/cache/newslookout_data"
+        #      - NEWSLOOKOUT_HOME="/opt/newslookout"
+        #      - NEWSLOOKOUT_CONFIG="/etc/newslookout/newslookout.conf"
+        #      - NEWSLOOKOUT_PLUGINS="/opt/newslookout/plugins"
+        #      - NEWSLOOKOUT_PLUGINS_CONTRIB="/opt/newslookout/plugins_contrib"
+        #      - NEWSLOOKOUT_LOG_LEVEL="INFO"
+        #      - NEWSLOOKOUT_RUNDATE_FROM="2022-10-08"
+        #      - NEWSLOOKOUT_RUNDATE_TO="2022-10-09"
+        #      - NEWSLOOKOUT_SYSLOG_SERVER=""
         try:
             if len(sysargs) < 3:
                 NewsLookout.print_usage_and_exit()

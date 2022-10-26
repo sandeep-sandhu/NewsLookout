@@ -1,39 +1,42 @@
 version: '3.2'
-
-# use this to startup the NewsLookout web scraper
+# use this config to startup the NewsLookout web scraper in a container:
 
 services:
 
-  newslookout_web_scraper:
+  newslookout_2_1_0:
 
     image: newslookout:2.1.0
 
-    container_name: newslookout
+    container_name: newslookout_2_1_0
 
     environment:
       - NLTK_DATA="/opt/newslookout/models/nltk"
       - NEWSLOOKOUT_DATA="/var/cache/newslookout_data"
       - NEWSLOOKOUT_HOME="/opt/newslookout"
       - NEWSLOOKOUT_CONFIG="/etc/newslookout/newslookout.conf"
+      - NEWSLOOKOUT_PLUGINS="/opt/newslookout/plugins"
+      - NEWSLOOKOUT_PLUGINS_CONTRIB="/opt/newslookout/plugins_contrib"
       # set default time zone to: Indian Standard Time
       - TZ="Asia/Kolkata"
-      # this flag will make main script wait after application run has finished,
+      # Setting this flag to "True" will force the main script wait after application run has finished,
       # remove this to make it exit when program run is completed.
-      - NEWSLOOKOUT_PERSIST_AFTER_RUN="True"
+      #- NEWSLOOKOUT_PERSIST_AFTER_RUN="True"
+      - NEWSLOOKOUT_LOG_LEVEL="INFO"
+      - NEWSLOOKOUT_RUNDATE_FROM="2022-10-08"
+      - NEWSLOOKOUT_RUNDATE_TO="2022-10-09"
+      - NEWSLOOKOUT_SYSLOG_SERVER=""
 
     volumes:
-      - C:\shared\newslookout\conf:/etc/newslookout:rw
+      - c:\shared\newslookout\conf:/etc/newslookout:rw
       - c:\shared\newslookout\web_scraped_data:/var/cache/newslookout_data:rw
-      - c:\shared\newslookout\models:/opt/models:rw
-      - c:\shared\newslookout\logs:/var/log/newslookout:rw
+      - c:\shared\newslookout\models2:/opt/newslookout/models2:rw
+      #- c:\shared\newslookout\logs:/var/log/newslookout:rw
 
     # networks:
       # - newslookout_network
-
     ports:
       - '22:1022'
       - '80:8080'
-
 networks:
-  # The presence of these objects is sufficient to define them
+  # The network
   newslookout_network: {}
