@@ -419,18 +419,18 @@ class BasePlugin:
         """
         newlist = []
         try:
-            # TODO: check logic, why does datetime object need to be converted to string if datetime object
-            #  is indeed required later in this method?
-            runDateString = runDate.strftime("%Y-%m-%d")
             listOfFiles = BasePlugin.getFullFilePathsInDir(
-                BasePlugin.identifyDataPathForRunDate(baseDirName, runDateString))
+                BasePlugin.identifyDataPathForRunDate(baseDirName,
+                                                      runDate.strftime("%Y-%m-%d")
+                                                      )
+                )
             if dayspan > 0:
                 # # get articles from previous day too:
                 listOfFiles = listOfFiles + BasePlugin.getFullFilePathsInDir(
                     BasePlugin.identifyDataPathForRunDate(
                         baseDirName,
                         getPreviousDaysDate(
-                            runDate.strptime(runDateString, '%Y-%m-%d')
+                            runDate
                             )
                         )
                     )
@@ -438,7 +438,7 @@ class BasePlugin:
                 listOfFiles = listOfFiles + BasePlugin.getFullFilePathsInDir(
                     BasePlugin.identifyDataPathForRunDate(
                         baseDirName, getNextDaysDate(
-                            runDate.strptime(runDateString, '%Y-%m-%d')
+                            runDate
                             )
                         )
                     )
@@ -694,15 +694,21 @@ class BasePlugin:
             logger.error(f"{self.pluginName}: Error trying to validate retrieved listing of URLs: {e}")
         return allURLs
 
-    def getLinksRecursively(self, allURLs: list, run_date, recursionLevel: int) -> list:
-        """ Get Links Recursively
+    def getLinksRecursively(self, allURLs: list, run_date: datetime, recursionLevel: int) -> list:
         """
-        # TODO: make method immutable, return URL list
+        Get Links Recursively upto given level of recursion.
+
+        :param allURLs: The list of URL strings which need to be parsed.
+        :param run_date: The business date (used where applicable)
+        :param recursionLevel: The level of recursion, The maximum recursion level is limited to 4 levels.
+        :return: List of URL strings extracted after recursion and extraction of links from input URLs.
+        """
         # initialize local variables:
         links2LevelsDeep = []
         links3LevelsDeep = []
         links4LevelsDeep = []
         try:
+            # TODO: change to loop for better readability
             if recursionLevel > 1:
                 # go another level deeper
                 logger.info(f"Started collecting URLs 2 levels deep, for plugin: {self.pluginName}")
@@ -886,14 +892,19 @@ class BasePlugin:
         return htmlcontent
 
     def fetchDataFromURL(self, uRLtoFetch: str, WorkerID: int) -> ExecutionResult:
-        """ Fetch complete cleaned data from given URL
-        The return value is an ExecutionResult object.
+        """
+        Fetch complete and cleaned data from the given URL.
+
+        :param uRLtoFetch: The URL to be fetched by the plugin
+        :param WorkerID: The identifier of the worker thread executing this plugin.
+        :return: An ExecutionResult object that contains the data and status after fetch has completed.
         """
         # TODO: make method immutable to class variables, except queue and its attributes
+        # create empty data strcut to hold the fetch result:
         resultVal = ExecutionResult(uRLtoFetch,
-                                    0,
-                                    0,
-                                    None,
+                                    0,  # htmlContentLen
+                                    0,  # textContentLen
+                                    None,  # publishDate
                                     self.pluginName)
         additionalLinks = []
         # set this plugin instance's URL attribute until its data retrieval is completed

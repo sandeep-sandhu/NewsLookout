@@ -353,7 +353,7 @@ def getNextDaysDate(runDate: datetime) -> datetime:
     return businessDate
 
 
-def getPreviousDaysDate(runDate) -> datetime:
+def getPreviousDaysDate(runDate: datetime) -> datetime:
     """ Given a date input, get date object of the previous day.
 
     :parameter runDate: The query date
@@ -361,15 +361,11 @@ def getPreviousDaysDate(runDate) -> datetime:
     :return: the previous day's date
     :rtype: datetime
     """
+    if type(runDate).__name__ == 'str':
+        runDate = runDate.strptime(runDate, '%Y-%m-%d')
     businessDate = runDate
     try:
-        if type(runDate).__name__ == 'datetime':
-            businessDate = runDate - timedelta(days=1)
-        elif type(runDate).__name__ == 'str':
-            runDate = runDate.strptime(runDate, '%Y-%m-%d')
-            businessDate = runDate - timedelta(days=1)
-        else:
-            logger.error("runDate parameter is of type: %s", type(runDate).__name__)
+        businessDate = runDate - timedelta(days=1)
     except Exception as e:
         logger.error("While calculating date value of previous day: %s", e)
     return businessDate

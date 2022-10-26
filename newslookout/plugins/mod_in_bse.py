@@ -86,7 +86,7 @@ class mod_in_bse(BasePlugin):
         self.pluginState = PluginTypes.STATE_GET_URL_LIST
         super().__init__()
 
-    def getURLsListForDate(self, runDate, sessionHistoryDB):
+    def getURLsListForDate(self, runDate: datetime, sessionHistoryDB):
         """ Retrieve the URLs List For a given Date
         """
         listOfURLS = []
