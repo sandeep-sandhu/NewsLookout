@@ -166,7 +166,12 @@ class SessionHistory:
         return searchResult
 
     def removeAlreadyFetchedURLs(self, newURLsList: List[str], pluginName: str) -> list:
-        """ Remove already fetched URLs from given list by searching history database
+        """
+        Remove already fetched URLs from given list by searching history database
+
+        :param newURLsList:
+        :param pluginName:
+        :return:
         """
         filteredList = []
         sqlCon = None
@@ -179,6 +184,7 @@ class SessionHistory:
                 cur = sqlCon.cursor()
                 if newURLsList is not None:
                     # TODO: parallelize this to search entire list in one iteration, use temp tables and SQL
+                    # TODO: fix error: mod_en_in_hindu: While removing already fetched URLs: invalid literal for int() with base 10: b'07 00:00:00'
                     for listItem in newURLsList:
                         result = cur.execute('select url, pubdate from URL_LIST where url = ? union all ' +
                                              'select url, NULL from FAILED_URLS where url = ?',
@@ -230,7 +236,7 @@ class SessionHistory:
         logger.info(f'{pluginName}: Identified {len(URLsFromSQLite)} URLs from pending table of history database.')
         return URLsFromSQLite
 
-    def addURLsToPendingTable(self, urlList: list, pluginName: str):
+    def addURLsToPendingTable(self, urlList: list, pluginName: str, num_attempts: int = 1):
         """ Add newly identified URLs to the pending Table.
 
         Check duplicates using SQL:
@@ -250,10 +256,11 @@ class SessionHistory:
                 cur = sqlCon.cursor()
                 urlList = deDupeList(urlList)
                 # TODO: parallelize this to process entire list in one iteration
+                # TODO: fix exception - 'str' object has no attribute 'URL'
                 for sURL in urlList:
                     # Ideally, if url already exists, the no. of attempts should be incremented by 1, but it is omitted
-                    cur.execute('insert or ignore into pending_urls (url, plugin_name, attempts) values (?, ?, 1)',
-                                (sURL, pluginName))
+                    cur.execute('insert or ignore into pending_urls (url, plugin_name, attempts) values (?, ?, ?)',
+                                (sURL, pluginName, num_attempts))
                 sqlCon.commit()
         except Exception as e:
             logger.error(f"Error while adding URL list to pending table: {e}")

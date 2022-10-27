@@ -172,6 +172,7 @@ class mod_in_nse(BasePlugin):
             except Exception as theError:
                 logger.error("Error creating data directory '%s', Exception was: %s", dirPathName, theError)
             try:
+                # TODO: fix error - [Errno 13] Permission denied: '/var/cache/newslookout_data/2022-10-06/mod_in_nse_061022.zip'
                 with open(fullPathName, 'wb') as fp:
                     n = fp.write(rawData)
                     logger.debug("Wrote %s bytes to file: %s", n, fullPathName)
@@ -397,6 +398,7 @@ class mod_in_nse(BasePlugin):
             # iterate through all lines in the file:
             for index, announceRecord in enumerate(fileRecords):
                 try:
+                    # TODO: fix error - 'utf-8' codec can't decode byte 0xbf in position 4327: invalid start byte
                     # some records contain newlines, hence span multiple lines, identify and ignore those lines:
                     if (index > 0 and announceRecord.find(':') > -1 and
                             announceRecord.lower().find("declaration of nav ") < 0 and

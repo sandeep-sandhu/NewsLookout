@@ -186,7 +186,7 @@ class QueueManager:
     def loadPlugins(app_dir: str,
                     plugins_dir: str,
                     contrib_plugins_dir: str,
-                    enabledPluginNames: list) -> dict:
+                    enabledPluginNames: dict) -> dict:
         """ Load only enabled plugins from the modules in the plugins directory.
         The class names of plugins are expected to be the same as their module names.
 
@@ -195,7 +195,7 @@ class QueueManager:
         :param contrib_plugins_dir: Contributed plugins directory
         :param enabledPluginNames: List of plugins that are enabled in the configuraiton file.
          Only these modules are loaded and instantiated.
-        :return:
+        :return: Map of loaded plugin objects with name as key and instantiated class as value
         """
         pluginsDict = dict()
         # add paths to load python files
@@ -385,7 +385,7 @@ class QueueManager:
                                                    self.sessionHistoryDB,
                                                    self,
                                                    self.q_status,
-                                                   self.app_config.progressRefreshInt,
+                                                   self.app_config,
                                                    name='1',
                                                    daemon=False)
         # To begin with, initialize the URL identifying workers

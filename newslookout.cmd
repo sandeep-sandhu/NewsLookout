@@ -7,7 +7,7 @@ set APP_ROOT_DIR=%USERPROFILE%\Documents\src\python_projs\NewsLookout
 set PYTHON_SCRIPT=%APP_ROOT_DIR%\newslookout\scraper_app.py
 set APP_CONF_FILE=%APP_ROOT_DIR%\conf\newslookout_win.conf
 
-set NLTK_DATA=C:\shared\datasets\web_scraped_data\models\nltk
+set NLTK_DATA=C:\shared\newslookout\models\nltk
 
 cd /d "%~dp0"
 

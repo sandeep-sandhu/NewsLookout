@@ -69,7 +69,7 @@ from newspaper import network as newspaper_network
 # import this project's python libraries:
 from config import ConfigManager
 from network import NetworkFetcher
-from data_structs import PluginTypes, ScrapeError, ExecutionResult
+from data_structs import PluginTypes, ScrapeError, ExecutionResult, PluginStatus
 from news_event import NewsEvent
 
 import scraper_utils
@@ -111,6 +111,7 @@ class BasePlugin:
     mainURLDateFormatted = None
     all_rss_feeds = []
     pluginType = None
+    status = None
     pluginState = PluginTypes.STATE_GET_URL_LIST
     URLToFetch = None
     listOfURLS = []
@@ -195,6 +196,8 @@ class BasePlugin:
         Logs an error and exits if these are not found in the plugin.
         """
         self.pluginName = type(self).__name__
+        self.status = PluginStatus()
+        self.status.set_plugin_state(PluginTypes.STATE_GET_URL_LIST)
         if self.pluginType in [PluginTypes.MODULE_NEWS_CONTENT]:
             # check required attributes:
             attributesTocheck = ['mainURL', 'validURLStringsToCheck', 'invalidURLSubStrings',
@@ -202,16 +205,14 @@ class BasePlugin:
                                  'minArticleLengthInChars', 'nonContentURLs', 'nonContentStrings']
             for attrToCheck in attributesTocheck:
                 if attrToCheck not in dir(self):
-                    logger.error("%s plugin must define attribute: %s",
-                                 self.pluginName, attrToCheck)
+                    logger.error(f"{self.pluginName} plugin must define attribute: {attrToCheck}, exiting now.")
                     sys.exit(-1)
             # check required methods:
             methodsTocheck = ['getURLsListForDate', 'parseFetchedData', 'extractUniqueIDFromURL',
                               'extractArticleBody']
             for methodName in methodsTocheck:
                 if methodName not in dir(self):
-                    logger.error("%s plugin must implement method: %s",
-                                 self.pluginName, methodName)
+                    logger.error(f"{self.pluginName} plugin must implement method: {methodName}, exiting now.")
                     sys.exit(-1)
         elif self.pluginType in [PluginTypes.MODULE_DATA_PROCESSOR]:
             self.pluginState = PluginTypes.STATE_PROCESS_DATA
@@ -219,8 +220,7 @@ class BasePlugin:
             methodsTocheck = ['processDataObj', 'additionalConfig']
             for methodName in methodsTocheck:
                 if methodName not in dir(self):
-                    logger.error("%s plugin must implement method: %s",
-                                 self.pluginName, methodName)
+                    logger.error(f"{self.pluginName} plugin must implement method: {methodName}, exiting now.")
                     sys.exit(-1)
 
     def config(self, app_config: ConfigManager):
@@ -384,14 +384,14 @@ class BasePlugin:
         return list_of_files
 
     @staticmethod
-    def identifyDataPathForRunDate(data_directory: str, business_date) -> str:
+    def identifyDataPathForRunDate(data_directory: str, business_date: datetime) -> str:
         """ Identify the data directory path for a given run-date
 
         :rtype: str
         :param data_directory: The base data directory for the application.
         :type data_directory: str
         :param business_date: The business date for which the text needs to be processed.
-        :type business_date: str
+        :type business_date: datetime
         :return: Full path for the directory storing files for the given run-date
         """
         date_string = ""
@@ -420,26 +420,20 @@ class BasePlugin:
         newlist = []
         try:
             listOfFiles = BasePlugin.getFullFilePathsInDir(
-                BasePlugin.identifyDataPathForRunDate(baseDirName,
-                                                      runDate.strftime("%Y-%m-%d")
-                                                      )
+                BasePlugin.identifyDataPathForRunDate(baseDirName, runDate)
                 )
             if dayspan > 0:
                 # # get articles from previous day too:
                 listOfFiles = listOfFiles + BasePlugin.getFullFilePathsInDir(
                     BasePlugin.identifyDataPathForRunDate(
                         baseDirName,
-                        getPreviousDaysDate(
-                            runDate
-                            )
+                        getPreviousDaysDate(runDate)
                         )
                     )
                 # # get for next day, in case data is available:
                 listOfFiles = listOfFiles + BasePlugin.getFullFilePathsInDir(
                     BasePlugin.identifyDataPathForRunDate(
-                        baseDirName, getNextDaysDate(
-                            runDate
-                            )
+                        baseDirName, getNextDaysDate(runDate)
                         )
                     )
             # remove non-json files:

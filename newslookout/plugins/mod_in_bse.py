@@ -193,6 +193,7 @@ class mod_in_bse(BasePlugin):
             memberFileName = memberZipInfo.filename
             if memberZipInfo.filename.find('Readme.txt') < 0:
                 try:
+                    # TODO: fix error - [Errno 2] No such file or directory: '/var/cache/newslookout_data/2022-10-07/EQ_ISINCODE_071022.CSV' -> '/var/cache/newslookout_data/2022-10-07/equity_bse_20221007.csv'
                     # rename extracted files to prefix the module's name:
                     if memberFileName.startswith('EQ_ISINCODE_'):
                         newName = os.path.join(dataDirForDate, "equity_bse_" + publishDateStr + '.csv')

@@ -54,12 +54,20 @@ from datetime import datetime
 import queue
 import copy
 import enlighten
+import os
+
+#import the flask module for REST API serving
+from flask import Flask, redirect, url_for, request, Response, jsonify
+import werkzeug
+import json
 
 # import this project's modules
 import session_hist
+from config import ConfigManager
 from data_structs import PluginTypes
 import scraper_utils
 from data_structs import QueueStatus
+from . import parentFolder
 # from queue_manager import QueueManager
 
 # #########
@@ -378,9 +386,10 @@ class DataProcessor(threading.Thread):
 
 ##########
 
-
 class ProgressWatcher(threading.Thread):
-    """ Worker object to save completed URL to history database asynchronously
+    """ Worker object to save completed URL to history database asynchronously.
+     Uses flask to report async status updates via a simple http REST API call
+      that returns the application status as a JSON object.
     """
     workerID = -1
     # refreshIntervalSecs is an estimate of the time in seconds a thread takes to retrieve a url:
@@ -398,12 +407,14 @@ class ProgressWatcher(threading.Thread):
     countWrittenToDB = 100
     countOfDataProcessed = 0
     q_status = None
+    rest_api_enabled = False
+    flask_app = Flask("NewsLookout")  # instantiating flask object
 
     def __init__(self, pluginNameObjMap: dict,
                  sessionHistoryDB: session_hist.SessionHistory,
                  queue_manager: any,
                  queue_status: QueueStatus,
-                 progressRefreshInt: int,
+                 app_config: ConfigManager,
                  daemon=None, target=None, name=None):
         """ Initialize this thread's object
 
@@ -411,7 +422,6 @@ class ProgressWatcher(threading.Thread):
         :param sessionHistoryDB:
         :param queue_manager:
         :param queue_status:
-        :param progressRefreshInt:
         :param daemon:
         :param target:
         :param name:
@@ -419,9 +429,9 @@ class ProgressWatcher(threading.Thread):
         self.workerID = name
         self.pluginNameObjMap = pluginNameObjMap
         self.historyDB = sessionHistoryDB
-        self.refreshIntervalSecs = progressRefreshInt
+        self.refreshIntervalSecs = app_config.progressRefreshInt
         self.queue_manager = queue_manager
-        assert type(self.queue_manager).__name__ == "QueueManager", "queue manager not valid object."
+        assert type(self.queue_manager).__name__ == "QueueManager", "The queue manager not valid object."
         self.q_status = queue_status
         self.q_status.updateStatus()
         self.enlighten_manager = enlighten.get_manager()
@@ -441,11 +451,80 @@ class ProgressWatcher(threading.Thread):
                                                            desc=' Data processed:',
                                                            unit='  Files',
                                                            color='green')
+        self.rest_api_enabled = app_config.rest_api_enabled
+        # settings for the REST API service
+        self.restapi_host = app_config.rest_api_host
+        self.restapi_port_num = app_config.rest_api_port
+        self.flask_app.classobj = self
+        self.flask_app.debug=False  # setting the debugging option for the application instance
         logger.debug("Progress watcher thread %s initialized with the plugins: %s",
                      self.workerID,
                      self.pluginNameObjMap)
         # call base class:
         super().__init__(daemon=daemon, target=target, name=name)
+
+    @staticmethod
+    @flask_app.route('/status', methods=['POST', 'GET']) #defining a route in the application
+    def http_status():
+        # TODO: define and use a proper data structure for the status
+        self = ProgressWatcher.flask_app.classobj
+        self.q_status.updateStatus()
+        status_resp_map = self.q_status.qsizeMap
+        status_resp_map.update({'num_plugins': len(self.q_status.qsizeMap)})
+        status_resp_map.update({'url_count': self.q_status.totalURLCount})
+        status_resp_map.update({'data_processed_count': self.q_status.dataOutputQsize})
+        status_resp_map.update({'url_fetched_count': self.q_status.fetchCompletCount})
+        # serialise to string to send REST API response
+        json_object = json.dumps(status_resp_map, indent = 4)
+        app_headers = werkzeug.datastructures.Headers()
+        app_headers.remove('Server')
+        app_headers.add('Server', 'NewsLookout')
+        # use this to directly convert dict object to json and respond: return jsonify(data), 200
+        return Response(json_object, status=200, headers=app_headers, content_type='application/json')
+
+    @staticmethod
+    @flask_app.route('/', methods=['GET'])
+    def http_ui():
+        app_headers = werkzeug.datastructures.Headers()
+        app_headers.remove('Server')
+        app_headers.add('Server', 'NewsLookout')
+        # the output template:
+        html_response = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" />
+            <title>Newslookout Application Status</title></head>
+            <body><h1>Newslookout Application Status</h1>
+            <div id='appstatuscontent'></div>
+            <script type="text/javascript" src="/app_status_ui.js">
+            </script></body></html>
+            """
+        return Response(html_response,
+                        status=200,
+                        headers=app_headers)
+
+    @staticmethod
+    @flask_app.route('/app_status_ui.js', methods=['GET'])
+    def http_app_js():
+        self = ProgressWatcher.flask_app.classobj
+        app_headers = werkzeug.datastructures.Headers()
+        app_headers.remove('Server')
+        app_headers.add('Server', 'NewsLookout')
+        # read from js file and return js content:
+        js_response = f"""
+            let content_section = document.getElementById('appstatuscontent');
+            content_section.innerHTML = "Web scraping status at port {self.restapi_port_num} code at: {os.path.join(parentFolder, 'app_status_ui.js')}";
+            """
+        try:
+            # read javascript code in folder
+            with open(os.path.join(parentFolder, 'app_status_ui.js'), 'rt', encoding='utf-8') as fp:
+                js_response = fp.read()
+                fp.close()
+        except Exception as e:
+            logger.error(f"When reading app status ui javascript file 'app_status_ui.js': {e}")
+
+        return Response(js_response,
+                        status=200,
+                        headers=app_headers,
+                        mimetype='application/javascript',
+                        content_type='application/javascript')
 
     def run(self):
         """ Main method that runs this progress reporting thread and
@@ -457,68 +536,73 @@ class ProgressWatcher(threading.Thread):
         logger.info('Progress watcher thread started.')
         try:
             self.q_status.updateStatus()
-            # save previous state, use deepcopy for dictionary object:
-            previousState = copy.deepcopy(self.q_status.currentState)
-            # initial update of the progress bars:
-            self.urlListFtBar.update(incr=self.q_status.totalPluginsURLSourcing -
-                                     self.q_status.countOfPluginsInURLSrcState)
-            self.urlScrapeBar.total = self.q_status.totalURLCount
-            self.urlScrapeBar.update(incr=(self.q_status.totalURLCount - self.q_status.fetchPendingCount))
-            self.dataProcsBar.total = self.q_status.dataInputQsize + self.q_status.dataOutputQsize
-            self.dataProcsBar.update(incr=self.q_status.dataOutputQsize)
-            prevCountOfDataProcessed = self.q_status.dataOutputQsize
-            print("Web-scraping Progress:")
-            # check if any data processing is pending in queue:
-            while self.q_status.isPluginStillFetchingoverNetwork is True or self.q_status.dataInputQsize > 0:
-                results_from_queue = []
-                while not self.queue_manager.isFetchQEmpty():
-                    # get all completed urls from queue:
-                    results_from_queue.append(self.queue_manager.getFetchResultFromQueue())
-                countOfURLsWrittenToDB = self.historyDB.writeQueueToDB(results_from_queue)
-                # keep a total count, this will be reported before closing the application
-                self.countWrittenToDB = self.countWrittenToDB + countOfURLsWrittenToDB
-                prevURLListPluginPending = self.q_status.countOfPluginsInURLSrcState
-                # wait for some time before checking again:
-                time.sleep(self.refreshIntervalSecs)
-                self.q_status.updateStatus()
-                if log_event_update_cnt > self.refreshWaitCountForLog:
-                    log_event_update_cnt = 0
-                    logger.debug(f"Plugin states: {self.q_status.currentState}")
-                    logger.debug(f'Count of plugins still sourcing URLs: {self.q_status.countOfPluginsInURLSrcState},' +
-                                 f' out of a total of {self.q_status.totalPluginsURLSourcing} plugins.')
-                    logger.debug(f"All plugins current queue sizes: {self.q_status.qsizeMap}")
-                    logger.debug(f"Current fetch completed count: {self.q_status.fetchCompletQsize}, " +
-                                 f"Total fetch completed count: {self.q_status.fetchCompletCount}")
-                    # INFO messages:
-                    logger.info(f"Total count of all URLs to fetch: {self.q_status.totalURLCount}, " +
-                                "Are any plugins still fetching over network? " +
-                                f"{self.q_status.isPluginStillFetchingoverNetwork}")
-                    logger.info(f"Data items waiting to be processed in Input Queue: {self.q_status.dataInputQsize}, " +
-                                f"Data Processed: {self.q_status.dataOutputQsize}")
-                    for statusMessage in QueueStatus.getStatusChange(previousState, self.q_status.currentState):
-                        logger.info(statusMessage)
-                    # save previous state, use deepcopy for dictionary object:
-                    previousState = copy.deepcopy(self.q_status.currentState)
-                    logger.debug(f'All plugins stopped? {self.q_status.areAllPluginsStopped}')
-                log_event_update_cnt = log_event_update_cnt + 1
-                # update the progress bars:
+            if self.rest_api_enabled is True:
+                logger.info(f"Starting REST API server at: {self.restapi_host}, port {self.restapi_port_num}")
+                # launch the flask's integrated development webserver
+                self.flask_app.run(host=self.restapi_host, port=self.restapi_port_num)
+            else:
+                # save previous state, use deepcopy for dictionary object:
+                previousState = copy.deepcopy(self.q_status.currentState)
+                # initial update of the progress bars:
+                self.urlListFtBar.update(incr=self.q_status.totalPluginsURLSourcing -
+                                         self.q_status.countOfPluginsInURLSrcState)
                 self.urlScrapeBar.total = self.q_status.totalURLCount
+                self.urlScrapeBar.update(incr=(self.q_status.totalURLCount - self.q_status.fetchPendingCount))
                 self.dataProcsBar.total = self.q_status.dataInputQsize + self.q_status.dataOutputQsize
-                if self.q_status.dataInputQsize + self.q_status.dataOutputQsize == 0:
-                    self.dataProcsBar.total = self.q_status.totalURLCount
-                self.urlListFtBar.update(incr=prevURLListPluginPending - self.q_status.countOfPluginsInURLSrcState)
-                # reset flag before checking all plugins again within loop:
-                prevCompletedURLCount = fetchCompletedCount
-                fetchCompletedCount = self.q_status.totalURLCount - self.q_status.fetchPendingCount
-                self.urlScrapeBar.update(incr=(fetchCompletedCount - prevCompletedURLCount))
-                self.dataProcsBar.update(incr=(self.q_status.dataOutputQsize - prevCountOfDataProcessed))
+                self.dataProcsBar.update(incr=self.q_status.dataOutputQsize)
                 prevCountOfDataProcessed = self.q_status.dataOutputQsize
-            self.urlScrapeBar.close()
-            self.urlListFtBar.close()
-            self.dataProcsBar.update(incr=(self.q_status.dataOutputQsize - prevCountOfDataProcessed))
-            self.dataProcsBar.close()
-            logger.info('Progress watcher thread: Finished saving a total of %s URLs in history database.',
-                        self.countWrittenToDB)
+                print("Web-scraping Progress:")
+                # check if any data processing is pending in queue:
+                while self.q_status.isPluginStillFetchingoverNetwork is True or self.q_status.dataInputQsize > 0:
+                    results_from_queue = []
+                    while not self.queue_manager.isFetchQEmpty():
+                        # get all completed urls from queue:
+                        results_from_queue.append(self.queue_manager.getFetchResultFromQueue())
+                    countOfURLsWrittenToDB = self.historyDB.writeQueueToDB(results_from_queue)
+                    # keep a total count, this will be reported before closing the application
+                    self.countWrittenToDB = self.countWrittenToDB + countOfURLsWrittenToDB
+                    prevURLListPluginPending = self.q_status.countOfPluginsInURLSrcState
+                    # wait for some time before checking again:
+                    time.sleep(self.refreshIntervalSecs)
+                    self.q_status.updateStatus()
+                    if log_event_update_cnt > self.refreshWaitCountForLog:
+                        log_event_update_cnt = 0
+                        logger.debug(f"Plugin states: {self.q_status.currentState}")
+                        logger.debug(f'Count of plugins still sourcing URLs: {self.q_status.countOfPluginsInURLSrcState},' +
+                                     f' out of a total of {self.q_status.totalPluginsURLSourcing} plugins.')
+                        logger.debug(f"All plugins current queue sizes: {self.q_status.qsizeMap}")
+                        logger.debug(f"Current fetch completed count: {self.q_status.fetchCompletQsize}, " +
+                                     f"Total fetch completed count: {self.q_status.fetchCompletCount}")
+                        # INFO messages:
+                        logger.info(f"Total count of all URLs to fetch: {self.q_status.totalURLCount}, " +
+                                    "Are any plugins still fetching over network? " +
+                                    f"{self.q_status.isPluginStillFetchingoverNetwork}")
+                        logger.info(f"Data items waiting to be processed in Input Queue: {self.q_status.dataInputQsize}, " +
+                                    f"Data Processed: {self.q_status.dataOutputQsize}")
+                        for statusMessage in QueueStatus.getStatusChange(previousState, self.q_status.currentState):
+                            logger.info(statusMessage)
+                        # save previous state, use deepcopy for dictionary object:
+                        previousState = copy.deepcopy(self.q_status.currentState)
+                        logger.debug(f'All plugins stopped? {self.q_status.areAllPluginsStopped}')
+                    log_event_update_cnt = log_event_update_cnt + 1
+                    # update the progress bars:
+                    self.urlScrapeBar.total = self.q_status.totalURLCount
+                    self.dataProcsBar.total = self.q_status.dataInputQsize + self.q_status.dataOutputQsize
+                    if self.q_status.dataInputQsize + self.q_status.dataOutputQsize == 0:
+                        self.dataProcsBar.total = self.q_status.totalURLCount
+                    self.urlListFtBar.update(incr=prevURLListPluginPending - self.q_status.countOfPluginsInURLSrcState)
+                    # reset flag before checking all plugins again within loop:
+                    prevCompletedURLCount = fetchCompletedCount
+                    fetchCompletedCount = self.q_status.totalURLCount - self.q_status.fetchPendingCount
+                    self.urlScrapeBar.update(incr=(fetchCompletedCount - prevCompletedURLCount))
+                    self.dataProcsBar.update(incr=(self.q_status.dataOutputQsize - prevCountOfDataProcessed))
+                    prevCountOfDataProcessed = self.q_status.dataOutputQsize
+                self.urlScrapeBar.close()
+                self.urlListFtBar.close()
+                self.dataProcsBar.update(incr=(self.q_status.dataOutputQsize - prevCountOfDataProcessed))
+                self.dataProcsBar.close()
+                logger.info('Progress watcher thread: Finished saving a total of %s URLs in history database.',
+                            self.countWrittenToDB)
         except Exception as e:
             logger.error("Progress watcher thread: trying to save history data, the exception was: %s", e)
 

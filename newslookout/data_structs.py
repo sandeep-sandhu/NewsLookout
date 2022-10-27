@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
+import datetime
 # #########################################################################################################
 # File name: data_structs.py                                                                              #
 # Application: The NewsLookout Web Scraping Application                                                   #
@@ -124,6 +124,28 @@ class ExecutionResult:
         """" Get execution result details as a tuple.
         """
         return (self.URL, self.pluginName, self.publishDate, self.rawDataSize, self.textSize)
+
+class PluginStatus:
+    start_time: datetime
+    list_complete_time: datetime
+    fetch_complete_time: datetime
+    finish_time: datetime
+    total_URL_count: int
+    total_url_fetched: int
+    plugin_state: int
+    error_count: int
+
+    def __init__(self):
+        self.start_time = datetime.datetime.now()
+
+    def set_URL_count(self, total_url_count):
+        self.total_URL_count = total_url_count
+
+    def set_URL_fetched_count(self, total_url_fetched):
+        self.total_url_fetched = total_url_fetched
+
+    def set_plugin_state(self, plugin_state):
+        self.plugin_state = plugin_state
 
 
 class QueueStatus:

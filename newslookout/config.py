@@ -89,6 +89,9 @@ class ConfigManager:
     logfile_backup_count: int
     save_html: str
     enabledPluginNames: dict
+    rest_api_enabled: bool
+    rest_api_host: str
+    rest_api_port: int
 
     def __init__(self, configFileName, rundate):
         """ Read and apply the configuration data passed by the main application
@@ -159,6 +162,11 @@ class ConfigManager:
         self.logfile_backup_count = 30
         self.save_html = 'true'
         self.enabledPluginNames = dict()
+        self.rest_api_enabled = False
+        self.rest_api_host=False
+        self.rest_api_port=8080
+        self.rest_api_ssl_key = 'rest_svc.key'
+        self.rest_api_ssl_cert = 'rest_svc.cer'
 
     def checkAndSanitizeConfigString(self,
                                      sectionName: str,
@@ -175,6 +183,7 @@ class ConfigManager:
         configParamValue = default
         try:
             paramStr = self.config_parser.get(sectionName, configParamName).strip()
+            # TODO: remove leading and trailing matching quotes and double-quotes
             configParamValue = paramStr
         except Exception as e:
             print(f"Error reading parameter {configParamName} from configuration file, exception was: {e}")
@@ -377,6 +386,19 @@ class ConfigManager:
             else:
                 self.verify_ca_cert = True
 
+            rest_api_enabled_str = self.checkAndSanitizeConfigString(
+                'operation', 'rest_api_enabled', default='False'
+            )
+            if rest_api_enabled_str.upper() == 'FALSE':
+                self.rest_api_enabled = False
+            else:
+                self.rest_api_enabled = True
+            self.rest_api_host = self.checkAndSanitizeConfigString('operation', 'rest_api_host')
+            self.rest_api_port = self.checkAndSanitizeConfigInt(
+                'operation', 'rest_api_port', default=8080, maxValue=65535, minValue=1024
+            )
+            self.rest_api_ssl_key = self.checkAndSanitizeConfigString('operation', 'rest_api_ssl_key')
+            self.rest_api_ssl_cert = self.checkAndSanitizeConfigString('operation', 'rest_api_ssl_cert')
             self.save_html = self.checkAndSanitizeConfigString('operation', 'save_html')
             self.user_agent = self.checkAndSanitizeConfigString('operation', 'user_agent')
             self.proxy_url_http = self.checkAndSanitizeConfigString('operation', 'proxy_url_http')
