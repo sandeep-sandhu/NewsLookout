@@ -422,17 +422,25 @@ class QueueManager:
             logger.info('Completed fetching all data.')
             for dat_worker in self.dataProcessWorkerList:
                 dat_worker.join()
+                logger.info(f"Worker thread for data processing plugin {dat_worker.pluginName} completed")
 
+            logger.info('Completed processing all data.')
+            # TODO: stop flask app for REST API
+            #self.progressWatchThread.flask_app.teardown_appcontext()
             # wait for progress watcher/history db PluginWorker thread to finish
             self.progressWatchThread.join()
-            logger.debug("Worker thread that saves history finished running now.")
+            logger.info("Session history worker thread finished running now.")
             # save any remaining list of URLs retrieved to the history database
             # self.sessionHistoryDB.writeQueueToDB()
 
             # serially perform any data processing required on entire dataset for given day:
             # self.processDataSerially(self.runDate)
         except KeyboardInterrupt:
+            logger.error("Recognized keyboard interrupt, stopping the program now...")
             print("Recognized keyboard interrupt, stopping the program now...")
+        except Exception as e:
+            logger.error(f"Error while processing all the queues: {e}")
+            print(f"Error while processing all the queues: {e}")
 
     def finishAllTasks(self):
         """ At the end, perform any clean-ups and print summary to log

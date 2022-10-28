@@ -120,7 +120,9 @@ def test_ProgressWatcher_init():
                                  sessionHistoryDB,
                                  app_inst.app_queue_manager,
                                  queue_status,
-                                 55)
+                                 app_inst.app_config,
+                                 name='55',
+                                 daemon=False)
     assert type(workerInst) == ProgressWatcher, 'ProgressWatcher object is not initialising correctly'
 
 

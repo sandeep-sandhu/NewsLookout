@@ -147,12 +147,15 @@ class mod_en_in_trak(BasePlugin):
         """
         uniqueString = ""
         crcValue = "zzz-zzz-zzz"
+        # If htmlContent is a bytes object, then convert it to a string:
         if type(htmlContent) == bytes:
             htmlContent = htmlContent.decode('UTF-8')
-        # else, htmlContent is a string
         try:
-            # calculate CRC string if url are not usable:
-            crcValue = str(calculateCRC32(URLToFetch.encode('utf-8')))
+            # calculate CRC string if url does not have unique id:
+            if type(URLToFetch) == bytes:
+                crcValue = str(calculateCRC32(URLToFetch))
+            else:
+                crcValue = str(calculateCRC32(URLToFetch.encode('utf-8')))
             uniqueString = crcValue
         except Exception as e:
             logger.error("%s: When calculating CRC32 of URL: %s , URL was: %s",

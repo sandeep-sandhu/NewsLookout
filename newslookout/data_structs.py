@@ -146,7 +146,19 @@ class PluginStatus:
 
     def set_plugin_state(self, plugin_state):
         self.plugin_state = plugin_state
+        # TODO: set timestamps for each stage
 
+    def getStatusString(pluginType, pluginState) -> str:
+        """ Prepare status text to be printed out by the worker thread in the log
+        :rtype: str
+        :return: String indicating the state of this plugin, e.g. 'State = FETCH DATA'
+        """
+        if pluginType in [PluginTypes.MODULE_NEWS_CONTENT, PluginTypes.MODULE_DATA_CONTENT]:
+            return 'State = ' + PluginTypes.decodeNameFromIntVal(pluginState)
+        elif pluginType in [PluginTypes.MODULE_DATA_PROCESSOR]:
+            return 'State = ' + PluginTypes.decodeNameFromIntVal(pluginState)
+        elif pluginType in [PluginTypes.MODULE_NEWS_AGGREGATOR]:
+            return 'State = ' + PluginTypes.decodeNameFromIntVal(pluginState)
 
 class QueueStatus:
     """ This object gets the status of all the plugins and the queues of the application

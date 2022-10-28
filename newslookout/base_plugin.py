@@ -216,6 +216,7 @@ class BasePlugin:
                     sys.exit(-1)
         elif self.pluginType in [PluginTypes.MODULE_DATA_PROCESSOR]:
             self.pluginState = PluginTypes.STATE_PROCESS_DATA
+            self.status.set_plugin_state(PluginTypes.STATE_PROCESS_DATA)
             # check required methods:
             methodsTocheck = ['processDataObj', 'additionalConfig']
             for methodName in methodsTocheck:

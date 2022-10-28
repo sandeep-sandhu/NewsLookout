@@ -179,13 +179,16 @@ class mod_en_in_timesofindia(BasePlugin):
         Pattern: data-articlemsid="154959"
                  data-articlemsid="143505"
         """
-        uniqueString = ""
-        result = None
-        crcValue = "zzz-zzz-zzz"
+        uniqueString = "zzz-zzz-zzz"
+        # If htmlContent is a bytes object, then convert it to a string:
+        if type(htmlContent) == bytes:
+            htmlContent = htmlContent.decode('UTF-8')
         try:
-            # calculate CRC string if url are not usable:
-            crcValue = str(calculateCRC32(URLToFetch.encode('utf-8')))
-            uniqueString = crcValue
+            # calculate CRC string if url does not have unique id:
+            if type(URLToFetch) == bytes:
+                uniqueString = str(calculateCRC32(URLToFetch))
+            else:
+                uniqueString = str(calculateCRC32(URLToFetch.encode('utf-8')))
         except Exception as e:
             logger.error("%s: When calculating CRC32 of URL: %s , URL was: %s",
                          self.pluginName,
@@ -194,10 +197,7 @@ class mod_en_in_timesofindia(BasePlugin):
         if len(htmlContent) > self.minArticleLengthInChars:
             uniquePattern = re.compile(r"(data\-articlemsid=\")([0-9]{3,})(\")")
             try:
-                if type(htmlContent) == str:
-                    result = uniquePattern.search(htmlContent)
-                elif type(htmlContent) == bytes:
-                    result = uniquePattern.search(htmlContent.decode('UTF-8'))
+                result = uniquePattern.search(htmlContent)
                 if result is not None:
                     uniqueString = result.group(2)
             except Exception as e:

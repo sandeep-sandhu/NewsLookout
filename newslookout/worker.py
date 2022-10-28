@@ -67,7 +67,7 @@ from config import ConfigManager
 from data_structs import PluginTypes
 import scraper_utils
 from data_structs import QueueStatus
-from . import parentFolder
+
 # from queue_manager import QueueManager
 
 # #########
@@ -457,6 +457,20 @@ class ProgressWatcher(threading.Thread):
         self.restapi_port_num = app_config.rest_api_port
         self.flask_app.classobj = self
         self.flask_app.debug=False  # setting the debugging option for the application instance
+        # load javascript code
+        # read from js file and return js content:
+        self.rest_api_app_ui_js = f"""
+            let content_section = document.getElementById('appstatuscontent');
+            content_section.innerHTML = "Web scraping status at port {self.restapi_port_num}";
+            """
+        try:
+            parentFolder = os.path.dirname(os.path.realpath(__file__))
+            with open(os.path.join(parentFolder, 'app_status_ui.js'), 'rt', encoding='utf-8') as fp:
+                self.rest_api_app_ui_js = fp.read()
+                fp.close()
+        except Exception as e:
+            logger.error(f"When reading app status ui javascript file 'app_status_ui.js': {e}")
+
         logger.debug("Progress watcher thread %s initialized with the plugins: %s",
                      self.workerID,
                      self.pluginNameObjMap)
@@ -507,20 +521,7 @@ class ProgressWatcher(threading.Thread):
         app_headers = werkzeug.datastructures.Headers()
         app_headers.remove('Server')
         app_headers.add('Server', 'NewsLookout')
-        # read from js file and return js content:
-        js_response = f"""
-            let content_section = document.getElementById('appstatuscontent');
-            content_section.innerHTML = "Web scraping status at port {self.restapi_port_num} code at: {os.path.join(parentFolder, 'app_status_ui.js')}";
-            """
-        try:
-            # read javascript code in folder
-            with open(os.path.join(parentFolder, 'app_status_ui.js'), 'rt', encoding='utf-8') as fp:
-                js_response = fp.read()
-                fp.close()
-        except Exception as e:
-            logger.error(f"When reading app status ui javascript file 'app_status_ui.js': {e}")
-
-        return Response(js_response,
+        return Response(self.rest_api_app_ui_js,
                         status=200,
                         headers=app_headers,
                         mimetype='application/javascript',

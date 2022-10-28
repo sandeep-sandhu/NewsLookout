@@ -136,7 +136,7 @@ class mod_en_in_forbes(BasePlugin):
         self.urlUniqueRegexps = self.urlUniqueRegexps + super().urlUniqueRegexps
         super().__init__()
 
-    def extractIndustries(self, htmlText):
+    def extractIndustries(self, uRLtoFetch, htmlText):
         """  extract Industries """
         industries = []
         try:
@@ -144,7 +144,7 @@ class mod_en_in_forbes(BasePlugin):
             docRoot = BeautifulSoup(htmlText, 'lxml')
             docRoot.find("span", "ag")
         except Exception as e:
-            logger.error("Error identifying the industries: %s", e)
+            logger.error("Error identifying the industries for URL %s: %s", uRLtoFetch, e)
         return(industries)
 
     def extractAuthors(self, htmlText):

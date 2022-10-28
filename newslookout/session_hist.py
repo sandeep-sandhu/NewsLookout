@@ -247,6 +247,7 @@ class SessionHistory:
         :return:
         """
         sqlCon = None
+        url_being_added = ""
         try:
             logger.debug("Add URL list to pending table in db: Waiting to get db exclusive access...")
             acqResult = self.dbAccessSemaphore.acquire(timeout=30)
@@ -258,12 +259,14 @@ class SessionHistory:
                 # TODO: parallelize this to process entire list in one iteration
                 # TODO: fix exception - 'str' object has no attribute 'URL'
                 for sURL in urlList:
+                    url_being_added = sURL
+                    # logger.debug("insert or ignore into pending_urls (url, plugin_name, attempts) values ({sURL}, {pluginName}, {num_attempts})")
                     # Ideally, if url already exists, the no. of attempts should be incremented by 1, but it is omitted
                     cur.execute('insert or ignore into pending_urls (url, plugin_name, attempts) values (?, ?, ?)',
                                 (sURL, pluginName, num_attempts))
                 sqlCon.commit()
         except Exception as e:
-            logger.error(f"Error while adding URL list to pending table: {e}")
+            logger.error(f"Error while adding URL list to pending table: {e}, URL: {url_being_added}")
         finally:
             if sqlCon:
                 sqlCon.close()
