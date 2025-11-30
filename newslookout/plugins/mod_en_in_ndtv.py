@@ -38,6 +38,10 @@ from bs4 import BeautifulSoup
 from base_plugin import BasePlugin
 from scraper_utils import retainValidArticles, deDupeList, filterRepeatedchars
 from data_structs import PluginTypes
+from bs4 import XMLParsedAsHTMLWarning
+import warnings
+
+warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
 ##########
 

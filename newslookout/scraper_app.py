@@ -34,9 +34,9 @@
 # #########################################################################################################
 
 
-__version__ = "2.1.0"
+__version__ = "3.0.0"
 __author__ = "Sandeep Singh Sandhu"
-__copyright__ = "Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu"
+__copyright__ = "Copyright 2025, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu"
 __credits__ = ["Sandeep Singh Sandhu"]
 __license__ = "GPL"
 __maintainer__ = "Sandeep Singh Sandhu"

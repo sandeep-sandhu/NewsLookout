@@ -310,7 +310,7 @@ class DataProcessor(threading.Thread):
                  name=None):
         """  Initialize the worker thread
 
-        :param dataProcPluginsMap: The dictionary of data processing plugins as priority -> objects
+        :param dataProcPluginsMap: The dictionary of data processing plugins as {priority: objects}
         :param sortedPriorityKeys: The priority wise list of keys for the data processing plugin map
         :param queue_manager: The queue manager instance
         :param daemon: Optional parameter indicating whether this thread should work as daemon?

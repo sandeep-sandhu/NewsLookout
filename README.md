@@ -77,6 +77,7 @@ To do this, you could either use the nltk downloader - run the following command
 ```console
 import nltk
 nltk.download('punkt')
+nltk.download('punkt_tab')
 nltk.download('maxent_treebank_pos_tagger')
 nltk.download('reuters')
 nltk.download('universal_treebanks_v20')

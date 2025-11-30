@@ -287,7 +287,6 @@ class mod_en_in_ecotimes(BasePlugin):
                       'https://economictimes.indiatimes.com/indices/nifty_50_companies',
                       'https://economictimes.indiatimes.com/sitemap_makets.cms',
                       'https://economictimes.indiatimes.com/commoditylisting.cms?head=',
-                      'https://chartmantra.economictimes.indiatimes.com/GameBoard.htm',
                       'https://economictimes.indiatimes.com/talkingheads.cms',
                       'https://economictimes.indiatimes.com/definition',
                       'https://economictimes.indiatimes.com/podcast',
@@ -512,7 +511,6 @@ class mod_en_in_ecotimes(BasePlugin):
     allowedDomains = ['auto.economictimes.indiatimes.com',
                       'brandequity.economictimes.indiatimes.com',
                       'cfo.economictimes.indiatimes.com',
-                      'chartmantra.economictimes.indiatimes.com'
                       'cio.economictimes.indiatimes.com',
                       'ciso.economictimes.indiatimes.com',
                       'economictimes.indiatimes.com',

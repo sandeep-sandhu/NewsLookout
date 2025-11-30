@@ -35,10 +35,13 @@
 import sys
 import os
 from datetime import datetime
+from unittest import mock
+from unittest.mock import patch
+
 import pytest
 
 from . import getAppFolders, getMockAppInstance #, list_all_files, read_bz2html_file
-
+import requests
 
 # ###################################
 
@@ -102,6 +105,35 @@ def test_sleepBeforeNextFetch():
     print(f'Time difference 2: {time_diff_sec}')
     assert time_diff_sec >= 3, 'Network sleepBeforeNextFetch() is not correctly waiting upto minimum time delay.'
     assert time_diff_sec <= 5, 'Network sleepBeforeNextFetch() is not correctly waiting till maximum time delay.'
+
+class networktester:
+    def __init__(self):
+        (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
+        import network
+        self.netw_inst = network.NetworkFetcher(app_inst.app_config)
+
+    def test_fetchRawDataFromURL_valid(self):
+        self.netw_inst.fetchRawDataFromURL('http://example.com', 'plugin1')
+        # Assert response is not None
+
+    def test_fetchRawDataFromURL_invalid_url(self):
+        result = self.netw_inst.fetchRawDataFromURL('invalidurl', 'plugin1')
+        # Assert result is None
+
+    def test_fetchRawDataFromURL_timeout(self):
+        # Patch requests.get to raise a Timeout
+        with patch('requests.get') as mock_get:
+            mock_get.side_effect = requests.Timeout
+            result = self.netw_inst.fetchRawDataFromURL('http://example.com', 'plugin1')
+            # Assert result is None
+
+    def test_fetchRawDataFromURL_retries(self):
+        # Patch requests.get to raise an error only on first call
+        with patch('requests.get') as mock_get:
+            mock_get.side_effect = [requests.Timeout, mock.DEFAULT]
+            result = self.netw_inst.fetchRawDataFromURL('http://example.com', 'plugin1')
+            # Assert requests.get was called twice
+            # Assert result is not None
 
 
 if __name__ == "__main__":

@@ -165,6 +165,7 @@ class SessionHistory:
             logger.debug(f"Search already fetched URLs for plugin {pluginName}: Released exclusive db access")
         return searchResult
 
+
     def removeAlreadyFetchedURLs(self, newURLsList: List[str], pluginName: str) -> list:
         """
         Remove already fetched URLs from given list by searching history database
@@ -173,36 +174,32 @@ class SessionHistory:
         :param pluginName:
         :return:
         """
-        filteredList = []
+        if not newURLsList:
+            return []
+
         sqlCon = None
         try:
-            logger.debug("Remove already fetched URLs: Waiting for db exclusive access...")
-            acqResult = self.dbAccessSemaphore.acquire()
-            if acqResult is True:
-                logger.debug("Remove already fetched URLs: Got exclusive db access")
-                sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
-                cur = sqlCon.cursor()
-                if newURLsList is not None:
-                    # TODO: parallelize this to search entire list in one iteration, use temp tables and SQL
-                    # TODO: fix error: mod_en_in_hindu: While removing already fetched URLs: invalid literal for int() with base 10: b'07 00:00:00'
-                    for listItem in newURLsList:
-                        result = cur.execute('select url, pubdate from URL_LIST where url = ? union all ' +
-                                             'select url, NULL from FAILED_URLS where url = ?',
-                                             (listItem, listItem))
-                        rowset = result.fetchall()
-                        logger.debug(f'{pluginName}: Checking item "{listItem}", got sql result = {rowset}')
-                        if rowset is not None and len(rowset) > 0 and rowset[0][0] == listItem:
-                            rowset = None
-                        else:
-                            filteredList.append(listItem)
-        except Exception as e:
-            logger.error("%s: While removing already fetched URLs: %s", pluginName, e)
+            self.dbAccessSemaphore.acquire()
+            sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
+            cur = sqlCon.cursor()
+
+            # Create temp table with new URLs
+            cur.execute("CREATE TEMP TABLE temp_urls (url TEXT PRIMARY KEY)")
+            cur.executemany("INSERT OR IGNORE INTO temp_urls VALUES (?)", [(u,) for u in newURLsList])
+
+            # Single query to find new URLs
+            result = cur.execute("""
+                SELECT url FROM temp_urls
+                WHERE url NOT IN (SELECT url FROM URL_LIST)
+                  AND url NOT IN (SELECT url FROM FAILED_URLS)
+            """)
+
+            return [row[0] for row in result.fetchall()]
         finally:
             if sqlCon:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
-            logger.debug("Removed already fetched URLs for plugin %s: Released exclusive db access", pluginName)
-        return filteredList
+
 
     def retrieveTodoURLList(self, pluginName: str) -> list:
         """ Retrieve URL list from the pending_urls table for the given plugin name
@@ -258,6 +255,7 @@ class SessionHistory:
                 urlList = deDupeList(urlList)
                 # TODO: parallelize this to process entire list in one iteration
                 # TODO: fix exception - 'str' object has no attribute 'URL'
+                # TODO: datetime field has time attributes, table has only date attributes, re-check table structure
                 for sURL in urlList:
                     url_being_added = sURL
                     # logger.debug("insert or ignore into pending_urls (url, plugin_name, attempts) values ({sURL}, {pluginName}, {num_attempts})")
@@ -287,7 +285,10 @@ class SessionHistory:
         """
         sqlCon = None
         try:
-            sURL = fetchResult.URL
+            if type(fetchResult) == str:
+                sURL = fetchResult
+            else:
+                sURL = fetchResult.URL
             logger.debug("Add URL list to pending table in db: Waiting to get db exclusive access...")
             acqResult = self.dbAccessSemaphore.acquire(timeout=30)
             if acqResult is True:
@@ -307,7 +308,7 @@ class SessionHistory:
                                 '(select url from failed_urls) or url in (select url from url_list)')
                     sqlCon.commit()
         except Exception as e:
-            logger.error("Error while adding URL list to pending table: %s", e)
+            logger.error("Error while adding URL list to failed URLs table: %s", e)
         finally:
             if sqlCon:
                 sqlCon.close()

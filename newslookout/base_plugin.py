@@ -197,6 +197,7 @@ class BasePlugin:
         """
         self.pluginName = type(self).__name__
         self.status = PluginStatus()
+        self.enable_recursion = False
         self.status.set_plugin_state(PluginTypes.STATE_GET_URL_LIST)
         if self.pluginType in [PluginTypes.MODULE_NEWS_CONTENT]:
             # check required attributes:
@@ -534,8 +535,26 @@ class BasePlugin:
         return False
 
     def extractArticlesListWithNewsP(self) -> list:
-        """ Extract Article Text using the Newspaper library
+        """ extracts a list of article URLs from a news website using the Newspaper library in Python.
+        It takes in the main URL of the news website as input.
+        The purpose is to scrape the site and find all the article links on the homepage, category pages, and RSS feeds.
+        It returns a list of normalized article URLs as output.
+        First it configures Newspaper to use a custom network fetch method instead of the default HTTP get. This is to handle things like proxy certificates.
+        It creates a Newspaper Source object for the input news website URL.
+        It downloads the homepage HTML using a custom network helper instead of Newspaper's default downloader. This again is to handle proxies etc.
+        It parses the homepage to find categories and feeds.
+        It loops through each category and feed, downloading the HTML using the custom network helper.
+        It removes any invalid categories or feeds that had errors downloading.
+        It parses the valid categories and feeds to find articles.
+        It generates a list of all article URLs found.
+        It filters out any invalid URLs from the list.
+        It normalizes each URL in the list to a standard format.
+        Finally it returns the list of article URLs.
+        So in summary, it takes a news site URL, uses Newspaper to scrape the site and extract article links, normalizes the links, and returns them. The key steps are configuring Newspaper for custom network handling, downloading category/feed pages, and generating a clean list of URLs.
         """
+        # TODO: Extract out some of the larger steps like downloading categories/feeds into separate functions. This improves modularity.
+        # TODO: Add logging for key steps like downloading each category/feed. This aids debugging.
+        # TODO: Handle exceptions more granularly - log and skip specific categories/feeds with errors instead of failing entirely. This improves robustness.
         listOfURLS = []
         try:
             # replace default HTTP get method with custom method:
@@ -577,11 +596,20 @@ class BasePlugin:
         return listOfURLS
 
     def getArticlesListFromRSS(self, rss_urls: list) -> list:
-        """ Extract the articles listing using the BeautifulSoup library
-        to identify the list of URLs to be scraped from its published RSS feed URLs: all_rss_feeds
-
-        Sets the retrieved URL list in this class instance's field: listOfURLS
+        """ Extracts a list of article URLs from a list of RSS feed URLs.
+        It takes as input a list of RSS feed URLs (rss_urls). For each URL in that list, it fetches the raw XML data for that RSS feed. It uses the BeautifulSoup library to parse the XML data and extract the   elements, which represent articles or posts in the feed.
+        The key thing it looks for in each   is the
+         tag, which contains the URL for that article/post. It extracts the text content of the   tag and adds it to a result list.
+        After looping through all the RSS feeds, it does some cleanup on the result list - filtering out any invalid URLs and logging how many total URLs were found.
+        The end result is a list of article URLs extracted from the input list of RSS feeds. This list of URLs can then be used to visit and scrape each article page.
+        So in summary, it takes a list of RSS feed URLs as input, loops through them to extract article URLs, and returns a list of those article URLs as output. The main logic is using BeautifulSoup to parse the XML data and pull out the
+         tags from   elements.
         """
+        # TODO: Use more specific exception handling instead of a broad Exception catch. Catch and handle specific exceptions like URLError or XMLSyntaxError where possible. This makes error handling more robust.
+        # TODO: Consider using a thread pool or asynchronous I/O when fetching multiple URLs concurrently. This could speed up the overall operation.
+        # TODO: Cache the fetched RSS feeds to avoid repeated requests for the same URLs. This can improve performance.
+        # TODO: Validate and sanitize any user-provided input URLs to avoid security issues like SSRF or XXE attacks.
+        # TODO: Use a custom network helper to handle proxies, certificate verification, etc.
         resultList = []
         for thisFeedURL in rss_urls:
             try:
@@ -629,7 +657,16 @@ class BasePlugin:
         return document
 
     def extractArchiveURLLinksForDate(self, runDate: datetime) -> list:
-        """ Extracting archive URL links for given date """
+        """ Extracts archive URL links for a given date.
+        It takes as input a datetime object called runDate representing the date to extract links for.
+        The function first initializes an empty list called resultSet to store the results.
+        It then checks if the self object has a mainURLDateFormatted attribute, and if so, formats the input runDate into a string using that format. This formatted string is likely a URL pattern with the date placeholders filled in.
+        The formatted string searchResultsURLForDate is passed in a list to another function extr_links_from_urls_list along with the runDate. This seems to extract links from that search result page.
+        Any extracted links are assigned to URLsListForDate. If this list contains links, they are added to the resultSet list.
+        The function logs the number of links extracted and the date they are for.
+        Finally, resultSet containing the extracted archive links for the given date is returned.
+        So in summary, it takes a date, generates a search result URL for that date, extracts archive links from that page, saves them to a list, and returns the list. The main logic is generating the properly formatted search URL and extracting links from the page.
+         """
         resultSet = []
         try:
             if 'mainURLDateFormatted' in dir(self) and self.mainURLDateFormatted is not None:
@@ -681,9 +718,9 @@ class BasePlugin:
         except Exception as e:
             logger.error("%s: Error retrieving list of URLs from main URL and pending table: %s", self.pluginName, e)
         try:
-            if self.app_config.recursion_level > 1:
+            if self.app_config.recursion_level > 1 and hasattr(self, 'enable_recursion') and self.enable_recursion:
                 recursive_urls = self.getLinksRecursively(allURLs, runDate, self.app_config.recursion_level)
-                if recursive_urls is not None:
+                if recursive_urls:
                     allURLs = scraper_utils.deDupeList(allURLs + recursive_urls)
         except Exception as e:
             logger.error(f"{self.pluginName}: Error trying to validate retrieved listing of URLs: {e}")
@@ -805,7 +842,7 @@ class BasePlugin:
             try:
                 htmlContent = self.networkHelper.fetchRawDataFromURL(url_string, self.pluginName)
                 extractedListOfURLs = self.extractLinksFromHTML(url_string, htmlContent)
-                listof_URLs = scraper_utils.deDupeList(extractedListOfURLs)
+                listof_URLs.extend(scraper_utils.deDupeList(extractedListOfURLs))
             except Exception as e2:
                 logger.error("%s: Error fetching additional links for URL %s: %s",
                              self.pluginName,
@@ -888,7 +925,18 @@ class BasePlugin:
 
     def fetchDataFromURL(self, uRLtoFetch: str, WorkerID: int) -> ExecutionResult:
         """
-        Fetch complete and cleaned data from the given URL.
+        Fetches and cleans data from a given URL. It takes in two inputs - the URL to fetch (uRLtoFetch), and an identifier for the worker thread executing the plugin (WorkerID).
+        It returns an ExecutionResult object containing the fetched data, status, and metadata like content lengths and publish date.
+        The main steps are:
+          - Create an empty ExecutionResult object to hold the result.
+          - Try fetching raw HTML data from the URL using a helper method.
+          - Check that the URL and data are valid. If invalid, return the empty result.
+          - Extract any additional links from the HTML. Filter for valid URLs.
+          - Create a Newspaper Article object and set the HTML content.
+          - Parse and clean the article data, checking for valid content.
+          - If the text content exceeds a minimum length, save the article to file uniquely named by date and ID.
+          - Populate and return the ExecutionResult object with the article data, text length, raw HTML size etc.
+        So in summary, it takes in a URL, fetches and cleans the HTML content, extracts the main article data, checks its validity, saves the content and returns an object containing the final article text and metadata. The key steps are data fetching, cleaning, parsing and validation before saving the result.
 
         :param uRLtoFetch: The URL to be fetched by the plugin
         :param WorkerID: The identifier of the worker thread executing this plugin.

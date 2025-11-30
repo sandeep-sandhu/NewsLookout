@@ -188,6 +188,12 @@ class QueueManager:
                     contrib_plugins_dir: str,
                     enabledPluginNames: dict) -> dict:
         """ Load only enabled plugins from the modules in the plugins directory.
+        The code iterates through the files in the plugins directory and checks if the module name is present in the enabledPluginNames dictionary.
+        If the module is enabled, it dynamically imports the module and instantiates the class with the same name as the module. This instantiated object is added to the pluginsDict dictionary, with the module name as the key and class instance as the value.
+        It also sets the executionPriority attribute on the plugin class based on the priority value in the enabledPluginNames dictionary.
+        The contribPluginsDict dictionary is populated by calling loadPluginsContrib() on the contrib plugins directory and enabled plugins.
+        Finally, the pluginsDict and contribPluginsDict are merged and returned.
+        So in summary, it loads and instantiates only the enabled plugins, sets their priority and returns a dictionary containing the enabled plugin objects ready to use. This allows dynamically loading plugins based on configuration.
         The class names of plugins are expected to be the same as their module names.
 
         :param app_dir: Root directory of the application
@@ -259,7 +265,15 @@ class QueueManager:
         return pluginsDict
 
     def initPlugins(self):
-        """ Load, configure and initialize all plugins
+        """ Load, configure and initialize all plugins.
+        It takes as input the app configuration which contains settings like the enabled plugins, plugin directories, etc.
+        The main output is a map from plugin name to plugin object (pluginNameToObjMap). This map contains all the enabled and loaded plugins.
+        It initializes plugins in three main steps:
+        Load the plugin modules by looking in the configured plugin directories. Only plugins that are enabled in the app config are loaded.
+        Initialize each loaded plugin by calling its init() method. This configures each plugin and sets up its queues, network helpers, etc.
+        Build mappings from plugin domains to plugin names. This is used later to route URLs to the correct plugin based on domain.
+        The plugins have different types like news content, news aggregator, data processor etc. The initialization handles the different types accordingly, by calling type-specific methods on the plugins.
+        So in summary, it takes the app config, loads enabled plugins, initializes them based on type, and sets up mappings to route URLs later. This results in fully configured plugin objects that are ready to start processing news data.
         """
         # load the plugins
         self.pluginNameToObjMap = QueueManager.loadPlugins(self.app_config.install_prefix,
@@ -344,9 +358,15 @@ class QueueManager:
         logger.info("%s worker threads available to fetch content.", len(self.contentFetchWorkers))
 
     def initDataProcWorkers(self):
-        """ Initialize the single data processing worker thread
-        This thread will invoke processDate() from all the data processing plugins
-         one after another in order of priority.
+        """ Initializes and configures the data processing worker threads that will execute the data processing plugins.
+        It takes as input the self object, which contains the pluginNameToObjMap dictionary mapping plugin names to plugin objects.
+        The purpose is to setup worker threads that will execute the data processing plugins in priority order.
+        It first creates a dataProcPluginsMap dictionary that maps the plugin priority values to the plugin objects. It loops through the pluginNameToObjMap and checks for plugins of type MODULE_DATA_PROCESSOR. For those, it adds an entry to the dataProcPluginsMap using the plugin's priority value as the key.
+        It then sorts the priority values and stores them in sortedPriorityKeys.
+        Next, it creates the specified number of dataProcessWorkerList threads. Each thread is passed the dataProcPluginsMap and sortedPriorityKeys so it knows which plugins to execute in which order.
+        The threads are configured with names and as daemon threads.
+        Finally, the number of threads created is logged.
+        So in summary, it takes the plugin objects as input, organizes them by priority, creates worker threads, and configures them to execute the plugins in priority order. This sets up the data processing pipeline that will be driven by the worker threads.
         """
         logger.debug("Initializing the data processing worker thread with plugins.")
         self.dataProcPluginsMap = {}
@@ -378,7 +398,14 @@ class QueueManager:
                     " data processing plugins.")
 
     def runAllJobs(self):
-        """ Process Queue to run all web source (URL) identification jobs
+        """ Processes a queue of jobs for identifying web sources (URLs) and fetching their content. It takes no direct inputs. The outputs are processed queues of identified URLs and fetched content.
+        It first starts a progressWatchThread to monitor job status. Then it initializes URL identifying workers by creating thread objects for each and storing them in a urlSrcWorkers dictionary. It does the same for content fetching workers, storing them in contentFetchWorkers.
+        It starts all the urlSrcWorkers threads to identify URLs. It also starts the progressWatchThread to save history. Then it starts the contentFetchWorkers threads to fetch content for the identified URLs.
+        After that, it initializes data processing workers for the fetched content by creating PluginWorker objects and storing them in a list called dataProcessWorkerList.
+        It starts all the dataProcessWorker threads to run data processing plugins on the fetched content.
+        It joins/waits for the urlSrcWorkers threads to finish identifying URLs. Then it joins the contentFetchWorkers threads after they finish fetching content. It prints logging info as each worker finishes.
+        It also joins each dataProcessWorker thread after data processing finishes, printing logging info. It then joins the progressWatchThread after history saving is done.
+        So in summary, this code coordinates the threaded execution of a pipeline to: identify URLs, fetch their content, process the content, and monitor progress/save history. The goal is to process a queue of jobs in an efficient multi-threaded manner.
         """
         # intialize the progress Watch PluginWorker thread:
         self.progressWatchThread = ProgressWatcher(self.pluginNameToObjMap,
@@ -421,8 +448,9 @@ class QueueManager:
                             self.contentFetchWorkers[keyitem].pluginName)
             logger.info('Completed fetching all data.')
             for dat_worker in self.dataProcessWorkerList:
+                # TODO: Error here, threads dont always terminate on empty queue
                 dat_worker.join()
-                logger.info(f"Worker thread for data processing plugin {dat_worker.pluginName} completed")
+                logger.info(f"Worker thread for data processing plugin {dat_worker} completed")
 
             logger.info('Completed processing all data.')
             # TODO: stop flask app for REST API

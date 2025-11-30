@@ -257,7 +257,7 @@ class NewsEvent(JSONEncoder):
             logger.error("Exception caught reading JSON file %s: %s", jsonFileName, theError)
 
     @staticmethod
-    def cleanText(textInput) -> str:
+    def cleanText(textInput: str) -> str:
         """ Clean text - replace unicode characters, fix space gaps, remove repeated characters, etc.
 
         :parameter textInput: The text string to clean
@@ -266,6 +266,7 @@ class NewsEvent(JSONEncoder):
         :rtype: str
         """
         cleanText = textInput
+        # TODO: fix error - Error cleaning text by replacing special characters: a bytes-like object is required, not 'str'
         if textInput is not None and len(textInput) > 1:
             try:
                 # replace special characters:

@@ -154,7 +154,7 @@ class mod_en_in_trak(BasePlugin):
             # calculate CRC string if url does not have unique id:
             if type(URLToFetch) == bytes:
                 crcValue = str(calculateCRC32(URLToFetch))
-            else:
+            elif type(URLToFetch) == str:
                 crcValue = str(calculateCRC32(URLToFetch.encode('utf-8')))
             uniqueString = crcValue
         except Exception as e:

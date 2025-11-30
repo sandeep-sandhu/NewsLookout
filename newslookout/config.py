@@ -51,7 +51,13 @@ logger = logging.getLogger(__name__)
 
 
 class ConfigManager:
-    """ The configuration manager class performs all the configuration processing for the application
+    """ The purpose of this ConfigManager class is to manage configuration data for an application. It allows storing, retrieving, and updating configuration values.
+    This code defines a class called ConfigManager. Classes are used in Python to group related data and functions together.
+    This class does not take any specific inputs. It will be initialized without any arguments.
+    It does not directly produce any outputs. But the methods inside this class will allow getting, setting, and saving configuration data.
+    The key functionality is defined in the methods within the class, which are not shown in the selected code.
+    When this class is instantiated as an object, it will provide an interface to handle configuration data. The methods will likely read/write config values to disk or some other storage.
+    So in summary, this ConfigManager class sets up the structure to encapsulate the configuration management logic for an application. It will allow the rest of the code to get or update config values by calling methods on a ConfigManager object.
     """
 
     config_parser: configparser
@@ -96,7 +102,7 @@ class ConfigManager:
     def __init__(self, configFileName, rundate):
         """ Read and apply the configuration data passed by the main application
         """
-        self.det_default_values()
+        self.set_default_values()
         self.config_file = configFileName
         self.config_parser = configparser.ConfigParser()
         try:
@@ -111,7 +117,7 @@ class ConfigManager:
         self.readOperationsCfg()
         self.applyNetworkConfig()
 
-    def det_default_values(self):
+    def set_default_values(self):
         """
         Sets the default values used when no configuration is available.
 
@@ -492,7 +498,21 @@ class ConfigManager:
             print("ERROR: Unable to set proxy parameters: %s", e)
 
     def checkAndSetDataDir(self):
-        """ Check and set the data directory form configuraiton file """
+        """ The purpose of this function is to check if a valid data directory is specified in the configuration, and if not, set a default data directory. It takes no direct inputs.
+        The outputs are:
+          - Setting the self.data_dir attribute to the path of the data directory.
+          - Creating the directory if it doesn't already exist.
+        It first checks the 'data_dir' key in the 'installation' section of the config file. If no value is specified, it sets self.data_dir to None. If a value is specified, it checks if that directory exists.
+        If the directory doesn't exist, it tries to create it using os.mkdir(). If the directory can't be created or identified, it prints an error and exits.
+        So in summary, this function sanitizes the data directory config value, checks if the directory exists, creates it if needed, and sets the self.data_dir attribute. This allows the rest of the code to safely assume there is a valid data directory available at self.data_dir. It handles invalid configurations and missing directories gracefully.
+        The key steps are:
+          - Get config value for 'data_dir'
+          - Check if value is valid directory path
+          - Create directory if it doesn't exist
+          - Set self.data_dir to finalized directory path
+          - Handle errors cleanly
+        This encapsulates the data directory setup logic in one place for clarity and robustness.
+         """
         self.data_dir = self.checkAndSanitizeConfigString(
             'installation',
             'data_dir',

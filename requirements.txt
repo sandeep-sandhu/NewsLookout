@@ -1,7 +1,7 @@
 beautifulsoup4
-cchardet
 configparser
 lxml
+lxml[html_clean]
 newspaper3k
 nltk
 pandas
@@ -13,7 +13,7 @@ numpy
 spacy
 torch
 pytorch_pretrained_bert
-sklearn
+scikit-learn
 numpy
 openpyxl
 flake8
