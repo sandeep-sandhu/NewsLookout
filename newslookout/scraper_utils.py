@@ -136,18 +136,20 @@ def clean_non_utf8(input_text) -> str:
     :param input_text: Text to clean up.
     :return: Cleaned text
     """
-    output_text = input_text
+    if input_text is None:
+        return ''
 
     try:
-        if input_text is None:
-            output_text = ''
-        if type(input_text) == bytes:
-            output_text = input_text.decode('utf-8', errors='replace')
-        elif type(input_text) == str:
-            output_text = input_text.encode('utf-8', errors="replace").decode('utf-8', errors='replace')
+        if isinstance(input_text, bytes):
+            return input_text.decode('utf-8', errors='replace')
+        elif isinstance(input_text, str):
+            # If it's already a string, we assume it's decoded, but we can scrub it
+            return input_text.encode('utf-8', errors='replace').decode('utf-8', errors='replace')
+        else:
+            return str(input_text)
     except Exception as err:
-        logger.error(f"Error encoding-decoding UTF-8: {err}, for content type: {type(input_text)}")
-    return output_text
+        logger.error(f"Error encoding-decoding: {err}")
+        return ""
 
 
 def removeStartTrailQuotes(textString: str) -> str:
@@ -529,9 +531,24 @@ def checkAndGetNLTKData():
 
 def calculateCRC32(text: str) -> str:
     """ use zlib's CRC32 function
-    """
-    crc: int = zlib.crc32(text.encode('UTF-8')) % (2 ** 32)
-    return hex(crc)
+    Safely calculate CRC32 for string or bytes """
+    try:
+        if text is None:
+            return "0"
+
+        data_bytes = b""
+        if isinstance(text, str):
+            data_bytes = text.encode('UTF-8', errors='ignore')
+        elif isinstance(text, bytes):
+            data_bytes = text
+        else:
+            data_bytes = str(text).encode('UTF-8')
+
+        crc = zlib.crc32(data_bytes) & 0xffffffff
+        return hex(crc)
+    except Exception as e:
+        logger.error(f"CRC32 error: {e}")
+        return "0"
 
 
 def printAppVersion():

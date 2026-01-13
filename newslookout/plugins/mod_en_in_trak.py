@@ -141,7 +141,7 @@ class mod_en_in_trak(BasePlugin):
         super().__init__()
 
     # Special function for this plugin
-    def extractUniqueIDFromContent(self, htmlContent, URLToFetch: str) -> str:
+    def extractUniqueIDFromContent(self, htmlContent, URLToFetch) -> str:
         """ Identify Unique ID From content
         Pattern: <link rel='shortlink' href='https://trak.in/?p=119415' />
         """
@@ -155,7 +155,7 @@ class mod_en_in_trak(BasePlugin):
             if type(URLToFetch) == bytes:
                 crcValue = str(calculateCRC32(URLToFetch))
             elif type(URLToFetch) == str:
-                crcValue = str(calculateCRC32(URLToFetch.encode('utf-8')))
+                crcValue = str(calculateCRC32(URLToFetch.decode('utf-8')))
             uniqueString = crcValue
         except Exception as e:
             logger.error("%s: When calculating CRC32 of URL: %s , URL was: %s",

@@ -4,6 +4,12 @@ SCRIPT_PATH=`dirname $(realpath $0)`
 cd $SCRIPT_PATH
 
 PYTHON_BIN=`which python3`
+CONFIG_FILE="/etc/newslookout/newslookout.conf"
+PYTHON_APP="/opt/newslookout/bin/scraper_app.py"
+
+PYTHON_BIN='/opt/pyvenv/bin/python3.12'
+CONFIG_FILE="$SCRIPT_PATH/conf/newslookout_unix.conf"
+PYTHON_APP="$SCRIPT_PATH/newslookout/scraper_app.py"
 
 date_arr=()
 
@@ -53,15 +59,8 @@ fi
 
 # run the application for each of the given dates:
 for dateval in "${date_arr[@]}" ; do
-	$PYTHON_BIN /opt/newslookout/bin/scraper_app.py -c /etc/newslookout/newslookout.conf -d $dateval
+	$PYTHON_BIN $PYTHON_APP  -c $CONFIG_FILE -d $dateval
 done
 
-
-if [ "$NEWSLOOKOUT_PERSIST_AFTER_RUN" == "True" ]
-then
-  # wait for 1 million seconds
-  echo Flag $NEWSLOOKOUT_PERSIST_AFTER_RUN="$NEWSLOOKOUT_PERSIST_AFTER_RUN", hence waiting for 1 million seconds...
-  sleep 1000000
-fi
 
 # end of file #

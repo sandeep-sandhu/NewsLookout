@@ -189,12 +189,13 @@ class BasePlugin:
          "%Y-%m-%d"
          }
 
-    # #
+
     def __init__(self):
         """ Initializes the class object.
         Verifies whether the required attributes and methods have been overridden in the plugin classes.
         Logs an error and exits if these are not found in the plugin.
         """
+        self.is_stopped = False
         self.pluginName = type(self).__name__
         self.status = PluginStatus()
         self.enable_recursion = False
@@ -705,9 +706,16 @@ class BasePlugin:
         self.listOfURLS = []
         allURLs = []
         try:
+            if self.is_stopped: return []
             rssURLList = self.getArticlesListFromRSS(self.all_rss_feeds)
+
+            if self.is_stopped: return []
             newsPaperLibURLList = self.extractArticlesListWithNewsP()
+
+            if self.is_stopped: return []
             main_page_list = self.extr_links_from_main_noncont(runDate)
+
+            if self.is_stopped: return []
             pending_urls = sessionHistoryDB.retrieveTodoURLList(self.pluginName)
             # concatenate all lists of URLs, and de-duplicate them:
             allURLs = scraper_utils.deDupeList(
@@ -719,6 +727,7 @@ class BasePlugin:
             logger.error("%s: Error retrieving list of URLs from main URL and pending table: %s", self.pluginName, e)
         try:
             if self.app_config.recursion_level > 1 and hasattr(self, 'enable_recursion') and self.enable_recursion:
+                if self.is_stopped: return allURLs
                 recursive_urls = self.getLinksRecursively(allURLs, runDate, self.app_config.recursion_level)
                 if recursive_urls:
                     allURLs = scraper_utils.deDupeList(allURLs + recursive_urls)
@@ -747,12 +756,14 @@ class BasePlugin:
                 links2LevelsDeep = self.extr_links_from_urls_list(run_date, allURLs)
                 if links2LevelsDeep is not None:
                     allURLs = allURLs + links2LevelsDeep
+                if self.is_stopped: return allURLs
                 if recursionLevel > 2 and links2LevelsDeep is not None:
                     # go yet another level deeper
                     logger.info(f"Started collecting URLs 3 levels deep, for plugin: {self.pluginName}")
                     links3LevelsDeep = self.extr_links_from_urls_list(run_date, links2LevelsDeep)
                     if links3LevelsDeep is not None:
                         allURLs = allURLs + links3LevelsDeep
+                    if self.is_stopped: return allURLs
                     if recursionLevel > 3 and links3LevelsDeep is not None:
                         # go yet another level deeper
                         logger.info(f"Started collecting URLs 4 levels deep, for plugin: {self.pluginName}")

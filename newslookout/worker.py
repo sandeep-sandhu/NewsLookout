@@ -181,6 +181,8 @@ class PluginWorker(threading.Thread):
     def runURLListGatherTasks(self):
         """ Run Tasks to gather the listing of URLs
         """
+        if self.queue_manager.shutdown_signal:
+            return
         try:
             logger.info(f"Started identifying URLs for plugin: {self.pluginName}")
             # fetch URL list using each plugin's function:
@@ -195,6 +197,8 @@ class PluginWorker(threading.Thread):
                 # check if both individual data fetcher plugins and news agg are completed,
                 #  only then put queue end marker, and change state
                 while(self.queue_manager.q_status.any_newsagg_isactive()):
+                    if self.queue_manager.shutdown_signal:
+                        break
                     self.queue_manager.q_status.updateStatus()
                     logger.info(f'{self.pluginName} waiting for news aggregator to finish, before closing the queue.')
                     time.sleep(self.queueFillwaitTime)
@@ -226,6 +230,9 @@ class PluginWorker(threading.Thread):
                     self.pluginObj.getQueueSize()
                     )
         while (not self.pluginObj.isQueueEmpty()) or (self.pluginObj.pluginState == PluginTypes.STATE_GET_URL_LIST):
+            if self.queue_manager.shutdown_signal:
+                logger.info(f"Worker {self.workerID} stopping due to shutdown signal.")
+                break
             sURL = None
             try:
                 if self.pluginObj.isQueueEmpty():
@@ -296,7 +303,7 @@ class DataProcessor(threading.Thread):
     """
     workerID = -1
     waitTimeSec = 5
-    queueBlockTimeout = 240
+    queueBlockTimeout = 2
     queue_manager = None
     sortedPriorityKeys = []
 
@@ -360,6 +367,9 @@ class DataProcessor(threading.Thread):
         self.q_status.updateStatus()
         # logger.debug(f'Data processing: Started thread {self.workerID}')
         while(self.q_status.isPluginStillFetchingoverNetwork or self.q_status.dataInputQsize > 0):
+            if self.queue_manager.shutdown_signal:
+                logger.info(f"Data processor ID {self.workerID} stopping due to shutdown signal.")
+                break
             try:
                 # if anything in queue, pick it up and process it:
                 itemInQueue = self.queue_manager.fetchFromDataProcInputQ(block=True, timeout=self.queueBlockTimeout)
@@ -540,7 +550,8 @@ class ProgressWatcher(threading.Thread):
             if self.rest_api_enabled is True:
                 logger.info(f"Starting REST API server at: {self.restapi_host}, port {self.restapi_port_num}")
                 # launch the flask's integrated development webserver
-                self.flask_app.run(host=self.restapi_host, port=self.restapi_port_num)
+                self.flask_app.run(host=self.restapi_host, port=self.restapi_port_num, debug=False)
+                logger.info(self.flask_app.config)
             else:
                 # save previous state, use deepcopy for dictionary object:
                 previousState = copy.deepcopy(self.q_status.currentState)
@@ -555,6 +566,8 @@ class ProgressWatcher(threading.Thread):
                 print("Web-scraping Progress:")
                 # check if any data processing is pending in queue:
                 while self.q_status.isPluginStillFetchingoverNetwork is True or self.q_status.dataInputQsize > 0:
+                    if self.queue_manager.shutdown_signal:
+                        break
                     results_from_queue = []
                     while not self.queue_manager.isFetchQEmpty():
                         # get all completed urls from queue:

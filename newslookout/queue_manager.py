@@ -24,11 +24,13 @@
 # #########################################################################################################
 
 """
+ Queue Manager Module
  File name: queue_manager.py
  Application: The NewsLookout Web Scraping Application
  Date: 2021-06-23
  Purpose: Manage worker threads and the job queues of all the scraper plugins for the application
- Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
+ This module manages worker threads and job queues for all scraper plugins.
+ Copyright 2025, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com
 
  Provides:
     QueueManager
@@ -113,6 +115,7 @@ class QueueManager:
     URL_frontier = dict()
 
     def __init__(self):
+        self.shutdown_signal = False
         self.fetchCompletedQueue = queue.Queue()
         self.dataProcQueue = queue.Queue()
         self.dataProcCompletedQueue = queue.Queue()
@@ -464,6 +467,11 @@ class QueueManager:
             # serially perform any data processing required on entire dataset for given day:
             # self.processDataSerially(self.runDate)
         except KeyboardInterrupt:
+            self.shutdown_signal = True
+            # Signal all plugins to stop immediately
+            if self.pluginNameToObjMap:
+                for plugin in self.pluginNameToObjMap.values():
+                    plugin.is_stopped = True
             logger.error("Recognized keyboard interrupt, stopping the program now...")
             print("Recognized keyboard interrupt, stopping the program now...")
         except Exception as e:

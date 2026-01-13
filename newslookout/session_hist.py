@@ -37,8 +37,11 @@ import datetime
 import logging
 import os
 import sqlite3 as lite
+import sys
 import threading
 from typing import List
+import time
+import functools
 
 # import internal libraries
 import data_structs
@@ -51,6 +54,31 @@ from scraper_utils import deDupeList
 logger = logging.getLogger(__name__)
 
 ##########
+
+def retry_db_op(max_retries=5, initial_delay=1):
+    """Decorator to retry database operations on lock errors."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            delay = initial_delay
+            last_exception = None
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except lite.OperationalError as e:
+                    if "locked" in str(e):
+                        last_exception = e
+                        logger.warning(f"DB Locked. Retrying {func.__name__} in {delay}s (Attempt {attempt + 1}/{max_retries})")
+                        time.sleep(delay)
+                        delay *= 2  # Exponential backoff
+                    else:
+                        raise e
+                except Exception as e:
+                    raise e
+            logger.error(f"Failed {func.__name__} after {max_retries} attempts. Last error: {last_exception}")
+            raise last_exception
+        return wrapper
+    return decorator
 
 
 class SessionHistory:
@@ -70,9 +98,7 @@ class SessionHistory:
                                  '(url TEXT, plugin varchar(100), pubdate DATE, filename TEXT)')
     db_connect_timeout = 180
 
-    def __init__(self,
-                 dataFileName: str,
-                 dbAccessSemaphore: threading.Semaphore):
+    def __init__(self, dataFileName: str, dbAccessSemaphore: threading.Semaphore):
         """
          Initialize the history tracking and persistence object
 
@@ -81,7 +107,18 @@ class SessionHistory:
         """
         self.dbFileName = dataFileName
         self.dbAccessSemaphore = dbAccessSemaphore
+        self._init_db_settings()
         super().__init__()
+
+    def _init_db_settings(self):
+        """Initialize DB with WAL mode for better concurrency"""
+        try:
+            with lite.connect(self.dbFileName) as con:
+                con.execute('PRAGMA journal_mode=WAL;')
+                con.execute('PRAGMA synchronous=NORMAL;')
+        except Exception as e:
+            logger.error(f"Failed to set WAL mode: {e}")
+            sys.exit(1)
 
     @staticmethod
     def openConnFromfile(dataFileName: str) -> lite.Connection:
@@ -137,32 +174,24 @@ class SessionHistory:
         :param pluginName: (Optional) Name of the plugin to search database for.
         :return: True if URL was attempted earlier.
         """
-        # TODO: change method to check multiple URLs
         searchResult = False
         sqlCon = None
         try:
-            logger.debug("Search already fetched URLs: Waiting for db exclusive access...")
-            acqResult = self.dbAccessSemaphore.acquire()
-            if sURL is not None and acqResult is True:
-                logger.debug("Search already fetched URLs: Got exclusive db access")
-                sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
-                cur = sqlCon.cursor()
-                result = cur.execute('select url from URL_LIST where url = ? union all ' +
-                                     'select url from FAILED_URLS where url = ?',
-                                     (sURL, sURL))
-                rowset = result.fetchall()
-                if rowset is not None and len(rowset) > 0 and rowset[0][0] == sURL:
-                    searchResult = True
-                    logger.debug(f'URL {rowset[0][0]} already fetched or failed, so not fetching')
-                else:
-                    searchResult = False
+            # Read operations don't strictly need the exclusive semaphore in WAL mode,
+            # but we keep it for safety if the caller logic relies on serial access.
+            sqlCon = lite.connect(self.dbFileName, timeout=self.db_connect_timeout)
+            cur = sqlCon.cursor()
+            result = cur.execute('select url from URL_LIST where url = ? union all ' +
+                                 'select url from FAILED_URLS where url = ?',
+                                 (sURL, sURL))
+            rowset = result.fetchall()
+            if rowset and len(rowset) > 0:
+                searchResult = True
         except Exception as e:
-            logger.error(f"{pluginName}: While searching url in already fetched or failed table: {e}")
+            logger.error(f"{pluginName}: Error searching url: {e}")
         finally:
             if sqlCon:
                 sqlCon.close()
-            self.dbAccessSemaphore.release()
-            logger.debug(f"Search already fetched URLs for plugin {pluginName}: Released exclusive db access")
         return searchResult
 
 
@@ -176,31 +205,31 @@ class SessionHistory:
         """
         if not newURLsList:
             return []
-
         sqlCon = None
         try:
+            # We use the semaphore here because we are creating a TEMP table
             self.dbAccessSemaphore.acquire()
-            sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
+            sqlCon = lite.connect(self.dbFileName, timeout=self.db_connect_timeout)
             cur = sqlCon.cursor()
-
-            # Create temp table with new URLs
-            cur.execute("CREATE TEMP TABLE temp_urls (url TEXT PRIMARY KEY)")
+            cur.execute("CREATE TEMP TABLE IF NOT EXISTS temp_urls (url TEXT PRIMARY KEY)")
+            cur.execute("DELETE FROM temp_urls") # Clear previous run
             cur.executemany("INSERT OR IGNORE INTO temp_urls VALUES (?)", [(u,) for u in newURLsList])
-
-            # Single query to find new URLs
             result = cur.execute("""
                 SELECT url FROM temp_urls
                 WHERE url NOT IN (SELECT url FROM URL_LIST)
                   AND url NOT IN (SELECT url FROM FAILED_URLS)
             """)
-
             return [row[0] for row in result.fetchall()]
+        except Exception as e:
+            logger.error(f"Error filtering URLs: {e}")
+            return newURLsList # Return original list on failure
         finally:
             if sqlCon:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
 
 
+    @retry_db_op()
     def retrieveTodoURLList(self, pluginName: str) -> list:
         """ Retrieve URL list from the pending_urls table for the given plugin name
 
@@ -210,29 +239,24 @@ class SessionHistory:
         URLsFromSQLite = []
         sqlCon = None
         try:
-            logger.debug("Fetching pending url list: Waiting for db exclusive access...")
-            acqResult = self.dbAccessSemaphore.acquire()
-            if acqResult is True:
-                sqlQuery = "select distinct url from pending_urls where plugin_name='" + pluginName +\
-                           "' and url not in (select url from failed_urls) and url not in (select url from url_list)"
-                sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
-                cur = sqlCon.cursor()
-                # execute query and get results:
-                cur.execute(sqlQuery)
-                allResults = cur.fetchall()  # fill results into list
-                for urlTuple in allResults:
-                    URLsFromSQLite.append(urlTuple[0])
-        except Exception as e:
-            logger.error("%s: Error when fetching pending url list from sqlite db: %s", pluginName, e)
+            self.dbAccessSemaphore.acquire()
+            sqlQuery = "select distinct url from pending_urls where plugin_name=? " + \
+                       "and url not in (select url from failed_urls) and url not in (select url from url_list)"
+            sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
+            cur = sqlCon.cursor()
+            cur.execute(sqlQuery, (pluginName,))
+            allResults = cur.fetchall()
+            for urlTuple in allResults:
+                URLsFromSQLite.append(urlTuple[0])
         finally:
             if sqlCon:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
-            logger.debug("Fetched pending url list for plugin %s: Released exclusive db access.", pluginName)
         URLsFromSQLite = deDupeList(URLsFromSQLite)
         logger.info(f'{pluginName}: Identified {len(URLsFromSQLite)} URLs from pending table of history database.')
         return URLsFromSQLite
 
+    @retry_db_op()
     def addURLsToPendingTable(self, urlList: list, pluginName: str, num_attempts: int = 1):
         """ Add newly identified URLs to the pending Table.
 
@@ -244,34 +268,25 @@ class SessionHistory:
         :return:
         """
         sqlCon = None
-        url_being_added = ""
         try:
-            logger.debug("Add URL list to pending table in db: Waiting to get db exclusive access...")
-            acqResult = self.dbAccessSemaphore.acquire(timeout=30)
-            if acqResult is True:
-                logger.debug("Adding URL list to pending table for plugin %s: Got exclusive db access.", pluginName)
-                sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
-                cur = sqlCon.cursor()
-                urlList = deDupeList(urlList)
-                # TODO: parallelize this to process entire list in one iteration
-                # TODO: fix exception - 'str' object has no attribute 'URL'
-                # TODO: datetime field has time attributes, table has only date attributes, re-check table structure
-                for sURL in urlList:
-                    url_being_added = sURL
-                    # logger.debug("insert or ignore into pending_urls (url, plugin_name, attempts) values ({sURL}, {pluginName}, {num_attempts})")
-                    # Ideally, if url already exists, the no. of attempts should be incremented by 1, but it is omitted
-                    cur.execute('insert or ignore into pending_urls (url, plugin_name, attempts) values (?, ?, ?)',
-                                (sURL, pluginName, num_attempts))
-                sqlCon.commit()
+            self.dbAccessSemaphore.acquire()
+            sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
+            cur = sqlCon.cursor()
+            urlList = deDupeList(urlList)
+            # Use executemany for performance
+            data = [(sURL, pluginName, num_attempts) for sURL in urlList]
+            cur.executemany('insert or ignore into pending_urls (url, plugin_name, attempts) values (?, ?, ?)', data)
+            sqlCon.commit()
         except Exception as e:
-            logger.error(f"Error while adding URL list to pending table: {e}, URL: {url_being_added}")
+            logger.error(f"Error adding to pending table: {e}")
+            # Re-raise to trigger retry
+            raise e
         finally:
             if sqlCon:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
-            logger.debug(f"Completed adding URL list to pending table for plugin {pluginName}:" +
-                         " Released exclusive db access.")
 
+    @retry_db_op()
     def addURLToFailedTable(self,
                             fetchResult: data_structs.ExecutionResult,
                             pluginName: str,
@@ -285,78 +300,62 @@ class SessionHistory:
         """
         sqlCon = None
         try:
-            if type(fetchResult) == str:
-                sURL = fetchResult
-            else:
-                sURL = fetchResult.URL
-            logger.debug("Add URL list to pending table in db: Waiting to get db exclusive access...")
-            acqResult = self.dbAccessSemaphore.acquire(timeout=30)
-            if acqResult is True:
-                logger.debug("Add URL list to pending table in db: Got exclusive db access")
-                sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
-                cur = sqlCon.cursor()
-                # get count of url to check if it already exists:
-                result = cur.execute('select count(*) from FAILED_URLS where url = ?', (sURL,))
-                rowset = result.fetchall()
-                # To avoid duplicates, add only if it does not exist:
-                if rowset is not None and len(rowset) > 0 and rowset[0][0] == 0:
-                    cur.execute('insert into FAILED_URLS (url, plugin_name, failedtime) values (?, ?, ?)',
-                                (sURL, pluginName, failTime))
-                    cur.execute('delete from pending_urls where url=? and plugin_name=?', (sURL, pluginName))
-                    # delete from pending_urls where url is in failed_urls or in url_list
-                    cur.execute('delete from pending_urls where url in ' +
-                                '(select url from failed_urls) or url in (select url from url_list)')
-                    sqlCon.commit()
+            sURL = fetchResult if isinstance(fetchResult, str) else fetchResult.URL
+            self.dbAccessSemaphore.acquire()
+            sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
+            cur = sqlCon.cursor()
+
+            cur.execute('INSERT INTO FAILED_URLS (url, plugin_name, failedtime) ' +
+                        'SELECT ?, ?, ? WHERE NOT EXISTS (SELECT 1 FROM FAILED_URLS WHERE url = ?)',
+                        (sURL, pluginName, failTime, sURL))
+
+            cur.execute('delete from pending_urls where url=? and plugin_name=?', (sURL, pluginName))
+            sqlCon.commit()
         except Exception as e:
-            logger.error("Error while adding URL list to failed URLs table: %s", e)
+            logger.error(f"Error adding to failed table: {e}")
+            raise e
         finally:
             if sqlCon:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
-            logger.debug("Completed adding URL list to pending table in db: Released exclusive db access")
 
+    @retry_db_op()
     def writeQueueToDB(self, results_from_queue: list) -> int:
         """ Write successfully retrieved URLs to database table - URL_LIST.
         :param results_from_queue: List of ExecutionResult objects retrieved from the completed queue.
         :return: Count of URLs saved to the database table.
         """
+        if not results_from_queue:
+            return 0
         sqlCon = None
         writeCount = 0
-        resultObj = None
         try:
-            logger.debug("Save newly retrieved URLs to history db: Waiting to get db exclusive access...")
-            acqResult = self.dbAccessSemaphore.acquire(timeout=30)
-            if acqResult is True:
-                logger.debug("Save newly retrieved URLs to history db: Got exclusive db access")
-                sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
-                cur = sqlCon.cursor()
-                # TODO: Parallelize this to process entire list in one iteration
-                for resultObj in results_from_queue:
-                    # write each item to table:
-                    cur.execute(
-                        'insert into URL_LIST (url, plugin, pubdate, rawsize, datasize) VALUES(?, ?, ?, ?, ?)',
-                        resultObj.getAsTuple()
-                    )
-                    writeCount = writeCount + 1
-                    cur.execute('delete from pending_urls where url=\'' + resultObj.URL +
-                                '\' and plugin_name=\'' + resultObj.pluginName + '\' ')
-                sqlCon.commit()
-                # delete from pending where url exists in completed table:
-                cur.execute('delete from pending_urls where url in (select url_list.url from url_list' +
-                            ' inner join pending_urls on pending_urls.plugin_name=url_list.plugin and' +
-                            ' url_list.url=pending_urls.url)')
-                sqlCon.commit()
-                # read back total count of URLs in history table:
-                cur.execute('SELECT count(*) from URL_LIST')
-                data = cur.fetchone()
-                logger.debug(f"Till date, {data[0]} URLs were retrieved.")
+            self.dbAccessSemaphore.acquire()
+            sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
+            cur = sqlCon.cursor()
+
+            # Prepare data for bulk insert
+            insert_data = []
+            urls_to_delete = []
+
+            for resultObj in results_from_queue:
+                insert_data.append(resultObj.getAsTuple())
+                urls_to_delete.append((resultObj.URL, resultObj.pluginName))
+
+            cur.executemany('insert into URL_LIST (url, plugin, pubdate, rawsize, datasize) VALUES(?, ?, ?, ?, ?)', insert_data)
+            writeCount = len(insert_data)
+
+            # Bulk delete from pending
+            cur.executemany('delete from pending_urls where url=? and plugin_name=?', urls_to_delete)
+            sqlCon.commit()
+
         except Exception as e:
-            logger.error(f"Error while saving newly retrieved URLs to history table: {e}, resultObj = {resultObj}")
+            logger.error(f"Error saving history: {e}")
+            raise e
         finally:
             if sqlCon:
                 sqlCon.close()
             self.dbAccessSemaphore.release()
-            logger.debug("Save newly retrieved URLs to history db: Released exclusive db access")
         return writeCount
 
     def addDupURLToDeleteTbl(self, sURL: str, pluginName: str, pubdate: datetime.datetime, filename: str):

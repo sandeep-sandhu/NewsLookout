@@ -38,7 +38,11 @@ import logging
 
 # import web retrieval python libraries:
 import http
+import ssl
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.poolmanager import PoolManager
+from urllib3.util import ssl_ # For legacy SSL
 from urllib3.exceptions import InsecureRequestWarning
 import newspaper
 
@@ -46,6 +50,18 @@ import newspaper
 
 # setup logging
 logger = logging.getLogger(__name__)
+
+
+class LegacySSLAdapter(HTTPAdapter):
+    """Adapter to allow legacy SSL/TLS versions."""
+    def init_poolmanager(self, connections, maxsize, block=False):
+        context = ssl_.create_urllib3_context(ciphers='DEFAULT@SECLEVEL=1')
+        context.check_hostname = False
+        context.verify_mode = ssl.CERT_NONE
+        self.poolmanager = PoolManager(num_pools=connections,
+                                       maxsize=maxsize,
+                                       block=block,
+                                       ssl_context=context)
 
 
 class NetworkFetcher:
@@ -92,10 +108,19 @@ class NetworkFetcher:
             self.userAgentStrList = self.app_config.user_agent.split('|')
             # Suppress only the single warning from urllib3 for not verifying SSL certificates
             requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
-            self.customHeader = {'user-agent': self.userAgentStrList[0]}
-            # set cookies
-            cookiePolicy = self.getCookiePolicy(allowedDomains)
-            self.cookieJar = requests.cookies.RequestsCookieJar(policy=cookiePolicy)
+
+            # Initialize a Session object
+            self.session = requests.Session()
+            self.session.headers.update({'user-agent': self.userAgentStrList[0]})
+
+            # Mount legacy adapter for specific problematic domains if needed, or globally
+            legacy_adapter = LegacySSLAdapter()
+            self.session.mount('https://', legacy_adapter)
+
+            # Cookies setup (simplified)
+            self.cookieJar = self.loadAndSetCookies(self.app_config.cookie_file)
+            if self.cookieJar:
+                self.session.cookies.update(self.cookieJar)
             self.cookieJar = self.loadAndSetCookies(self.app_config.cookie_file)
         except Exception as e:
             logger.error("Exception when configuring the network manager: %s", e)
@@ -161,67 +186,75 @@ class NetworkFetcher:
         :return:
         """
         httpsResponse = None
-        if uRLtoFetch is not None and len(uRLtoFetch) > 11:
-            for retryCounter in range(self.retryCount):
-                logger.debug("RetryCounter %s: Downloading Raw Data for URL %s",
-                             retryCounter, uRLtoFetch.encode('ascii', "ignore"))
-                try:
-                    self.customHeader = {'user-agent': self.userAgentStrList[self.userAgentIndex]}
-                    # self.requestOpener = urllib3.request.build_opener(
-                    #   urllib.request.HTTPCookieProcessor(self.cookieJar))
-                    # response = self.requestOpener.open(uRLtoFetch)
-                    httpsResponse = requests.get(
-                        uRLtoFetch,
-                        headers=self.customHeader,
-                        timeout=(self.connect_timeout, self.fetch_timeout),
-                        proxies=self.proxies,
-                        verify=self.verify_ca_cert  # warning: if set to false, disables checking SSL certs!
-                        # verify=self.proxy_ca_certfile   # provides CA cert
-                        )
-                    # since this request completed without error, so don't try again, exit the loop.
-                    break
-                except requests.Timeout as timeoutExp:
-                    logger.error("%s: Request timeout (retry count = %s) downloading raw data From URL %s: %s",
-                                 pluginName,
-                                 retryCounter,
-                                 uRLtoFetch,
-                                 timeoutExp)
-                except requests.ConnectionError as connExp:
-                    logger.error("%s: Connection error (retry count = %s) downloading raw data From URL %s: %s",
-                                 pluginName,
-                                 retryCounter,
-                                 uRLtoFetch,
-                                 connExp)
-                except requests.HTTPError as httpExp:
-                    logger.error("%s: HTTP error (retry count = %s) downloading raw data From URL %s: %s",
-                                 pluginName,
-                                 retryCounter,
-                                 uRLtoFetch,
-                                 httpExp)
-                except requests.RequestException as reqExp:
-                    logger.error("%s: Ambiguous request error (retry count = %s) downloading raw data From URL %s: %s",
-                                 pluginName,
-                                 retryCounter,
-                                 uRLtoFetch,
-                                 reqExp)
-                # except requests.URLRequired , requests.TooManyRedirects
-                #    break;# stop retrying again for this error
-                except Exception as e:
-                    logger.error("%s: Stopping the download, general error (retry count = %s) for URL %s Error: %s",
-                                 pluginName,
-                                 retryCounter,
-                                 uRLtoFetch,
-                                 e)
-                    break  # stop retrying again for this error
-                finally:
-                    if (self.userAgentIndex + 1) == len(self.userAgentStrList):
-                        self.userAgentIndex = 0
-                    else:
-                        self.userAgentIndex = self.userAgentIndex + 1
-                    # wait for a random time period
-                    NetworkFetcher.sleepBeforeNextFetch(fix_sec=self.retryWaitFixed,
-                                                        min_rand_sec=self.retry_wait_rand_min_sec,
-                                                        max_rand_sec=self.retry_wait_rand_max_sec)
+        if not uRLtoFetch or len(uRLtoFetch) < 11:
+            return None
+
+        for retryCounter in range(self.retryCount):
+            logger.debug("RetryCounter %s: Downloading Raw Data for URL %s",
+                         retryCounter, uRLtoFetch.encode('ascii', "ignore"))
+            try:
+                # Rotate User Agent
+                ua = self.userAgentStrList[self.userAgentIndex]
+                self.session.headers.update({'user-agent': ua})
+
+                # Use the session
+                httpsResponse = self.session.get(
+                    uRLtoFetch,
+                    timeout=(self.connect_timeout, self.fetch_timeout),
+                    proxies=self.proxies,
+                    verify=False # Legacy SSL Adapter handles context, verification off due to logs
+                )
+                httpsResponse.raise_for_status()
+                # since this request completed without error, so don't try again, exit the loop.
+                break
+            except requests.Timeout as timeoutExp:
+                logger.error("%s: Request timeout (retry count = %s) downloading raw data From URL %s: %s",
+                             pluginName,
+                             retryCounter,
+                             uRLtoFetch,
+                             timeoutExp)
+            except requests.ConnectionError as connExp:
+                logger.error("%s: Connection error (retry count = %s) downloading raw data From URL %s: %s",
+                             pluginName,
+                             retryCounter,
+                             uRLtoFetch,
+                             connExp)
+            # TODO: identify 404 errors and stop retrying on those:
+            except requests.TooManyRedirects as httpExp:
+                logger.error("%s: HTTP Too Many Redirects (retry count = %s) downloading raw data From URL %s: %s",
+                             pluginName,
+                             retryCounter,
+                             uRLtoFetch,
+                             httpExp)
+                break  # stop retrying again for this error
+            except requests.URLRequired as httpExp:
+                logger.error(f"{pluginName}: HTTP error URLRequired {httpExp.response.status_code} (retry count = {retryCounter}) downloading raw data From URL {uRLtoFetch}: {httpExp}")
+                break  # stop retrying again for this error
+            except requests.HTTPError as httpExp:
+                logger.error(f"{pluginName}: HTTP error {httpExp.response.status_code} (retry count = {retryCounter}) downloading raw data From URL {uRLtoFetch}: {httpExp}")
+                break  # stop retrying again for this error
+            except requests.RequestException as reqExp:
+                logger.error("%s: Ambiguous request error (retry count = %s) downloading raw data From URL %s: %s",
+                             pluginName,
+                             retryCounter,
+                             uRLtoFetch,
+                             reqExp)
+            except Exception as e:
+                logger.error("%s: Stopping the download, general error (retry count = %s) for URL %s Error: %s",
+                             pluginName,
+                             retryCounter,
+                             uRLtoFetch,
+                             e)
+                break  # stop retrying again for this error
+            finally:
+                if (self.userAgentIndex + 1) == len(self.userAgentStrList):
+                    self.userAgentIndex = 0
+                else:
+                    self.userAgentIndex = self.userAgentIndex + 1
+                # wait for a random time period
+                NetworkFetcher.sleepBeforeNextFetch(fix_sec=self.retryWaitFixed,
+                                                    min_rand_sec=self.retry_wait_rand_min_sec,
+                                                    max_rand_sec=self.retry_wait_rand_max_sec)
         return self.getDataFromHTTPResponse(httpsResponse, getBytes)
 
     def getDataFromHTTPResponse(self,

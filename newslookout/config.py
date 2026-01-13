@@ -159,7 +159,7 @@ class ConfigManager:
         self.retry_wait_rand_min_sec = 10
         self.proxy_url_http = ''
         self.proxy_url_https = ''
-        self.recursion_level = 1
+        self.recursion_level = 2
         self.user_agent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_9_3) " \
                           + "AppleWebKit/537.75.14 (KHTML like Gecko) Version/7.0.3"
         self.proxy_user = None

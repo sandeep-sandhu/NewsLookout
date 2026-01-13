@@ -83,7 +83,6 @@ class mod_en_in_business_std(BasePlugin):
         'https://epaper.business-standard.com',
         'https://hindi.business-standard.com',
         'https://s.business-standard.com',
-        'https://smartinvestor.business-standard.com',
         'https://www.business-standard.com/android',
         'https://www.business-standard.com/author',
         'https://www.business-standard.com/b2b-connect',
