@@ -5,14 +5,15 @@
 # File name: worker.py                                                                                    #
 # Application: The NewsLookout Web Scraping Application                                                   #
 # Date: 2021-06-23                                                                                        #
-# Purpose: This object encapsulates the worker thread that                                                #
-#  runs all multi-threading functionality to run the                                                      #
-#  web scraper plugins loaded by the application.                                                         #
+# Purpose: Worker Module - it encapsulates the worker thread that                                         #
+#  runs all multi-threading functionality to run the web scraper plugins loaded by the application.       #
+#  This module contains worker thread classes for URL discovery, content fetching,                        #
+#  and data processing.                                                                                   #
 #                                                                                                         #
 # Copyright 2021, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu, sandeep.sandhu@gmx.com  #
 #                                                                                                         #
 # Provides:                                                                                               #
-#    PluginWorker                                                                                               #
+#    PluginWorker                                                                                         #
 #        run                                                                                              #
 #        setRunDate                                                                                       #
 #        runURLListGatherTasks                                                                            #
@@ -44,70 +45,56 @@
 #                                                                                                         #
 # #########################################################################################################
 
-# #########
-
-# import standard python libraries:
 import logging
 import threading
 import time
-from datetime import datetime
 import queue
 import copy
+from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional
+from pathlib import Path
+
 import enlighten
-import os
+from fastapi import FastAPI
+from fastapi.responses import JSONResponse
+from fastapi.responses import HTMLResponse
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
 
-#import the flask module for REST API serving
-from flask import Flask, redirect, url_for, request, Response, jsonify
-import werkzeug
-import json
-
-# import this project's modules
-import session_hist
-from config import ConfigManager
-from data_structs import PluginTypes
+from data_structs import PluginTypes, QueueStatus
 import scraper_utils
-from data_structs import QueueStatus
-
-# from queue_manager import QueueManager
-
-# #########
 
 logger = logging.getLogger(__name__)
 
-# #########
-
 
 class PluginWorker(threading.Thread):
-    """ This worker object runs fetching and data extraction processes within each thread.
     """
-    workerID = -1
-    taskType = None
-    runDate = datetime.now()
-    queueFillwaitTime = 1
+    Worker thread that executes plugin operations.
 
-    def __init__(self,
-                 pluginObj,
-                 taskType,
-                 sessionHistoryDB,
-                 queue_manager,
-                 daemon=None, target=None, name=None):
+    This class runs fetching and data extraction processes within each thread.
+    It supports both URL discovery and content fetching tasks.
+
+    Attributes:
+        workerID: Unique identifier for this worker
+        pluginObj: The plugin instance this worker executes
+        taskType: Type of task (URL_LIST or GET_DATA)
+        url_gathering_timeout: Maximum time to spend gathering URLs (seconds)
+    """
+
+    def __init__(self, pluginObj, taskType, sessionHistoryDB, queue_manager,
+                 daemon=False, target=None, name=None):
         """
-         Initialize the worker with plugin object for executing the given task,
-          and the history data manager
+        Initialize the plugin worker.
 
-        :param pluginObj: The plugin object instance to run
-        :type pluginObj: base_plugin.basePlugin
-        :param taskType: The task is either fetch url list or fetch data.
-         Based on the type of task the relevant plugin method will be invoked by this thread
-        :type taskType: data_structs.PluginTypes
-        :param sessionHistoryDB:
-        :type sessionHistoryDB: session_hist.SessionHistory
-        :param queue_manager: Queue manager instance
-        :param daemon: Optional - indicates whether this will be a daemon thread,
-         to be passed to the parent object - Thread
-        :param target: Optional - alternative method to run instead of run(),
-         to be passed to the parent object - Thread
-        :param name: Optional - the thread's name, to be passed to the parent object - Thread
+        Args:
+            pluginObj: Plugin instance to execute
+            taskType: Type of task (TASK_GET_URL_LIST or TASK_GET_DATA)
+            sessionHistoryDB: Database interface for session history
+            queue_manager: Queue manager instance
+            daemon (bool, optional): Whether this is a daemon thread
+            target (callable, optional): Alternative method to run
+            name (str, optional): Thread name
         """
         self.workerID = name
         self.pluginObj = pluginObj
@@ -116,509 +103,956 @@ class PluginWorker(threading.Thread):
         self.queue_manager = queue_manager
         self.sessionHistoryDB = sessionHistoryDB
         self.queueFillwaitTime = 120
-        logger.debug(f"PluginWorker {self.workerID} initialized for the plugin: {self.pluginObj}")
+        self.url_gathering_timeout = 600  # Default 10 minutes
+        self.url_gather_start_time = None
+
+        logger.debug(f"PluginWorker {self.workerID} initialized for plugin: {self.pluginObj}")
         super().__init__(daemon=daemon, target=target, name=name)
 
     def setRunDate(self, runDate: datetime):
+        """Set the run date for this worker."""
         self.runDate = runDate
 
-    def setDomainMapAndPlugins(self,
-                               domainToPluginMap: dict,
-                               allPluginObjs: dict):
+    def setDomainMapAndPlugins(self, domainToPluginMap: dict, allPluginObjs: dict):
+        """Set domain mapping for news aggregator plugins."""
         self.domainToPluginMap = domainToPluginMap
         self.pluginNameToObjMap = allPluginObjs
 
-    @staticmethod
-    def aggregator_url2domain_map(urlList: list,
-                                  pluginNameToObjMap: dict,
-                                  domainToPluginMap: dict) -> dict:
-        """ Collect URLs in a dictionary mapped to each plugin
+    def _checkShutdown(self) -> bool:
+        """
+        Check if shutdown has been requested.
 
-        :param urlList: Mixed list of all URLs for various news sites/domains
-        :param pluginNameToObjMap: Dictionary/map with keys as plugin name -> plugin object as values
-        :param domainToPluginMap: Dictionary/map with keys as domain names -> plugin-name as values
-        :return: Dictionary map with keys as plugin-name -> URL list as values
+        Returns:
+            bool: True if shutdown requested, False otherwise
+        """
+        if self.queue_manager.shutdown_event.is_set():
+            logger.info(f"Worker {self.workerID} ({self.pluginName}) received shutdown signal")
+            return True
+        if hasattr(self.pluginObj, 'is_stopped') and self.pluginObj.is_stopped:
+            logger.info(f"Worker {self.workerID} ({self.pluginName}) plugin stopped flag set")
+            return True
+        return False
+
+    def _checkURLGatheringTimeout(self) -> bool:
+        """
+        Check if URL gathering has exceeded timeout.
+
+        Returns:
+            bool: True if timeout exceeded, False otherwise
+        """
+        if self.url_gather_start_time is None:
+            return False
+
+        elapsed = time.time() - self.url_gather_start_time
+        if elapsed > self.url_gathering_timeout:
+            logger.warning(f"{self.pluginName}: URL gathering timeout ({self.url_gathering_timeout}s) exceeded")
+            return True
+        return False
+
+    @staticmethod
+    def aggregator_url2domain_map(urlList: list, pluginNameToObjMap: dict,
+                                  domainToPluginMap: dict) -> dict:
+        """
+        Map URLs to appropriate plugins based on domain.
+
+        Args:
+            urlList (list): List of URLs to map
+            pluginNameToObjMap (dict): Map of plugin names to objects
+            domainToPluginMap (dict): Map of domains to plugin names
+
+        Returns:
+            dict: Map of plugin names to URL lists
         """
         plugin_to_url_list_map = dict()
-        # initialize the dictionary:
+
+        # Initialize dictionary
         for pluginItem in pluginNameToObjMap.keys():
-            # Key -> Value is: Plugin name -> URL List
             plugin_to_url_list_map[pluginItem] = []
-        # next, allocate each corresponding URL to the map
+
+        # Allocate URLs to plugins
         for urlItem in urlList:
-            # find the domain from url:
-            domainName = scraper_utils.getNetworkLocFromURL(urlItem)
-            if domainName in domainToPluginMap:
-                # identify the relevant pluginName from the domainName using domainMap:
-                thisPlugin = domainToPluginMap[domainName]
-                logger.debug(f'For plugin: {thisPlugin}, and domain: {domainName}, adding URL: {urlItem}')
-                plugin_to_url_list_map[thisPlugin].append(urlItem)
+            try:
+                domainName = scraper_utils.getNetworkLocFromURL(urlItem)
+                if domainName in domainToPluginMap:
+                    thisPlugin = domainToPluginMap[domainName]
+                    logger.debug(f'For plugin: {thisPlugin}, domain: {domainName}, adding URL: {urlItem}')
+                    plugin_to_url_list_map[thisPlugin].append(urlItem)
+            except Exception as e:
+                logger.debug(f"Error mapping URL {urlItem}: {e}")
+
         return plugin_to_url_list_map
 
-    def assign_urls_to_queues(self, plugin_to_url_list_map: dict,
-                              pluginName: str,
-                              pluginNameToObjMap: dict,
-                              sessionHistoryDB: session_hist.SessionHistory):
-        """ Assign all collected URLs into the corresponding plugin's queue:
+    def assign_urls_to_queues(self, plugin_to_url_list_map: dict, pluginName: str,
+                              pluginNameToObjMap: dict, sessionHistoryDB):
+        """
+        Assign collected URLs to appropriate plugin queues.
 
-        :param plugin_to_url_list_map: Dictionary map with keys as plugin-name -> URL list as values
-        :param pluginName: Name of the news aggregator plugin sourcing the list of news articles
-        :param pluginNameToObjMap: Dictionary/map with keys as plugin name -> plugin object as values
-        :param sessionHistoryDB: Session history database helper object
-        :return:
+        Args:
+            plugin_to_url_list_map (dict): Map of plugin names to URL lists
+            pluginName (str): Name of aggregator plugin
+            pluginNameToObjMap (dict): Map of plugin names to objects
+            sessionHistoryDB: Database interface
         """
         for pluginItem in plugin_to_url_list_map.keys():
-            # process each plugin-name one by one
             urlCount = len(plugin_to_url_list_map[pluginItem])
-            logger.info(f'News aggregator {pluginName} added {urlCount} ' +
-                        f'URLs to plugin {pluginItem}')
-            # if this plugin-name exists in dictionary of name-objects,
-            # and there are URLs available to fetch, then add these to the plugin's queue
-            if pluginItem in pluginNameToObjMap and urlCount > 0:
-                pluginNameToObjMap[pluginItem].addURLsListToQueue(plugin_to_url_list_map[pluginItem], sessionHistoryDB)
-                sessionHistoryDB.addURLsToPendingTable(plugin_to_url_list_map[pluginItem], pluginItem)
+
+            if urlCount > 0:
+                logger.info(f'News aggregator {pluginName} added {urlCount} URLs to plugin {pluginItem}')
+
+                if pluginItem in pluginNameToObjMap:
+                    # Queue DB operation instead of direct call
+                    self.queue_manager.queueDBOperation(
+                        'add_pending',
+                        (plugin_to_url_list_map[pluginItem], pluginItem),
+                        wait_for_result=False
+                    )
+
+                    # Add URLs to plugin queue
+                    pluginNameToObjMap[pluginItem].addURLsListToQueue(
+                        plugin_to_url_list_map[pluginItem],
+                        sessionHistoryDB
+                    )
 
     def runURLListGatherTasks(self):
-        """ Run Tasks to gather the listing of URLs
         """
-        if self.queue_manager.shutdown_signal:
+        Execute URL gathering tasks.
+
+        This method:
+        1. Starts a timer for timeout monitoring
+        2. Gathers URLs from the plugin
+        3. Streams URLs to queues as they're discovered
+        4. Respects shutdown signals and timeouts
+        """
+        if self._checkShutdown():
             return
+
+        self.url_gather_start_time = time.time()
+
         try:
             logger.info(f"Started identifying URLs for plugin: {self.pluginName}")
-            # fetch URL list using each plugin's function:
+
             if self.pluginObj.pluginType in [
-                    PluginTypes.MODULE_NEWS_CONTENT,
-                    PluginTypes.MODULE_DATA_CONTENT,
-                    PluginTypes.MODULE_NEWS_API
-                    ]:
-                urlList = self.pluginObj.getURLsListForDate(self.runDate, self.sessionHistoryDB)
-                self.pluginObj.addURLsListToQueue(urlList, self.sessionHistoryDB)
-                self.sessionHistoryDB.addURLsToPendingTable(urlList, self.pluginName)
-                # check if both individual data fetcher plugins and news agg are completed,
-                #  only then put queue end marker, and change state
-                while(self.queue_manager.q_status.any_newsagg_isactive()):
-                    if self.queue_manager.shutdown_signal:
+                PluginTypes.MODULE_NEWS_CONTENT,
+                PluginTypes.MODULE_DATA_CONTENT,
+                PluginTypes.MODULE_NEWS_API
+            ]:
+                # Get URLs with periodic shutdown checks
+                urlList = self._getURLsWithTimeoutCheck()
+
+                if urlList and not self._checkShutdown():
+                    # Queue DB operation
+                    self.queue_manager.queueDBOperation(
+                        'add_pending',
+                        (urlList, self.pluginName),
+                        wait_for_result=False
+                    )
+
+                    self.pluginObj.addURLsListToQueue(urlList, self.sessionHistoryDB)
+
+                # Wait for news aggregators to finish
+                while self.queue_manager.q_status.any_newsagg_isactive():
+                    if self._checkShutdown() or self._checkURLGatheringTimeout():
                         break
+
                     self.queue_manager.q_status.updateStatus()
-                    logger.info(f'{self.pluginName} waiting for news aggregator to finish, before closing the queue.')
-                    time.sleep(self.queueFillwaitTime)
-                self.pluginObj.putQueueEndMarker()
+                    logger.debug(f'{self.pluginName} waiting for news aggregator to finish')
+                    time.sleep(min(self.queueFillwaitTime, 10))
+
+                if not self._checkShutdown():
+                    self.pluginObj.putQueueEndMarker()
+
             elif self.pluginObj.pluginType == PluginTypes.MODULE_NEWS_AGGREGATOR:
-                # Recursion is not applicable for news aggregators; simply add url into common queue:
-                urlList = self.pluginObj.getURLsListForDate(self.runDate, self.sessionHistoryDB)
-                plugin_to_url_list_map = PluginWorker.aggregator_url2domain_map(urlList,
-                                                                                self.pluginNameToObjMap,
-                                                                                self.domainToPluginMap)
-                # put all collected URLs into each plugin queue:
-                self.assign_urls_to_queues(plugin_to_url_list_map,
-                                                   self.pluginName,
-                                                   self.pluginNameToObjMap,
-                                                   self.sessionHistoryDB)
-                # Mark stop state for this News Aggregator plugin
+                urlList = self._getURLsWithTimeoutCheck()
+
+                if urlList and not self._checkShutdown():
+                    plugin_to_url_list_map = PluginWorker.aggregator_url2domain_map(
+                        urlList,
+                        self.pluginNameToObjMap,
+                        self.domainToPluginMap
+                    )
+
+                    self.assign_urls_to_queues(
+                        plugin_to_url_list_map,
+                        self.pluginName,
+                        self.pluginNameToObjMap,
+                        self.sessionHistoryDB
+                    )
+
                 self.pluginObj.pluginState = PluginTypes.STATE_STOPPED
                 self.pluginObj.clearQueue()
-            logger.debug(f'Thread {self.workerID} finished getting URL listing for plugin {self.pluginName}')
+
+            logger.info(f'Thread {self.workerID} finished getting URL listing for plugin {self.pluginName}')
+
         except Exception as e:
-            logger.error(f'When trying to get URL listing using plugin: {self.pluginName},' +
-                         f' Type TASK_GET_URL_LIST, Exception: {e}')
+            logger.error(f'Error getting URL listing for plugin {self.pluginName}: {e}')
+
+    def _getURLsWithTimeoutCheck(self) -> list:
+        """
+        Get URLs from plugin with periodic timeout and shutdown checks.
+
+        Returns:
+            list: List of discovered URLs
+        """
+        urlList = []
+
+        try:
+            # Check if method supports timeout/shutdown
+            if hasattr(self.pluginObj, 'getURLsListForDate'):
+                # Wrap the call to check for shutdown periodically
+                # For now, call directly but plugin should check is_stopped internally
+                urlList = self.pluginObj.getURLsListForDate(self.runDate, self.sessionHistoryDB)
+
+        except Exception as e:
+            logger.error(f"Error getting URLs for {self.pluginName}: {e}")
+
+        return urlList
 
     def runDataRetrievalTasks(self):
-        """ Run Data Retrieval Tasks
+        """
+        Execute data retrieval tasks.
+
+        This method:
+        1. Fetches URLs from the plugin queue
+        2. Downloads and parses content
+        3. Adds results to processing queue
+        4. Handles shutdown signals gracefully
         """
         logger.info("Started data retrieval job for plugin: %s, queue size: %s",
-                    self.pluginName,
-                    self.pluginObj.getQueueSize()
-                    )
-        while (not self.pluginObj.isQueueEmpty()) or (self.pluginObj.pluginState == PluginTypes.STATE_GET_URL_LIST):
-            if self.queue_manager.shutdown_signal:
-                logger.info(f"Worker {self.workerID} stopping due to shutdown signal.")
+                    self.pluginName, self.pluginObj.getQueueSize())
+
+        check_interval = 5  # Check shutdown every 5 seconds during wait
+        last_check = time.time()
+
+        while (not self._checkShutdown()) or (not self.pluginObj.isQueueEmpty()) or \
+                (self.pluginObj.pluginState == PluginTypes.STATE_GET_URL_LIST):
+            # Check shutdown frequently
+            if self._checkShutdown():
+                logger.info(f"Worker {self.workerID} stopping due to shutdown")
                 break
+
+            # Periodic shutdown check
+            if time.time() - last_check > check_interval:
+                if self._checkShutdown():
+                    logger.info(f"Worker {self.workerID} stopping data retrieval due to shutdown")
+                    break
+                last_check = time.time()
+
             sURL = None
             try:
                 if self.pluginObj.isQueueEmpty():
-                    logger.debug('%s: Waiting %s seconds for input queue to fill up; plugin state = %s',
+                    logger.debug('%s: Waiting for input queue to fill up; plugin state = %s',
                                  self.pluginName,
-                                 self.queueFillwaitTime,
-                                 PluginTypes.decodeNameFromIntVal(self.pluginObj.pluginState)
-                                 )
-                    time.sleep(self.queueFillwaitTime)
-                sURL = self.pluginObj.getNextItemFromFetchQueue(timeout=self.queueFillwaitTime)
-                # Check if url is valid and whether has already been fetched or not:
-                if sURL is not None and self.sessionHistoryDB.url_was_attempted(sURL, self.pluginName) is False:
-                    logger.debug(f'{self.pluginName} started fetching URL: {sURL}')
-                    fetchResult = self.pluginObj.fetchDataFromURL(sURL, self.workerID)
-                    if fetchResult is not None and fetchResult.wasSuccessful is True:
-                        self.queue_manager.addToScrapeCompletedQueue(fetchResult)
-                        # if additional links have been identified, add these to fetch queue:
-                        # filter additionalLinks through pending queue and failed queue to remove duplicates:
-                        addl_urls = self.sessionHistoryDB.removeAlreadyFetchedURLs(fetchResult.additionalLinks,
-                                                                                   self.pluginName)
-                        if len(addl_urls) > 0:
-                            logger.debug(f'{self.pluginName} added {len(addl_urls)} additional URLs from {sURL}.')
-                            # DISABLED temporarily:
-                            # self.pluginObj.addURLsListToQueue(addl_urls, self.sessionHistoryDB)
-                            # self.sessionHistoryDB.addURLsToPendingTable(addl_urls, self.pluginName)
-                    else:
-                        # add url to failed table:
-                        self.sessionHistoryDB.addURLToFailedTable(sURL, self.pluginName, datetime.now())
-                else:
-                    logger.info('Got queue end sentinel, stopping data retrieval for plugin %s.',
+                                 PluginTypes.decodeNameFromIntVal(self.pluginObj.pluginState))
+
+                    # Wait in short intervals to check shutdown
+                    wait_time = min(self.queueFillwaitTime, 10)
+                    for _ in range(int(self.queueFillwaitTime / wait_time)):
+                        if self._checkShutdown():
+                            break
+                        time.sleep(wait_time)
+
+                    continue
+
+                sURL = self.pluginObj.getNextItemFromFetchQueue(timeout=10)
+
+                # Check for sentinel
+                if sURL is None:
+                    logger.info('Got queue end sentinel, stopping data retrieval for plugin %s',
                                 self.pluginName)
                     self.pluginObj.clearQueue()
-                    # exit from while loop:
                     break
-            except queue.Empty as qempty:
-                logger.debug("%s: Queue was empty when trying to retrieve data: %s",
-                             self.pluginName,
-                             qempty
-                             )
+
+                # Use direct DB call instead of queue for checking URLs
+                # This was causing massive slowdown - each URL check was waiting for DB thread
+                if not self.sessionHistoryDB.url_was_attempted(sURL, self.pluginName):
+                    logger.debug(f'{self.pluginName} started fetching URL: {sURL}')
+                    fetchResult = self.pluginObj.fetchDataFromURL(sURL, self.workerID)
+
+                    # Check for HTTP errors first
+                    if fetchResult and hasattr(fetchResult, 'http_error') and fetchResult.http_error:
+                        # Permanent HTTP error - save to database
+                        if fetchResult.http_error.is_permanent:
+                            self.sessionHistoryDB.addHTTPError(
+                                sURL,
+                                self.pluginName,
+                                fetchResult.http_error.status_code,
+                                fetchResult.http_error.message
+                            )
+                            logger.info(f'{self.pluginName}: Saved HTTP {fetchResult.http_error.status_code} error: {sURL}')
+                    elif fetchResult is not None and fetchResult.wasSuccessful:
+                        self.queue_manager.addToScrapeCompletedQueue(fetchResult)
+
+                        # Handle additional links if present
+                        if fetchResult.additionalLinks:
+                            # Filter URLs using direct DB call for speed
+                            filtered_urls = self.sessionHistoryDB.removeAlreadyFetchedURLs(
+                                fetchResult.additionalLinks,
+                                self.pluginName
+                            )
+
+                            if filtered_urls:
+                                logger.debug(f'{self.pluginName} added {len(filtered_urls)} additional URLs')
+                                # Queue DB write operation (async, no wait)
+                                self.queue_manager.queueDBOperation(
+                                    'add_pending',
+                                    (filtered_urls, self.pluginName),
+                                    wait_for_result=False
+                                )
+                    else:
+                        # Queue failed URL to DB (async, no wait)
+                        self.queue_manager.queueDBOperation(
+                            'add_failed',
+                            (sURL, self.pluginName, datetime.now()),
+                            wait_for_result=False
+                        )
+
+            except queue.Empty:
+                logger.debug("%s: Queue empty when trying to retrieve data", self.pluginName)
+
             except Exception as e:
-                logger.error("%s: When trying to retrieve data the exception was: %s, url = %s",
-                             self.pluginName,
-                             e,
-                             sURL
-                             )
-        logger.debug('Thread %s finished tasks to retrieve data for plugin %s',
-                     self.workerID,
-                     self.pluginName)
-        # at this point, since all data has been fetched, change the plugin's state to process data:
+                logger.error("%s: Error retrieving data: %s, url = %s",
+                             self.pluginName, e, sURL)
+
+        logger.info('Thread %s finished data retrieval for plugin %s',
+                    self.workerID, self.pluginName)
         self.pluginObj.pluginState = PluginTypes.STATE_STOPPED
 
     def run(self):
-        """ Overridden to enable parent thread object to be called for executing the Plugin jobs
         """
-        if self.taskType == PluginTypes.TASK_GET_URL_LIST:
-            self.runURLListGatherTasks()
-        elif self.taskType == PluginTypes.TASK_GET_DATA:
-            self.runDataRetrievalTasks()
+        Main thread execution method.
 
-
-##########
+        Executes the appropriate task based on taskType.
+        """
+        try:
+            if self.taskType == PluginTypes.TASK_GET_URL_LIST:
+                self.runURLListGatherTasks()
+            elif self.taskType == PluginTypes.TASK_GET_DATA:
+                self.runDataRetrievalTasks()
+        except Exception as e:
+            logger.error(f"Worker {self.workerID} ({self.pluginName}) error: {e}")
+        finally:
+            logger.info(f"Worker {self.workerID} ({self.pluginName}) finished")
 
 
 class DataProcessor(threading.Thread):
-    """  Worker object that asynchronously reads saved articles/data,
-     and processes them via the data processing modules
-    Extends base class: threading.Thread
     """
-    workerID = -1
-    waitTimeSec = 5
-    queueBlockTimeout = 2
-    queue_manager = None
-    sortedPriorityKeys = []
+    Worker thread for asynchronous data processing.
 
-    def __init__(self,
-                 dataProcPluginsMap: dict,
-                 sortedPriorityKeys: list,
-                 queue_manager,
-                 queue_status,
-                 daemon=None,
-                 target=None,
-                 name=None):
-        """  Initialize the worker thread
+    Reads saved articles/data and processes them via data processing plugins.
 
-        :param dataProcPluginsMap: The dictionary of data processing plugins as {priority: objects}
-        :param sortedPriorityKeys: The priority wise list of keys for the data processing plugin map
-        :param queue_manager: The queue manager instance
-        :param daemon: Optional parameter indicating whether this thread should work as daemon?
-        :param target: Optional parameter to method that should be run
-        :param name: Optional name of the worker thread
+    Attributes:
+        dataProcPluginsMap (dict): Map of priorities to plugin objects
+        sortedPriorityKeys (list): Sorted list of priorities
+        waitTimeSec (int): Time to wait between queue checks
+    """
+
+    def __init__(self, dataProcPluginsMap: dict, sortedPriorityKeys: list,
+                 queue_manager, queue_status, daemon=False, target=None, name=None):
         """
-        # TODO: pass only the queue status object
+        Initialize the data processor.
+
+        Args:
+            dataProcPluginsMap (dict): Map of priorities to plugin objects
+            sortedPriorityKeys (list): Sorted priorities
+            queue_manager: Queue manager instance
+            queue_status: Queue status tracker
+            daemon (bool, optional): Whether this is a daemon thread
+            target (callable, optional): Alternative method to run
+            name (str, optional): Thread name
+        """
         self.workerID = name
         self.dataProcPluginsMap = dataProcPluginsMap
         self.sortedPriorityKeys = sortedPriorityKeys
         self.queue_manager = queue_manager
         self.q_status = queue_status
-        logger.debug("Consumer for data processing plugins queue %s initialized with the plugins: %s",
-                     self.workerID,
-                     self.dataProcPluginsMap)
+        self.waitTimeSec = 5
+        self.queueBlockTimeout = 2
+
+        logger.debug("Data processor %s initialized with plugins: %s",
+                     self.workerID, self.dataProcPluginsMap)
         super().__init__(daemon=daemon, target=target, name=name)
 
     @staticmethod
-    def processItem(queue_manager,
-                    itemInQueue,
-                    sortedPriorityKeys: list,
-                    dataProcPluginsMap: dict,
-                    workerID: str):
+    def processItem(queue_manager, itemInQueue, sortedPriorityKeys: list,
+                    dataProcPluginsMap: dict, workerID: str):
+        """
+        Process a single item through all data processing plugins.
+
+        Args:
+            queue_manager: Queue manager instance
+            itemInQueue: Item to process
+            sortedPriorityKeys (list): Sorted priorities
+            dataProcPluginsMap (dict): Map of priorities to plugins
+            workerID (str): Worker identifier
+        """
         item_doc = None
         queue_manager.alreadyDataProcList.append(itemInQueue.URL)
         queue_manager.addToDataProcessedQueue(itemInQueue)
-        # fetch and  read data that was processed by each plugin:
+
         for priorityVal in sortedPriorityKeys:
             thisPlugin = None
             try:
                 thisPlugin = dataProcPluginsMap[priorityVal]
                 logger.debug(f'Processing data using plugin: {thisPlugin.pluginName}')
+
                 if item_doc is None:
                     item_doc = thisPlugin.loadDocument(itemInQueue.savedDataFileName)
                     logger.debug(f'Loaded document for URL: {item_doc.getURL()}')
+
                 if item_doc is not None:
                     logger.debug(f'Processing document ID: {item_doc.getArticleID()}')
                     thisPlugin.processDataObj(item_doc)
+
             except Exception as pluginError:
-                logger.error(f"Data processing thread {workerID} for plugin {thisPlugin.pluginName} got error" +
-                             f": {pluginError}; file = {itemInQueue.savedDataFileName}, URL = {itemInQueue.URL}")
+                logger.error(f"Data processor {workerID} plugin {thisPlugin.pluginName} error: " +
+                             f"{pluginError}; file = {itemInQueue.savedDataFileName}, " +
+                             f"URL = {itemInQueue.URL}")
 
     def run(self):
-        """ Runs when the thread is started.
-        """
+        """Main thread execution method for data processing."""
         itemInQueue = None
         self.q_status.updateStatus()
-        # logger.debug(f'Data processing: Started thread {self.workerID}')
-        while(self.q_status.isPluginStillFetchingoverNetwork or self.q_status.dataInputQsize > 0):
-            if self.queue_manager.shutdown_signal:
-                logger.info(f"Data processor ID {self.workerID} stopping due to shutdown signal.")
-                break
+        check_interval = 5
+        last_check = time.time()
+
+        logger.info(f'Data processing thread {self.workerID} started')
+
+        while (self.q_status.isPluginStillFetchingoverNetwork or
+               self.q_status.dataInputQsize > 0):
+
+            # Periodic shutdown check
+            if time.time() - last_check > check_interval:
+                if self.queue_manager.shutdown_event.is_set():
+                    logger.info(f"Data processor {self.workerID} stopping due to shutdown")
+                    break
+                last_check = time.time()
+
             try:
-                # if anything in queue, pick it up and process it:
-                itemInQueue = self.queue_manager.fetchFromDataProcInputQ(block=True, timeout=self.queueBlockTimeout)
-                if itemInQueue is not None and itemInQueue.URL not in self.queue_manager.alreadyDataProcList:
-                    DataProcessor.processItem(self.queue_manager,
-                                              itemInQueue,
-                                              self.sortedPriorityKeys,
-                                              self.dataProcPluginsMap,
-                                              self.workerID)
+                itemInQueue = self.queue_manager.fetchFromDataProcInputQ(
+                    block=True,
+                    timeout=self.queueBlockTimeout
+                )
+
+                if itemInQueue is not None and \
+                        itemInQueue.URL not in self.queue_manager.alreadyDataProcList:
+                    DataProcessor.processItem(
+                        self.queue_manager,
+                        itemInQueue,
+                        self.sortedPriorityKeys,
+                        self.dataProcPluginsMap,
+                        self.workerID
+                    )
                 else:
                     self.queue_manager.addToDataProcessedQueue(itemInQueue)
                     if itemInQueue is not None:
-                        logger.debug('Data processing thread %s: Ignoring already processed file for URL %s.',
+                        logger.debug('Data processor %s: Ignoring already processed file for URL %s',
                                      self.workerID, itemInQueue.URL)
+
+            except queue.Empty:
+                logger.debug('Data processor %s: Queue empty, size = %s',
+                             self.workerID, self.queue_manager.getCompletedQueueSize())
+
             except Exception as e:
-                logger.debug('Data processing thread: Nothing available from queue, size = %s: %s',
-                             self.queue_manager.getCompletedQueueSize(), e)
+                logger.error(f"Data processor {self.workerID} error: {e}")
+
             try:
                 time.sleep(self.waitTimeSec)
                 self.q_status.updateStatus()
             except Exception as statusCheckError:
-                logger.error("Data processing thread: Error when checking plugin state: %s", statusCheckError)
+                logger.error("Data processor: Error checking plugin state: %s", statusCheckError)
+
+        logger.info(f'Data processing thread {self.workerID} finished')
 
 
-##########
 
 class ProgressWatcher(threading.Thread):
-    """ Worker object to save completed URL to history database asynchronously.
-     Uses flask to report async status updates via a simple http REST API call
-      that returns the application status as a JSON object.
     """
-    workerID = -1
-    # refreshIntervalSecs is an estimate of the time in seconds a thread takes to retrieve a url:
-    refreshIntervalSecs = 5
-    refreshWaitCountForLog = 24
-    previousState = dict()
-    currentState = dict()
-    historyDB = None
-    # for URL identification and sourcing progress bar:
-    countOfPluginsURLListPending = 0
-    # for scraped progress bar:
-    totalURLQueueSize = 0
-    countOfURLsDownloaded = 0
-    # for data processing progress bar:
-    countWrittenToDB = 100
-    countOfDataProcessed = 0
-    q_status = None
-    rest_api_enabled = False
-    flask_app = Flask("NewsLookout")  # instantiating flask object
+    Worker thread to monitor progress and save to database asynchronously.
 
-    def __init__(self, pluginNameObjMap: dict,
-                 sessionHistoryDB: session_hist.SessionHistory,
-                 queue_manager: any,
-                 queue_status: QueueStatus,
-                 app_config: ConfigManager,
+    This thread:
+    - Monitors scraping progress
+    - Updates progress bars
+    - Saves completed URLs to database
+    - Can optionally provide REST API status endpoint
+
+    Attributes:
+        refreshIntervalSecs (int): How often to update progress
+        countWrittenToDB (int): Count of URLs saved to database
+    """
+
+    def __init__(self, pluginNameObjMap: dict, sessionHistoryDB,
+                 queue_manager, queue_status, app_config,
+                 enlighten_manager=None,
                  daemon=None, target=None, name=None):
-        """ Initialize this thread's object
+        """
+        Initialize the progress watcher.
 
-        :param pluginNameObjMap:
-        :param sessionHistoryDB:
-        :param queue_manager:
-        :param queue_status:
-        :param daemon:
-        :param target:
-        :param name:
+        Args:
+            pluginNameObjMap (dict): Map of plugin names to objects
+            sessionHistoryDB: Database interface
+            queue_manager: Queue manager instance
+            queue_status: Queue status tracker
+            app_config: Application configuration
+            daemon (bool, optional): Whether this is a daemon thread
+            target (callable, optional): Alternative method to run
+            name (str, optional): Thread name
         """
         self.workerID = name
         self.pluginNameObjMap = pluginNameObjMap
         self.historyDB = sessionHistoryDB
-        self.refreshIntervalSecs = app_config.progressRefreshInt
         self.queue_manager = queue_manager
-        assert type(self.queue_manager).__name__ == "QueueManager", "The queue manager not valid object."
         self.q_status = queue_status
-        self.q_status.updateStatus()
-        self.enlighten_manager = enlighten.get_manager()
-        # create the progress bars:
-        self.urlListFtBar = self.enlighten_manager.counter(count=0,
-                                                           total=self.q_status.totalPluginsURLSourcing,
-                                                           desc='URLs identified:',
-                                                           unit='Plugins',
-                                                           color='yellow')
-        self.urlScrapeBar = self.enlighten_manager.counter(count=0,
-                                                           total=1,
-                                                           desc='Data downloaded:',
-                                                           unit='   URLs',
-                                                           color='cyan')
-        self.dataProcsBar = self.enlighten_manager.counter(count=0,
-                                                           total=1,
-                                                           desc=' Data processed:',
-                                                           unit='  Files',
-                                                           color='green')
-        self.rest_api_enabled = app_config.rest_api_enabled
-        # settings for the REST API service
-        self.restapi_host = app_config.rest_api_host
-        self.restapi_port_num = app_config.rest_api_port
-        self.flask_app.classobj = self
-        self.flask_app.debug=False  # setting the debugging option for the application instance
-        # load javascript code
-        # read from js file and return js content:
-        self.rest_api_app_ui_js = f"""
-            let content_section = document.getElementById('appstatuscontent');
-            content_section.innerHTML = "Web scraping status at port {self.restapi_port_num}";
-            """
-        try:
-            parentFolder = os.path.dirname(os.path.realpath(__file__))
-            with open(os.path.join(parentFolder, 'app_status_ui.js'), 'rt', encoding='utf-8') as fp:
-                self.rest_api_app_ui_js = fp.read()
-                fp.close()
-        except Exception as e:
-            logger.error(f"When reading app status ui javascript file 'app_status_ui.js': {e}")
+        self.refreshIntervalSecs = app_config.progressRefreshInt
+        self.refreshWaitCountForLog = 24
+        self.previousState = dict()
+        self.currentState = dict()
+        self.countWrittenToDB = 0
 
-        logger.debug("Progress watcher thread %s initialized with the plugins: %s",
-                     self.workerID,
-                     self.pluginNameObjMap)
-        # call base class:
+        # Progress bars are set externally (from main thread)
+        self.urlListFtBar = None
+        self.urlScrapeBar = None
+        self.dataProcsBar = None
+
+        logger.debug("Progress watcher thread initialized")
         super().__init__(daemon=daemon, target=target, name=name)
 
-    @staticmethod
-    @flask_app.route('/status', methods=['POST', 'GET']) #defining a route in the application
-    def http_status():
-        # TODO: define and use a proper data structure for the status
-        self = ProgressWatcher.flask_app.classobj
-        self.q_status.updateStatus()
-        status_resp_map = self.q_status.qsizeMap
-        status_resp_map.update({'num_plugins': len(self.q_status.qsizeMap)})
-        status_resp_map.update({'url_count': self.q_status.totalURLCount})
-        status_resp_map.update({'data_processed_count': self.q_status.dataOutputQsize})
-        status_resp_map.update({'url_fetched_count': self.q_status.fetchCompletCount})
-        # serialise to string to send REST API response
-        json_object = json.dumps(status_resp_map, indent = 4)
-        app_headers = werkzeug.datastructures.Headers()
-        app_headers.remove('Server')
-        app_headers.add('Server', 'NewsLookout')
-        # use this to directly convert dict object to json and respond: return jsonify(data), 200
-        return Response(json_object, status=200, headers=app_headers, content_type='application/json')
-
-    @staticmethod
-    @flask_app.route('/', methods=['GET'])
-    def http_ui():
-        app_headers = werkzeug.datastructures.Headers()
-        app_headers.remove('Server')
-        app_headers.add('Server', 'NewsLookout')
-        # the output template:
-        html_response = """<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8" />
-            <title>Newslookout Application Status</title></head>
-            <body><h1>Newslookout Application Status</h1>
-            <div id='appstatuscontent'></div>
-            <script type="text/javascript" src="/app_status_ui.js">
-            </script></body></html>
-            """
-        return Response(html_response,
-                        status=200,
-                        headers=app_headers)
-
-    @staticmethod
-    @flask_app.route('/app_status_ui.js', methods=['GET'])
-    def http_app_js():
-        self = ProgressWatcher.flask_app.classobj
-        app_headers = werkzeug.datastructures.Headers()
-        app_headers.remove('Server')
-        app_headers.add('Server', 'NewsLookout')
-        return Response(self.rest_api_app_ui_js,
-                        status=200,
-                        headers=app_headers,
-                        mimetype='application/javascript',
-                        content_type='application/javascript')
+    def set_progress_bars(self, urlListBar, urlScrapeBar, dataProcsBar):
+        """Set progress bars (must be called from main thread before starting)."""
+        self.urlListFtBar = urlListBar
+        self.urlScrapeBar = urlScrapeBar
+        self.dataProcsBar = dataProcsBar
 
     def run(self):
-        """ Main method that runs this progress reporting thread and
-         periodically saves it to the history database.
-        """
+        """Main execution method for progress monitoring."""
         self.countWrittenToDB = 0
         log_event_update_cnt = 0
         fetchCompletedCount = 0
+
         logger.info('Progress watcher thread started.')
+
+        # Verify bars were set
+        if not all([self.urlListFtBar, self.urlScrapeBar, self.dataProcsBar]):
+            logger.error("Progress bars not set! Cannot monitor progress.")
+            return
+
         try:
             self.q_status.updateStatus()
-            if self.rest_api_enabled is True:
-                logger.info(f"Starting REST API server at: {self.restapi_host}, port {self.restapi_port_num}")
-                # launch the flask's integrated development webserver
-                self.flask_app.run(host=self.restapi_host, port=self.restapi_port_num, debug=False)
-                logger.info(self.flask_app.config)
-            else:
-                # save previous state, use deepcopy for dictionary object:
-                previousState = copy.deepcopy(self.q_status.currentState)
-                # initial update of the progress bars:
-                self.urlListFtBar.update(incr=self.q_status.totalPluginsURLSourcing -
-                                         self.q_status.countOfPluginsInURLSrcState)
-                self.urlScrapeBar.total = self.q_status.totalURLCount
-                self.urlScrapeBar.update(incr=(self.q_status.totalURLCount - self.q_status.fetchPendingCount))
-                self.dataProcsBar.total = self.q_status.dataInputQsize + self.q_status.dataOutputQsize
-                self.dataProcsBar.update(incr=self.q_status.dataOutputQsize)
-                prevCountOfDataProcessed = self.q_status.dataOutputQsize
-                print("Web-scraping Progress:")
-                # check if any data processing is pending in queue:
-                while self.q_status.isPluginStillFetchingoverNetwork is True or self.q_status.dataInputQsize > 0:
-                    if self.queue_manager.shutdown_signal:
-                        break
-                    results_from_queue = []
+            previousState = copy.deepcopy(self.q_status.currentState)
+
+            # Initial progress bar update
+            self.urlListFtBar.update(
+                incr=self.q_status.totalPluginsURLSourcing - self.q_status.countOfPluginsInURLSrcState
+            )
+            self.urlScrapeBar.total = max(self.q_status.totalURLCount, 1)
+            self.urlScrapeBar.update(incr=(self.q_status.totalURLCount - self.q_status.fetchPendingCount))
+
+            total_data = max(self.q_status.dataInputQsize + self.q_status.dataOutputQsize, 1)
+            self.dataProcsBar.total = total_data
+            self.dataProcsBar.update(incr=self.q_status.dataOutputQsize)
+            prevCountOfDataProcessed = self.q_status.dataOutputQsize
+
+            # Main monitoring loop
+            while ((self.q_status.isPluginStillFetchingoverNetwork or self.q_status.dataInputQsize > 0)
+                   and not self.queue_manager.shutdown_event.is_set()):
+
+                # Check for shutdown
+                if self.queue_manager.shutdown_event.wait(timeout=0.5):
+                    logger.info("Progress watcher stopping due to shutdown")
+                    break
+
+                # Process completed URLs from queue
+                results_from_queue = []
+                try:
                     while not self.queue_manager.isFetchQEmpty():
-                        # get all completed urls from queue:
-                        results_from_queue.append(self.queue_manager.getFetchResultFromQueue())
-                    countOfURLsWrittenToDB = self.historyDB.writeQueueToDB(results_from_queue)
-                    # keep a total count, this will be reported before closing the application
-                    self.countWrittenToDB = self.countWrittenToDB + countOfURLsWrittenToDB
-                    prevURLListPluginPending = self.q_status.countOfPluginsInURLSrcState
-                    # wait for some time before checking again:
-                    time.sleep(self.refreshIntervalSecs)
-                    self.q_status.updateStatus()
-                    if log_event_update_cnt > self.refreshWaitCountForLog:
-                        log_event_update_cnt = 0
-                        logger.debug(f"Plugin states: {self.q_status.currentState}")
-                        logger.debug(f'Count of plugins still sourcing URLs: {self.q_status.countOfPluginsInURLSrcState},' +
-                                     f' out of a total of {self.q_status.totalPluginsURLSourcing} plugins.')
-                        logger.debug(f"All plugins current queue sizes: {self.q_status.qsizeMap}")
-                        logger.debug(f"Current fetch completed count: {self.q_status.fetchCompletQsize}, " +
-                                     f"Total fetch completed count: {self.q_status.fetchCompletCount}")
-                        # INFO messages:
-                        logger.info(f"Total count of all URLs to fetch: {self.q_status.totalURLCount}, " +
-                                    "Are any plugins still fetching over network? " +
-                                    f"{self.q_status.isPluginStillFetchingoverNetwork}")
-                        logger.info(f"Data items waiting to be processed in Input Queue: {self.q_status.dataInputQsize}, " +
-                                    f"Data Processed: {self.q_status.dataOutputQsize}")
-                        for statusMessage in QueueStatus.getStatusChange(previousState, self.q_status.currentState):
-                            logger.info(statusMessage)
-                        # save previous state, use deepcopy for dictionary object:
-                        previousState = copy.deepcopy(self.q_status.currentState)
-                        logger.debug(f'All plugins stopped? {self.q_status.areAllPluginsStopped}')
-                    log_event_update_cnt = log_event_update_cnt + 1
-                    # update the progress bars:
-                    self.urlScrapeBar.total = self.q_status.totalURLCount
-                    self.dataProcsBar.total = self.q_status.dataInputQsize + self.q_status.dataOutputQsize
-                    if self.q_status.dataInputQsize + self.q_status.dataOutputQsize == 0:
-                        self.dataProcsBar.total = self.q_status.totalURLCount
-                    self.urlListFtBar.update(incr=prevURLListPluginPending - self.q_status.countOfPluginsInURLSrcState)
-                    # reset flag before checking all plugins again within loop:
-                    prevCompletedURLCount = fetchCompletedCount
-                    fetchCompletedCount = self.q_status.totalURLCount - self.q_status.fetchPendingCount
-                    self.urlScrapeBar.update(incr=(fetchCompletedCount - prevCompletedURLCount))
-                    self.dataProcsBar.update(incr=(self.q_status.dataOutputQsize - prevCountOfDataProcessed))
-                    prevCountOfDataProcessed = self.q_status.dataOutputQsize
-                self.urlScrapeBar.close()
-                self.urlListFtBar.close()
-                self.dataProcsBar.update(incr=(self.q_status.dataOutputQsize - prevCountOfDataProcessed))
-                self.dataProcsBar.close()
-                logger.info('Progress watcher thread: Finished saving a total of %s URLs in history database.',
-                            self.countWrittenToDB)
+                        results_from_queue.append(
+                            self.queue_manager.getFetchResultFromQueue(timeout=0.5)
+                        )
+                except queue.Empty:
+                    pass
+
+                # Queue DB write operation
+                if results_from_queue:
+                    count_written = self.queue_manager.queueDBOperation(
+                        'write_queue',
+                        results_from_queue,
+                        wait_for_result=True
+                    )
+                    if count_written:
+                        self.countWrittenToDB += count_written
+
+                prevURLListPluginPending = self.q_status.countOfPluginsInURLSrcState
+
+                # Wait before next check
+                for _ in range(self.refreshIntervalSecs):
+                    if self.queue_manager.shutdown_event.wait(timeout=1):
+                        break
+
+                self.q_status.updateStatus()
+
+                # Update progress bars
+                self.urlScrapeBar.total = max(self.q_status.totalURLCount, 1)
+
+                current_total = max(self.q_status.dataInputQsize + self.q_status.dataOutputQsize, 1)
+                if current_total != self.dataProcsBar.total:
+                    self.dataProcsBar.total = current_total
+
+                # Update URL list progress
+                plugin_progress = prevURLListPluginPending - self.q_status.countOfPluginsInURLSrcState
+                if plugin_progress > 0:
+                    self.urlListFtBar.update(incr=plugin_progress)
+
+                # Update scrape progress
+                prevCompletedURLCount = fetchCompletedCount
+                fetchCompletedCount = (self.q_status.totalURLCount - self.q_status.fetchPendingCount)
+                scrape_increment = fetchCompletedCount - prevCompletedURLCount
+                if scrape_increment > 0:
+                    self.urlScrapeBar.update(incr=scrape_increment)
+
+                # Update data processing progress
+                current_processed = self.q_status.dataOutputQsize
+                increment = current_processed - prevCountOfDataProcessed
+                if increment > 0:
+                    self.dataProcsBar.update(incr=increment)
+                prevCountOfDataProcessed = current_processed
+
+                # Periodic logging
+                if log_event_update_cnt > self.refreshWaitCountForLog:
+                    log_event_update_cnt = 0
+                    logger.info(f"URLs: {self.q_status.totalURLCount}, " +
+                                f"Completed: {self.q_status.fetchCompletCount}, " +
+                                f"Processed: {self.q_status.dataOutputQsize}")
+
+                    for statusMessage in QueueStatus.getStatusChange(previousState, self.q_status.currentState):
+                        logger.info(statusMessage)
+
+                    previousState = copy.deepcopy(self.q_status.currentState)
+
+                log_event_update_cnt += 1
+
+            logger.info('Progress watcher: Saved %s URLs to history database', self.countWrittenToDB)
+
         except Exception as e:
-            logger.error("Progress watcher thread: trying to save history data, the exception was: %s", e)
+            logger.error("Progress watcher error: %s", e, exc_info=True)
+
+        finally:
+            logger.info("Progress watcher thread finished")
 
 
-# # end of file ##
+class StatusAPIServer:
+    """
+    FastAPI-based status server for NewsLookout.
+    REST API Status Endpoint using FastAPI
+    Provides real-time status information via HTTP GET /status endpoint.
+    Returns JSON with detailed statistics about all workers, queues, and progress.
+    """
+
+    def __init__(self, queue_manager, host: str = "0.0.0.0", port: int = 8080):
+        """
+        Initialize the status API server.
+
+        Args:
+            queue_manager: QueueManager instance
+            host (str): Host to bind to
+            port (int): Port to bind to
+        """
+
+        self.queue_manager = queue_manager
+        self.host = host
+        self.port = port
+        self.app = FastAPI(title="NewsLookout Status API", version="3.0.0")
+        self.server_thread = None
+        self.server = None
+
+        # Setup routes
+        self._setup_routes()
+
+    def _setup_routes(self):
+        """Setup FastAPI routes."""
+
+        @self.app.get("/")
+        async def root():
+            """Root endpoint with API information."""
+            return {
+                "service": "NewsLookout Status API",
+                "version": "3.0.0",
+                "endpoints": {
+                    "/status": "Get detailed application status",
+                    "/status/summary": "Get summary statistics",
+                    "/health": "Health check endpoint"
+                }
+            }
+
+        @self.app.get("/dashboard.html", response_class=HTMLResponse)
+        async def get_dashboard():
+            # Assuming dashboard.html is in the same directory as your main.py
+            html_file = Path(__file__).parent / "dashboard.html"
+            html_content = html_file.read_text()
+            logger.info(f"Serving the dashboard with content of length: {len(html_content)}")
+            return HTMLResponse(content=html_content)
+
+        @self.app.get("/health")
+        async def health():
+            """Health check endpoint."""
+            return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+        @self.app.get("/status")
+        async def get_status():
+            """Get comprehensive status."""
+            return JSONResponse(content=self._get_comprehensive_status())
+
+        @self.app.get("/status/summary")
+        async def get_summary():
+            """Get summary statistics."""
+            return JSONResponse(content=self._get_summary_status())
+
+    def _get_comprehensive_status(self) -> Dict[str, Any]:
+        """
+        Generate comprehensive status report.
+
+        Returns:
+            dict: Complete status information
+        """
+        status = {
+            "timestamp": datetime.now().isoformat(),
+            "application": {
+                "name": "NewsLookout",
+                "version": "3.0.0",
+                "is_running": not self.queue_manager.shutdown_event.is_set()
+            },
+            "plugins": self._get_plugins_status(),
+            "queues": self._get_queues_status(),
+            "workers": self._get_workers_status(),
+            "database": self._get_database_status(),
+            "performance": self._get_performance_metrics()
+        }
+
+        return status
+
+    def _get_summary_status(self) -> Dict[str, Any]:
+        """Generate summary status."""
+        q_status = self.queue_manager.q_status
+        q_status.updateStatus()
+
+        return {
+            "timestamp": datetime.now().isoformat(),
+            "summary": {
+                "total_urls_discovered": q_status.totalURLCount,
+                "urls_completed": q_status.fetchCompletCount,
+                "urls_pending": q_status.fetchPendingCount,
+                "data_processed": q_status.dataOutputQsize,
+                "plugins_url_sourcing": q_status.countOfPluginsInURLSrcState,
+                "total_plugins": len(self.queue_manager.pluginNameToObjMap),
+                "is_running": not self.queue_manager.shutdown_event.is_set()
+            }
+        }
+
+    def _get_plugins_status(self) -> Dict[str, Any]:
+        """Get status of all plugins."""
+        plugins_status = {
+            "url_discovery": [],
+            "content_fetching": [],
+            "data_processing": []
+        }
+
+        for plugin_name, plugin in self.queue_manager.pluginNameToObjMap.items():
+            from data_structs import PluginTypes
+
+            plugin_info = {
+                "name": plugin_name,
+                "state": PluginTypes.decodeNameFromIntVal(plugin.pluginState),
+                "priority": plugin.executionPriority
+            }
+
+            if plugin.pluginType in [PluginTypes.MODULE_NEWS_CONTENT,
+                                     PluginTypes.MODULE_NEWS_AGGREGATOR,
+                                     PluginTypes.MODULE_DATA_CONTENT]:
+                plugin_info.update({
+                    "total_urls": plugin.urlQueueTotalSize,
+                    "pending_urls": plugin.getQueueSize() if hasattr(plugin, 'getQueueSize') else 0,
+                    "processed_urls": plugin.urlProcessedCount if hasattr(plugin, 'urlProcessedCount') else 0
+                })
+
+                if plugin.pluginType == PluginTypes.MODULE_NEWS_AGGREGATOR:
+                    plugins_status["url_discovery"].append(plugin_info)
+                else:
+                    plugins_status["content_fetching"].append(plugin_info)
+
+            elif plugin.pluginType == PluginTypes.MODULE_DATA_PROCESSOR:
+                plugins_status["data_processing"].append(plugin_info)
+
+        return plugins_status
+
+    def _get_queues_status(self) -> Dict[str, Any]:
+        """Get status of all queues."""
+        return {
+            "fetch_completed": {
+                "size": self.queue_manager.fetchCompletedQueue.qsize(),
+                "total_processed": self.queue_manager.fetchCompletedCount
+            },
+            "data_processing_input": {
+                "size": self.queue_manager.dataProcQueue.qsize()
+            },
+            "data_processing_output": {
+                "size": self.queue_manager.dataProcCompletedQueue.qsize()
+            },
+            "database_operations": {
+                "size": self.queue_manager.dbCommandQueue.qsize()
+            }
+        }
+
+    def _get_workers_status(self) -> Dict[str, Any]:
+        """Get status of all workers."""
+        workers_status = {
+            "url_discovery_workers": [],
+            "content_fetch_workers": [],
+            "data_processing_workers": []
+        }
+
+        # URL discovery workers
+        for worker_id, worker in self.queue_manager.urlSrcWorkers.items():
+            workers_status["url_discovery_workers"].append({
+                "id": worker_id,
+                "plugin": worker.pluginName,
+                "is_alive": worker.is_alive(),
+                "state": worker.pluginObj.pluginState if hasattr(worker.pluginObj, 'pluginState') else None
+            })
+
+        # Content fetch workers
+        for worker_id, worker in self.queue_manager.contentFetchWorkers.items():
+            workers_status["content_fetch_workers"].append({
+                "id": worker_id,
+                "plugin": worker.pluginName,
+                "is_alive": worker.is_alive(),
+                "state": worker.pluginObj.pluginState if hasattr(worker.pluginObj, 'pluginState') else None
+            })
+
+        # Data processing workers
+        for idx, worker in enumerate(self.queue_manager.dataProcessWorkerList):
+            workers_status["data_processing_workers"].append({
+                "id": worker.workerID,
+                "is_alive": worker.is_alive()
+            })
+
+        return workers_status
+
+    def _get_database_status(self) -> Dict[str, Any]:
+        """Get database statistics."""
+        try:
+            stats = self.queue_manager.sessionHistoryDB.getHTTPErrorStats()
+            return {
+                "connection_status": "connected",
+                "http_errors": stats
+            }
+        except Exception as e:
+            return {
+                "connection_status": "error",
+                "error": str(e)
+            }
+
+    def _get_performance_metrics(self) -> Dict[str, Any]:
+        """Calculate performance metrics."""
+        q_status = self.queue_manager.q_status
+        q_status.updateStatus()
+
+        # Calculate speeds and estimates
+        metrics = {
+            "url_discovery": {
+                "plugins_completed": q_status.totalPluginsURLSourcing - q_status.countOfPluginsInURLSrcState,
+                "plugins_total": q_status.totalPluginsURLSourcing,
+                "progress_percent": 0
+            },
+            "content_fetching": {
+                "completed": q_status.fetchCompletCount,
+                "total": q_status.totalURLCount,
+                "pending": q_status.fetchPendingCount,
+                "progress_percent": 0,
+                "speed_urls_per_hour": 0,
+                "estimated_completion": None
+            },
+            "data_processing": {
+                "completed": q_status.dataOutputQsize,
+                "total": q_status.dataInputQsize + q_status.dataOutputQsize,
+                "progress_percent": 0,
+                "speed_items_per_hour": 0
+            }
+        }
+
+        # Calculate progress percentages
+        if q_status.totalPluginsURLSourcing > 0:
+            metrics["url_discovery"]["progress_percent"] = round(
+                ((q_status.totalPluginsURLSourcing - q_status.countOfPluginsInURLSrcState) /
+                 q_status.totalPluginsURLSourcing) * 100, 2
+            )
+
+        if q_status.totalURLCount > 0:
+            metrics["content_fetching"]["progress_percent"] = round(
+                (q_status.fetchCompletCount / q_status.totalURLCount) * 100, 2
+            )
+
+        total_data = q_status.dataInputQsize + q_status.dataOutputQsize
+        if total_data > 0:
+            metrics["data_processing"]["progress_percent"] = round(
+                (q_status.dataOutputQsize / total_data) * 100, 2
+            )
+
+        # Estimate completion time
+        # This is a simplified estimate - you might want to track actual start time
+        if q_status.fetchCompletCount > 0 and q_status.fetchPendingCount > 0:
+            # Assume we've been running for some time
+            # You should track actual start_time for more accurate estimates
+            avg_speed = 100  # Placeholder - calculate from actual metrics
+            metrics["content_fetching"]["speed_urls_per_hour"] = avg_speed
+
+            hours_remaining = q_status.fetchPendingCount / max(avg_speed, 1)
+            estimated_completion = datetime.now() + timedelta(hours=hours_remaining)
+            metrics["content_fetching"]["estimated_completion"] = estimated_completion.isoformat()
+
+        return metrics
+
+    def start(self):
+        """Start the API server in a background thread with proper error handling."""
+        def run_server():
+            try:
+                config = uvicorn.Config(
+                    self.app,
+                    host=self.host,
+                    port=self.port,
+                    log_level="warning",
+                    access_log=False
+                )
+                self.server = uvicorn.Server(config)
+                logger.info(f"Starting FastAPI status server on http://{self.host}:{self.port}")
+                self.server.run()
+            except Exception as e:
+                logger.error(f"FastAPI server failed to start: {e}")
+                print(f"\n✗ Status API failed to start: {e}")
+
+        self.server_thread = threading.Thread(target=run_server, daemon=True, name="StatusAPI")
+        self.server_thread.start()
+
+        # Wait a bit to ensure server started
+        time.sleep(2)
+
+        # Verify server is running
+        try:
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            result = sock.connect_ex((self.host, self.port))
+            sock.close()
+            if result == 0:
+                logger.info(f"Status API confirmed running at http://{self.host}:{self.port}/status")
+            else:
+                logger.warning(f"Status API may not be running on port {self.port}")
+                print(f"⚠ Status API verification failed")
+        except Exception as e:
+            logger.error(f"Error verifying Status API: {e}")
+
+    def stop(self):
+        """Stop the API server."""
+        if self.server:
+            logger.info("Stopping FastAPI status server...")
+            self.server.should_exit = True
+            if self.server_thread:
+                self.server_thread.join(timeout=5)
+
+# End of file

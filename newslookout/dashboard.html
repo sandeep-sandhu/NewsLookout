@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NewsLookout - Scraping Plugins Status</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+            padding-bottom: 40px;
+        }
+        .header {
+            background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 100%);
+            color: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .plugin-card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
+            transition: transform 0.2s;
+        }
+        .plugin-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .state-badge {
+            font-size: 0.75rem;
+            padding: 4px 8px;
+            border-radius: 20px;
+        }
+        .state-running { background-color: #d1e7dd; color: #0f5132; }
+        .state-stopped { background-color: #f8d7da; color: #842029; }
+        .state-get-url-list { background-color: #fff3cd; color: #664d03; }
+        .state-process-data { background-color: #cfe2ff; color: #084298; }
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+        }
+        .last-updated {
+            font-size: 0.85rem;
+            color: #6c757d;
+        }
+        .queue-badge {
+            font-size: 0.8rem;
+            padding: 3px 7px;
+            margin-right: 5px;
+        }
+        .app-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .app-running { color: white; }
+        .app-stopped { color: white; }
+        .refresh-btn {
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .refresh-btn:hover {
+            transform: rotate(30deg);
+        }
+        .loading {
+            opacity: 0.7;
+        }
+        .plugin-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+        }
+        .url-discovery { background-color: #e7f1ff; color: #0d6efd; }
+        .content-fetching { background-color: #e7fff0; color: #198754; }
+        .data-processing { background-color: #f7e7ff; color: #6f42c1; }
+        .plugin-type-badge {
+            font-size: 0.7rem;
+            color: black;
+            padding: 2px 6px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- Header -->
+    <div class="header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="h3 mb-2">
+                    <i class="bi bi-search"></i> NewsLookout - Web Scraping Monitor
+                </h1>
+                <div class="d-flex align-items-center">
+                    <div class="app-status">
+                            <span id="app-status" class="app-running">
+                                <i class="bi bi-check-circle-fill"></i> Running
+                            </span>
+                        <span class="ms-3">Version: <strong id="app-version">3.0.0</strong></span>
+                    </div>
+                    <div class="ms-3">
+                        <span id="last-updated" class="last-updated">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="d-flex justify-content-end align-items-center">
+                    <div class="me-3">
+                            <span class="refresh-btn" id="manual-refresh" title="Refresh Now">
+                                <i class="bi bi-arrow-clockwise fs-5"></i>
+                            </span>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" id="auto-refresh-toggle" checked>
+                        <label class="form-check-label text-white" for="auto-refresh-toggle">
+                            Auto Refresh
+                        </label>
+                    </div>
+                    <div class="ms-3">
+                            <span class="badge bg-light text-dark">
+                                <i class="bi bi-clock"></i> <span id="refresh-timer">5</span>s
+                            </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Summary -->
+    <div class="row mb-4">
+        <div class="col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-compass text-primary"></i> URL Discovery
+                    </h5>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Progress</span>
+                        <span id="url-discovery-progress">0%</span>
+                    </div>
+                    <div class="progress mb-3">
+                        <div id="url-discovery-bar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="small">
+                        <i class="bi bi-check-circle text-success"></i>
+                        <span id="url-discovery-completed">0</span> completed of
+                        <span id="url-discovery-total">0</span> plugins
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-download text-success"></i> Content Fetching
+                    </h5>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Progress</span>
+                        <span id="content-fetching-progress">0%</span>
+                    </div>
+                    <div class="progress mb-3">
+                        <div id="content-fetching-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="small">
+                        <i class="bi bi-link-45deg"></i>
+                        <span id="content-fetching-processed">0</span> processed of
+                        <span id="content-fetching-total">0</span> URLs
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 mb-3">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="bi bi-cpu text-purple"></i> Data Processing
+                    </h5>
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Progress</span>
+                        <span id="data-processing-progress">0%</span>
+                    </div>
+                    <div class="progress mb-3">
+                        <div id="data-processing-bar" class="progress-bar bg-purple" role="progressbar" style="width: 0%"></div>
+                    </div>
+                    <div class="small">
+                        <i class="bi bi-check-circle text-success"></i>
+                        <span id="data-processing-completed">0</span> completed of
+                        <span id="data-processing-total">0</span> items
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plugin Status Table -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="bi bi-plug"></i> Plugin Status
+            </h5>
+            <div>
+                    <span class="badge bg-primary queue-badge">
+                        DB Ops: <span id="db-queue">0</span>
+                    </span>
+                <span class="badge bg-info queue-badge">
+                        Fetch: <span id="fetch-queue">0</span>
+                    </span>
+                <span class="badge bg-warning queue-badge">
+                        Processing: <span id="process-queue">0</span>
+                    </span>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                    <tr>
+                        <th>Plugin</th>
+                        <th>Type</th>
+                        <th>State</th>
+                        <th>Priority</th>
+                        <th>URLs (Total/Pending/Processed)</th>
+                        <th>Worker Status</th>
+                    </tr>
+                    </thead>
+                    <tbody id="plugins-table-body">
+                    <!-- Plugin rows will be inserted here by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Workers Status -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-person-badge"></i> Active Workers
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-4 text-center">
+                            <div class="display-6 text-primary" id="url-workers-count">0</div>
+                            <div class="small">URL Discovery</div>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div class="display-6 text-success" id="content-workers-count">0</div>
+                            <div class="small">Content Fetching</div>
+                        </div>
+                        <div class="col-4 text-center">
+                            <div class="display-6 text-purple" id="data-workers-count">0</div>
+                            <div class="small">Data Processing</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-database"></i> Database Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <span id="db-status" class="badge bg-success">Connected</span>
+                        </div>
+                        <div class="small">
+                                <span class="text-danger">
+                                    <i class="bi bi-exclamation-triangle"></i> HTTP 403: <span id="http-403">0</span>
+                                </span>
+                            <span class="ms-3">
+                                    <i class="bi bi-exclamation-circle"></i> HTTP 404: <span id="http-404">0</span>
+                                </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS Bundle with Popper -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+    // Configuration
+    const API_URL = '/status';
+    const REFRESH_INTERVAL = 5000; // 5 seconds
+    let refreshTimer = null;
+    let countdownTimer = null;
+    let secondsUntilRefresh = REFRESH_INTERVAL / 1000;
+
+    // DOM Elements
+    const pluginsTableBody = document.getElementById('plugins-table-body');
+    const lastUpdatedSpan = document.getElementById('last-updated');
+    const refreshTimerSpan = document.getElementById('refresh-timer');
+    const autoRefreshToggle = document.getElementById('auto-refresh-toggle');
+    const manualRefreshBtn = document.getElementById('manual-refresh');
+
+    // State mapping for human-readable display
+    const stateMap = {
+        'STATE_STOPPED': 'Stopped',
+        'STATE_GET_URL_LIST': 'Getting URLs',
+        'STATE_PROCESS_DATA': 'Processing Data',
+        'STATE_RUNNING': 'Running'
+    };
+
+    // State class mapping for badges
+    const stateClassMap = {
+        'STATE_STOPPED': 'state-stopped',
+        'STATE_GET_URL_LIST': 'state-get-url-list',
+        'STATE_PROCESS_DATA': 'state-process-data',
+        'STATE_RUNNING': 'state-running'
+    };
+
+    // Type icon mapping
+    const typeIconMap = {
+        'url_discovery': { icon: 'bi-compass', class: 'url-discovery' },
+        'content_fetching': { icon: 'bi-download', class: 'content-fetching' },
+        'data_processing': { icon: 'bi-cpu', class: 'data-processing' }
+    };
+
+    // Initialize the page
+    document.addEventListener('DOMContentLoaded', function() {
+        fetchStatus();
+        startAutoRefresh();
+        startCountdownTimer();
+
+        // Manual refresh button
+        manualRefreshBtn.addEventListener('click', function() {
+            fetchStatus();
+            resetCountdownTimer();
+        });
+
+        // Auto-refresh toggle
+        autoRefreshToggle.addEventListener('change', function() {
+            if (this.checked) {
+                startAutoRefresh();
+            } else {
+                stopAutoRefresh();
+            }
+        });
+    });
+
+    // Fetch status from API
+    async function fetchStatus() {
+        try {
+            // Show loading state
+            document.body.classList.add('loading');
+
+            // In a real scenario, we'd fetch from the API
+            // For this example, we'll use the provided JSON data
+            // Uncomment the following line to use the real API:
+            const response = await fetch(API_URL);
+            const data = await response.json();
+
+            // For demo purposes, we'll use the provided JSON data directly
+            //const data = getDemoData();
+
+            updateDashboard(data);
+
+            // Update last updated time
+            const now = new Date();
+            lastUpdatedSpan.textContent = `Last updated: ${now.toLocaleTimeString()}`;
+
+            // Remove loading state
+            document.body.classList.remove('loading');
+        } catch (error) {
+            console.error('Error fetching status:', error);
+            lastUpdatedSpan.textContent = `Error: ${error.message}`;
+            document.body.classList.remove('loading');
+        }
+    }
+
+    // Update the entire dashboard with new data
+    function updateDashboard(data) {
+        // Update application info
+        document.getElementById('app-status').className =
+            data.application.is_running ? 'app-status app-running' : 'app-status app-stopped';
+        document.getElementById('app-version').textContent = data.application.version;
+
+        // Update performance metrics
+        updatePerformanceMetrics(data.performance);
+
+        // Update queues
+        document.getElementById('db-queue').textContent = data.queues.database_operations.size;
+        document.getElementById('fetch-queue').textContent = data.queues.fetch_completed.size;
+        document.getElementById('process-queue').textContent = data.queues.data_processing_input.size;
+
+        // Update worker counts
+        updateWorkerCounts(data.workers);
+
+        // Update database status
+        document.getElementById('db-status').className =
+            `badge ${data.database.connection_status === 'connected' ? 'bg-success' : 'bg-danger'}`;
+        document.getElementById('db-status').textContent =
+            data.database.connection_status.charAt(0).toUpperCase() + data.database.connection_status.slice(1);
+        document.getElementById('http-403').textContent = data.database.http_errors.HTTP_403;
+        document.getElementById('http-404').textContent = data.database.http_errors.HTTP_404;
+
+        // Update plugins table
+        updatePluginsTable(data.plugins, data.workers);
+    }
+
+    // Update performance metrics
+    function updatePerformanceMetrics(performance) {
+        // URL Discovery
+        const urlDiscoveryProgress = performance.url_discovery.progress_percent;
+        document.getElementById('url-discovery-progress').textContent = `${urlDiscoveryProgress.toFixed(2)}%`;
+        document.getElementById('url-discovery-bar').style.width = `${urlDiscoveryProgress}%`;
+        document.getElementById('url-discovery-completed').textContent = performance.url_discovery.plugins_completed;
+        document.getElementById('url-discovery-total').textContent = performance.url_discovery.plugins_total;
+
+        // Content Fetching
+        const contentFetchingProgress = performance.content_fetching.progress_percent;
+        document.getElementById('content-fetching-progress').textContent = `${contentFetchingProgress.toFixed(2)}%`;
+        document.getElementById('content-fetching-bar').style.width = `${contentFetchingProgress}%`;
+        document.getElementById('content-fetching-processed').textContent = performance.content_fetching.completed;
+        document.getElementById('content-fetching-total').textContent = performance.content_fetching.total;
+
+        // Data Processing
+        const dataProcessingProgress = performance.data_processing.progress_percent;
+        document.getElementById('data-processing-progress').textContent = `${dataProcessingProgress.toFixed(2)}%`;
+        document.getElementById('data-processing-bar').style.width = `${dataProcessingProgress}%`;
+        document.getElementById('data-processing-completed').textContent = performance.data_processing.completed;
+        document.getElementById('data-processing-total').textContent = performance.data_processing.total;
+    }
+
+    // Update worker counts
+    function updateWorkerCounts(workers) {
+        // Count alive workers for each type
+        const urlWorkersAlive = workers.url_discovery_workers.filter(w => w.is_alive).length;
+        const contentWorkersAlive = workers.content_fetch_workers.filter(w => w.is_alive).length;
+        const dataWorkersAlive = workers.data_processing_workers.filter(w => w.is_alive).length;
+
+        document.getElementById('url-workers-count').textContent = urlWorkersAlive;
+        document.getElementById('content-workers-count').textContent = contentWorkersAlive;
+        document.getElementById('data-workers-count').textContent = dataWorkersAlive;
+    }
+
+    // Update plugins table
+    function updatePluginsTable(plugins, workers) {
+        // Clear the table
+        pluginsTableBody.innerHTML = '';
+
+        // Combine all plugins into a single array with their types
+        const allPlugins = [];
+
+        // URL Discovery plugins
+        plugins.url_discovery.forEach(plugin => {
+            allPlugins.push({
+                ...plugin,
+                type: 'url_discovery',
+                typeLabel: 'URL Discovery'
+            });
+        });
+
+        // Content Fetching plugins
+        plugins.content_fetching.forEach(plugin => {
+            allPlugins.push({
+                ...plugin,
+                type: 'content_fetching',
+                typeLabel: 'Content Fetching'
+            });
+        });
+
+        // Data Processing plugins
+        plugins.data_processing.forEach(plugin => {
+            allPlugins.push({
+                ...plugin,
+                type: 'data_processing',
+                typeLabel: 'Data Processing'
+            });
+        });
+
+        // Create table rows for each plugin
+        allPlugins.forEach(plugin => {
+            const row = document.createElement('tr');
+            const workerStatus = getWorkerStatus(plugin.name, plugin.type, workers);
+
+            // Determine if plugin has URL stats
+            const hasUrlStats = plugin.total_urls !== undefined;
+
+            row.innerHTML = `
+                <td>
+                    <div class="d-flex align-items-center">
+                        <div class="plugin-icon ${typeIconMap[plugin.type].class}">
+                            <i class="bi ${typeIconMap[plugin.type].icon}"></i>
+                        </div>
+                        <div>
+                            <strong>${plugin.name}</strong>
+                        </div>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge plugin-type-badge ${typeIconMap[plugin.type].class.replace('-', '-bg-')}">
+                        ${plugin.typeLabel}
+                    </span>
+                </td>
+                <td>
+                    <span class="state-badge ${stateClassMap[plugin.state]}">
+                        ${stateMap[plugin.state] || plugin.state}
+                    </span>
+                </td>
+                <td>
+                    <span class="badge bg-secondary">${plugin.priority}</span>
+                </td>
+                <td>
+                    ${hasUrlStats ?
+                        `<div class="small">
+                            <span class="text-dark">${plugin.total_urls}</span> /
+                            <span class="text-warning">${plugin.pending_urls}</span> /
+                            <span class="text-success">${plugin.processed_urls}</span>
+                        </div>
+                        <div class="progress" style="height: 4px;">
+                            <div class="progress-bar bg-success" style="width: ${plugin.total_urls ? (plugin.processed_urls / plugin.total_urls * 100) : 0}%"></div>
+                        </div>` :
+                        '<span class="text-muted">N/A</span>'}
+                </td>
+                <td>
+                    <span class="${workerStatus.is_alive ? 'text-success' : 'text-danger'}">
+                        <i class="bi ${workerStatus.is_alive ? 'bi-check-circle' : 'bi-x-circle'}"></i>
+                        ${workerStatus.is_alive ? 'Active' : 'Inactive'}
+                    </span>
+                </td>
+            `;
+
+            pluginsTableBody.appendChild(row);
+        });
+    }
+
+    // Get worker status for a plugin
+    function getWorkerStatus(pluginName, pluginType, workers) {
+        let workerList;
+
+        switch(pluginType) {
+            case 'url_discovery':
+                workerList = workers.url_discovery_workers;
+                break;
+            case 'content_fetching':
+                workerList = workers.content_fetch_workers;
+                break;
+            case 'data_processing':
+                // Data processing workers don't have plugin association
+                return { is_alive: true };
+            default:
+                return { is_alive: false };
+        }
+
+        const worker = workerList.find(w => w.plugin === pluginName);
+        return worker || { is_alive: false };
+    }
+
+    // Timer functions
+    function startAutoRefresh() {
+        if (refreshTimer) {
+            clearInterval(refreshTimer);
+        }
+        refreshTimer = setInterval(fetchStatus, REFRESH_INTERVAL);
+    }
+
+    function stopAutoRefresh() {
+        if (refreshTimer) {
+            clearInterval(refreshTimer);
+            refreshTimer = null;
+        }
+        if (countdownTimer) {
+            clearInterval(countdownTimer);
+            countdownTimer = null;
+        }
+    }
+
+    function startCountdownTimer() {
+        if (countdownTimer) {
+            clearInterval(countdownTimer);
+        }
+        secondsUntilRefresh = REFRESH_INTERVAL / 1000;
+        refreshTimerSpan.textContent = secondsUntilRefresh;
+
+        countdownTimer = setInterval(() => {
+            secondsUntilRefresh--;
+            refreshTimerSpan.textContent = secondsUntilRefresh;
+
+            if (secondsUntilRefresh <= 0) {
+                secondsUntilRefresh = REFRESH_INTERVAL / 1000;
+            }
+        }, 1000);
+    }
+
+    function resetCountdownTimer() {
+        secondsUntilRefresh = REFRESH_INTERVAL / 1000;
+        refreshTimerSpan.textContent = secondsUntilRefresh;
+    }
+
+    // Demo data function (for when API is not available)
+    function getDemoData() {
+        // This is the exact JSON structure you provided
+        return {
+            "timestamp": new Date().toISOString(),
+            "application": {
+                "name": "NewsLookout",
+                "version": "3.0.0",
+                "is_running": true
+            },
+            "plugins": {
+                "url_discovery": [
+                    {"name": "mod_in_gdelt", "state": "STATE_STOPPED", "priority": 1, "total_urls": 0, "pending_urls": 0, "processed_urls": 0}
+                ],
+                "content_fetching": [
+                    {"name": "mod_en_in_business_std", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 5303, "pending_urls": 5295, "processed_urls": 7},
+                    {"name": "mod_en_in_hindu", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 6661, "pending_urls": 6658, "processed_urls": 2},
+                    {"name": "mod_en_in_indiakanoon", "state": "STATE_GET_URL_LIST", "priority": 5, "total_urls": 1114, "pending_urls": 1106, "processed_urls": 7},
+                    {"name": "mod_en_in_inexp_business", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 1344, "pending_urls": 1327, "processed_urls": 15},
+                    {"name": "mod_en_in_livemint", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 5701, "pending_urls": 5699, "processed_urls": 1},
+                    {"name": "mod_en_in_moneycontrol", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 17027, "pending_urls": 17024, "processed_urls": 2},
+                    {"name": "mod_en_in_ecotimes", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 7797, "pending_urls": 7794, "processed_urls": 2},
+                    {"name": "mod_en_in_forbes", "state": "STATE_GET_URL_LIST", "priority": 4, "total_urls": 417, "pending_urls": 410, "processed_urls": 6},
+                    {"name": "mod_en_in_ndtv", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 17978, "pending_urls": 17976, "processed_urls": 1},
+                    {"name": "mod_en_in_timesofindia", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 3238, "pending_urls": 3229, "processed_urls": 8},
+                    {"name": "mod_en_in_trak", "state": "STATE_GET_URL_LIST", "priority": 4, "total_urls": 1, "pending_urls": 0, "processed_urls": 1},
+                    {"name": "mod_in_bse", "state": "STATE_STOPPED", "priority": 2, "total_urls": 0, "pending_urls": 0, "processed_urls": 0},
+                    {"name": "mod_in_nse", "state": "STATE_STOPPED", "priority": 2, "total_urls": 0, "pending_urls": 0, "processed_urls": 0}
+                ],
+                "data_processing": [
+                    {"name": "mod_dataprep", "state": "STATE_PROCESS_DATA", "priority": 1},
+                    {"name": "mod_keywordflags", "state": "STATE_PROCESS_DATA", "priority": 3}
+                ]
+            },
+            "queues": {
+                "fetch_completed": {"size": 0, "total_processed": 8},
+                "data_processing_input": {"size": 0},
+                "data_processing_output": {"size": 8},
+                "database_operations": {"size": 25}
+            },
+            "workers": {
+                "url_discovery_workers": [
+                    {"id": 1, "plugin": "mod_en_in_business_std", "is_alive": true, "state": 10},
+                    {"id": 2, "plugin": "mod_en_in_hindu", "is_alive": true, "state": 10},
+                    {"id": 3, "plugin": "mod_en_in_indiakanoon", "is_alive": true, "state": 10},
+                    {"id": 4, "plugin": "mod_en_in_inexp_business", "is_alive": true, "state": 10},
+                    {"id": 5, "plugin": "mod_en_in_livemint", "is_alive": true, "state": 10},
+                    {"id": 6, "plugin": "mod_en_in_moneycontrol", "is_alive": true, "state": 10},
+                    {"id": 7, "plugin": "mod_in_gdelt", "is_alive": true, "state": 80},
+                    {"id": 8, "plugin": "mod_en_in_ecotimes", "is_alive": true, "state": 10},
+                    {"id": 9, "plugin": "mod_en_in_forbes", "is_alive": true, "state": 10},
+                    {"id": 10, "plugin": "mod_en_in_ndtv", "is_alive": true, "state": 10},
+                    {"id": 11, "plugin": "mod_en_in_timesofindia", "is_alive": true, "state": 10},
+                    {"id": 12, "plugin": "mod_en_in_trak", "is_alive": true, "state": 10},
+                    {"id": 13, "plugin": "mod_in_bse", "is_alive": false, "state": 80},
+                    {"id": 14, "plugin": "mod_in_nse", "is_alive": false, "state": 80}
+                ],
+                "content_fetch_workers": [
+                    {"id": 1, "plugin": "mod_en_in_business_std", "is_alive": true, "state": 10},
+                    {"id": 2, "plugin": "mod_en_in_hindu", "is_alive": true, "state": 10},
+                    {"id": 3, "plugin": "mod_en_in_indiakanoon", "is_alive": true, "state": 10},
+                    {"id": 4, "plugin": "mod_en_in_inexp_business", "is_alive": true, "state": 10},
+                    {"id": 5, "plugin": "mod_en_in_livemint", "is_alive": true, "state": 10},
+                    {"id": 6, "plugin": "mod_en_in_moneycontrol", "is_alive": true, "state": 10},
+                    {"id": 7, "plugin": "mod_en_in_ecotimes", "is_alive": true, "state": 10},
+                    {"id": 8, "plugin": "mod_en_in_forbes", "is_alive": true, "state": 10},
+                    {"id": 9, "plugin": "mod_en_in_ndtv", "is_alive": true, "state": 10},
+                    {"id": 10, "plugin": "mod_en_in_timesofindia", "is_alive": true, "state": 10},
+                    {"id": 11, "plugin": "mod_en_in_trak", "is_alive": true, "state": 10},
+                    {"id": 12, "plugin": "mod_in_bse", "is_alive": false, "state": 80},
+                    {"id": 13, "plugin": "mod_in_nse", "is_alive": false, "state": 80}
+                ],
+                "data_processing_workers": [
+                    {"id": "100", "is_alive": true},
+                    {"id": "101", "is_alive": true},
+                    {"id": "102", "is_alive": true},
+                    {"id": "103", "is_alive": true},
+                    {"id": "104", "is_alive": true}
+                ]
+            },
+            "database": {
+                "connection_status": "connected",
+                "http_errors": {"HTTP_403": 6, "HTTP_404": 1}
+            },
+            "performance": {
+                "url_discovery": {
+                    "plugins_completed": 3,
+                    "plugins_total": 14,
+                    "progress_percent": 21.43
+                },
+                "content_fetching": {
+                    "completed": 8,
+                    "total": 66581,
+                    "pending": 66518,
+                    "progress_percent": 0.01,
+                    "speed_urls_per_hour": 100,
+                    "estimated_completion": "2026-02-12T16:32:19.040605"
+                },
+                "data_processing": {
+                    "completed": 8,
+                    "total": 8,
+                    "progress_percent": 100.0,
+                    "speed_items_per_hour": 0
+                }
+            }
+        };
+    }
+</script>
+</body>
+</html>

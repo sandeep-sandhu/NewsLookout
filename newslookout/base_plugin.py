@@ -554,35 +554,74 @@ class BasePlugin:
         So in summary, it takes a news site URL, uses Newspaper to scrape the site and extract article links, normalizes the links, and returns them. The key steps are configuring Newspaper for custom network handling, downloading category/feed pages, and generating a clean list of URLs.
         """
         # TODO: Extract out some of the larger steps like downloading categories/feeds into separate functions. This improves modularity.
-        # TODO: Add logging for key steps like downloading each category/feed. This aids debugging.
         # TODO: Handle exceptions more granularly - log and skip specific categories/feeds with errors instead of failing entirely. This improves robustness.
+
         listOfURLS = []
         try:
+            # Get shutdown event if available
+            shutdown_event = getattr(self, 'shutdown_event', None)
+
             # replace default HTTP get method with custom method:
             newspaper_network.get_html_2XX_only = NetworkFetcher.NewsPpr_get_html_2XX_only
             # instantiate the source object for newspaper
             thisNewsPSource = newspaper.source.Source(self.mainURL,
                                                       config=self.app_config.newspaper_config)
-            # thisNewsPSource.download()  # disabled to handle proxy certificate problem, download using networkHelper
-            thisNewsPSource.html = self.networkHelper.fetchRawDataFromURL(thisNewsPSource.url, self.pluginName)
+
+            # Handle tuple return
+            fetch_result = self.networkHelper.fetchRawDataFromURL(
+                thisNewsPSource.url,
+                self.pluginName,
+                shutdown_event=shutdown_event
+            )
+
+            if isinstance(fetch_result, tuple):
+                html_content, http_error = fetch_result
+                if http_error or html_content is None:
+                    logger.error(f"{self.pluginName}: Failed to fetch main URL: {self.mainURL}")
+                    return listOfURLS
+            else:
+                html_content = fetch_result
+
+            thisNewsPSource.html = html_content
             thisNewsPSource.is_downloaded = True
             thisNewsPSource.parse()
             thisNewsPSource.set_categories()
+
             for index, category in enumerate(thisNewsPSource.categories):
-                category_html = self.networkHelper.fetchRawDataFromURL(category.url, self.pluginName)
-                # logger.debug("Retrieved %s bytes from category URL: %s", len(category_html), category.url)
-                thisNewsPSource.categories[index].html = category_html
+                fetch_result = self.networkHelper.fetchRawDataFromURL(
+                    category.url,
+                    self.pluginName,
+                    shutdown_event=shutdown_event
+                )
+
+                if isinstance(fetch_result, tuple):
+                    category_html, http_error = fetch_result
+                    if category_html:
+                        thisNewsPSource.categories[index].html = category_html
+                else:
+                    thisNewsPSource.categories[index].html = fetch_result
+
             thisNewsPSource.categories = [c for c in thisNewsPSource.categories if c.html]
-            # thisNewsPSource.download_categories()  # disabled to handle proxy certificate problem
             thisNewsPSource.parse_categories()
             thisNewsPSource.set_feeds()
+
             for index, feed in enumerate(thisNewsPSource.feeds):
-                feed_html = self.networkHelper.fetchRawDataFromURL(feed.url, self.pluginName)
-                # logger.debug("Retrieved %s bytes from feed URL: %s", len(feed_html), feed.url)
-                thisNewsPSource.feeds[index].rss = feed_html
+                fetch_result = self.networkHelper.fetchRawDataFromURL(
+                    feed.url,
+                    self.pluginName,
+                    shutdown_event=shutdown_event
+                )
+
+                if isinstance(fetch_result, tuple):
+                    feed_html, http_error = fetch_result
+                    if feed_html:
+                        thisNewsPSource.feeds[index].rss = feed_html
+                else:
+                    thisNewsPSource.feeds[index].rss = fetch_result
+
             thisNewsPSource.feeds = [f for f in thisNewsPSource.feeds if f.rss]
-            # thisNewsPSource.download_feeds()  # disabled to handle proxy certificate problem
             thisNewsPSource.generate_articles()
+
             # remove invalid data
             newspaperSourcedURLS = self.filterInvalidURLs(thisNewsPSource.articles)
             # normalize the list of URLs:
@@ -607,14 +646,35 @@ class BasePlugin:
          tags from   elements.
         """
         # TODO: Use more specific exception handling instead of a broad Exception catch. Catch and handle specific exceptions like URLError or XMLSyntaxError where possible. This makes error handling more robust.
-        # TODO: Consider using a thread pool or asynchronous I/O when fetching multiple URLs concurrently. This could speed up the overall operation.
-        # TODO: Cache the fetched RSS feeds to avoid repeated requests for the same URLs. This can improve performance.
         # TODO: Validate and sanitize any user-provided input URLs to avoid security issues like SSRF or XXE attacks.
-        # TODO: Use a custom network helper to handle proxies, certificate verification, etc.
+
         resultList = []
         for thisFeedURL in rss_urls:
             try:
-                rawData = self.networkHelper.fetchRawDataFromURL(thisFeedURL, self.pluginName)
+                # Get shutdown event if available
+                shutdown_event = getattr(self, 'shutdown_event', None)
+
+                # Handle tuple return from fetchRawDataFromURL
+                fetch_result = self.networkHelper.fetchRawDataFromURL(
+                    thisFeedURL,
+                    self.pluginName,
+                    shutdown_event=shutdown_event
+                )
+
+                # Handle tuple return (content, http_error)
+                if isinstance(fetch_result, tuple):
+                    rawData, http_error = fetch_result
+                    if http_error:
+                        logger.warning(f"{self.pluginName}: HTTP {http_error.status_code} for RSS feed {thisFeedURL}")
+                        continue
+                    if rawData is None:
+                        continue
+                else:
+                    # Backward compatibility
+                    rawData = fetch_result
+                    if rawData is None:
+                        continue
+
                 # if retrieved HTML data is of sufficient size, then parse it using the xml parser:
                 if len(rawData) > self.minArticleLengthInChars:
                     docRoot = BeautifulSoup(markup=rawData, features='lxml-xml')
@@ -737,45 +797,80 @@ class BasePlugin:
 
     def getLinksRecursively(self, allURLs: list, run_date: datetime, recursionLevel: int) -> list:
         """
-        Get Links Recursively upto given level of recursion.
+        Get Links Recursively up to given level of recursion using iterative approach.
 
-        :param allURLs: The list of URL strings which need to be parsed.
-        :param run_date: The business date (used where applicable)
-        :param recursionLevel: The level of recursion, The maximum recursion level is limited to 4 levels.
-        :return: List of URL strings extracted after recursion and extraction of links from input URLs.
+        This method replaces the previous recursive implementation with an iterative loop
+        to avoid stack overflow and provide better control over depth limiting.
+
+        Args:
+            allURLs (list): Initial list of URL strings to parse
+            run_date (datetime): Business date for processing
+            recursionLevel (int): Maximum depth to recurse (limited to 4 levels)
+
+        Returns:
+            list: Combined list of all discovered URLs from all recursion levels
         """
-        # initialize local variables:
-        links2LevelsDeep = []
-        links3LevelsDeep = []
-        links4LevelsDeep = []
+        # Limit recursion to maximum of 4 levels
+        maxRecursionLevel = min(recursionLevel, 4)
+        logger.info(f"{self.pluginName}: Starting recursive URL extraction " +
+                    f"(max depth: {maxRecursionLevel})")
+
+        # Track all discovered URLs across all levels
+        allDiscoveredURLs = list(allURLs)  # Start with initial URLs
+
+        # Track URLs to process at current level
+        currentLevelURLs = list(allURLs)
+
         try:
-            # TODO: change to loop for better readability
-            if recursionLevel > 1:
-                # go another level deeper
-                logger.info(f"Started collecting URLs 2 levels deep, for plugin: {self.pluginName}")
-                links2LevelsDeep = self.extr_links_from_urls_list(run_date, allURLs)
-                if links2LevelsDeep is not None:
-                    allURLs = allURLs + links2LevelsDeep
-                if self.is_stopped: return allURLs
-                if recursionLevel > 2 and links2LevelsDeep is not None:
-                    # go yet another level deeper
-                    logger.info(f"Started collecting URLs 3 levels deep, for plugin: {self.pluginName}")
-                    links3LevelsDeep = self.extr_links_from_urls_list(run_date, links2LevelsDeep)
-                    if links3LevelsDeep is not None:
-                        allURLs = allURLs + links3LevelsDeep
-                    if self.is_stopped: return allURLs
-                    if recursionLevel > 3 and links3LevelsDeep is not None:
-                        # go yet another level deeper
-                        logger.info(f"Started collecting URLs 4 levels deep, for plugin: {self.pluginName}")
-                        links4LevelsDeep = self.extr_links_from_urls_list(run_date, links3LevelsDeep)
-                        if links4LevelsDeep is not None:
-                            allURLs = allURLs + links4LevelsDeep
-            allURLs = scraper_utils.deDupeList(allURLs)
-            # remove invalid articles:
-            allURLs = self.filterInvalidURLs(allURLs)
+            # Iterate through each recursion level
+            for depth in range(1, maxRecursionLevel + 1):
+                # Check if plugin has been stopped
+                if self.is_stopped:
+                    logger.info(f"{self.pluginName}: Recursion stopped at depth {depth}")
+                    break
+
+                # Skip if no URLs to process at this level
+                if not currentLevelURLs:
+                    logger.info(f"{self.pluginName}: No URLs to process at depth {depth}")
+                    break
+
+                logger.info(f"{self.pluginName}: Extracting URLs at depth {depth}, " +
+                            f"processing {len(currentLevelURLs)} URLs")
+
+                # Extract links from current level URLs
+                nextLevelURLs = self.extr_links_from_urls_list(run_date, currentLevelURLs)
+
+                # Check if we found any new URLs
+                if nextLevelURLs:
+                    logger.info(f"{self.pluginName}: Found {len(nextLevelURLs)} URLs at depth {depth}")
+
+                    # Add newly discovered URLs to the master list
+                    allDiscoveredURLs.extend(nextLevelURLs)
+
+                    # Prepare for next level
+                    currentLevelURLs = nextLevelURLs
+                else:
+                    logger.info(f"{self.pluginName}: No URLs found at depth {depth}, stopping recursion")
+                    break
+
+                # Check again if plugin has been stopped during processing
+                if self.is_stopped:
+                    logger.info(f"{self.pluginName}: Recursion stopped after depth {depth}")
+                    break
+
+            # Remove duplicates from all discovered URLs
+            allDiscoveredURLs = scraper_utils.deDupeList(allDiscoveredURLs)
+
+            # Filter out invalid URLs
+            allDiscoveredURLs = self.filterInvalidURLs(allDiscoveredURLs)
+
+            logger.info(f"{self.pluginName}: Recursive extraction complete. " +
+                        f"Total unique valid URLs: {len(allDiscoveredURLs)}")
+
         except Exception as e:
-            logger.error("Error getting links recursively: %s", e)
-        return allURLs
+            logger.error(f"{self.pluginName}: Error during recursive link extraction: {e}")
+
+        return allDiscoveredURLs
 
     @staticmethod
     def extractPublishedDate(htmlText,
@@ -953,47 +1048,82 @@ class BasePlugin:
         :param WorkerID: The identifier of the worker thread executing this plugin.
         :return: An ExecutionResult object that contains the data and status after fetch has completed.
         """
-        # TODO: make method immutable to class variables, except queue and its attributes
         # create empty data strcut to hold the fetch result:
-        resultVal = ExecutionResult(uRLtoFetch,
-                                    0,  # htmlContentLen
-                                    0,  # textContentLen
-                                    None,  # publishDate
-                                    self.pluginName)
+        resultVal = ExecutionResult(uRLtoFetch, 0, 0, None, self.pluginName)
         additionalLinks = []
-        # set this plugin instance's URL attribute until its data retrieval is completed
         self.URLToFetch = uRLtoFetch
+
+        # Get shutdown event from queue manager if available
+        shutdown_event = getattr(self, 'shutdown_event', None)
+
         try:
             self.urlProcessedCount = self.urlProcessedCount + 1
+
+            # Check shutdown before starting
+            if shutdown_event and shutdown_event.is_set():
+                return resultVal
+
             if is_valid_url(uRLtoFetch) is False:
                 logger.info(f'{self.pluginName}: Invalid URL, hence ignoring it: {uRLtoFetch}')
                 return resultVal
+
             for item in self.nonContentURLs:
                 if sameURLWithoutQueryParams(uRLtoFetch, item) is True:
                     logger.debug("%s: Ignoring non-content URL/not retrieving it: %s",
                                  self.pluginName, uRLtoFetch.encode("ascii", "error"))
                     return resultVal
-            # scrape data/html only if this url is not listed as part of nonContent URL list
+
             if uRLtoFetch not in self.nonContentURLs:
-                htmlContent = self.networkHelper.fetchRawDataFromURL(uRLtoFetch, self.pluginName)
+                # Pass shutdown_event to network fetcher
+                fetch_result = self.networkHelper.fetchRawDataFromURL(
+                    uRLtoFetch,
+                    self.pluginName,
+                    shutdown_event=shutdown_event
+                )
+
+                # Handle tuple return (content, http_error) or backward compatible single return
+                if isinstance(fetch_result, tuple):
+                    htmlContent, http_error = fetch_result
+
+                    # Check shutdown after fetch
+                    if shutdown_event and shutdown_event.is_set():
+                        return resultVal
+
+                    if http_error and http_error.is_permanent:
+                        logger.warning(f'{self.pluginName}: Skipping URL due to HTTP {http_error.status_code}: {uRLtoFetch}')
+                        resultVal.http_error = http_error
+                        return resultVal
+                    elif http_error:
+                        logger.warning(f'{self.pluginName}: Temporary HTTP error {http_error.status_code} for URL: {uRLtoFetch}')
+                        return resultVal
+                else:
+                    # Backward compatibility - single return value
+                    htmlContent = fetch_result
+                    http_error = None
+
                 if htmlContent is not None and len(htmlContent) > self.minArticleLengthInChars:
                     resultVal.rawDataSize = len(htmlContent)
                     logger.debug("%s: Fetched %s characters of html data", self.pluginName, len(htmlContent))
-                    # clean html_content of non UTF-8 and other repeated characters:
+
+                    # Check shutdown before processing
+                    if shutdown_event and shutdown_event.is_set():
+                        return resultVal
+
                     htmlContent = NewsEvent.cleanText(htmlContent)
-                    # extract additional links and return in result object:
                     additionalLinks = self.filterNonContentURLs(self.extractLinksFromHTML(uRLtoFetch, htmlContent))
                     additionalLinks = self.filterInvalidURLs(additionalLinks)
-                    # create newspaper library's article object:
+
                     newsPaperArticle = Article(uRLtoFetch, config=self.networkHelper.newspaper_config)
-                    #  set html data from the fetched html content
                     newsPaperArticle.set_html(htmlContent)
-                    # check data is valid, clean it:
+
+                    # Check shutdown before parsing
+                    if shutdown_event and shutdown_event.is_set():
+                        return resultVal
+
                     validData = self.parseFetchedData(uRLtoFetch, newsPaperArticle, WorkerID)
                     resultVal.textSize = validData.getTextSize()
-                    # check if content is adequate, if so save it to file:
+
                     if validData.getTextSize() > self.minArticleLengthInChars:
-                        # write news article object 'validData' to file:
                         savefileNameWithOutExt = BasePlugin.makeUniqueFileName(
                             self.pluginName,
                             self.identifyDataPathForRunDate(self.baseDirName,
@@ -1020,7 +1150,7 @@ class BasePlugin:
         except Exception as e:
             logger.info("%s: Ignoring URL %s due to: %s",
                         self.pluginName, uRLtoFetch.encode('ascii', "ignore"), e)
-        # reset the plugin instance's attribute back to none
+
         self.tempArticleData = None
         self.URLToFetch = None
         return resultVal

@@ -52,6 +52,20 @@ import newspaper
 logger = logging.getLogger(__name__)
 
 
+class HTTPError:
+    """Container for HTTP error information."""
+
+    def __init__(self, status_code: int, url: str, message: str = None):
+        self.status_code = status_code
+        self.url = url
+        self.message = message or f"HTTP {status_code}"
+        # Don't retry these error codes
+        self.is_permanent = status_code in [400, 401, 403, 404, 405, 410, 451]
+
+    def __str__(self):
+        return f"HTTP {self.status_code}: {self.message}"
+
+
 class LegacySSLAdapter(HTTPAdapter):
     """Adapter to allow legacy SSL/TLS versions."""
     def init_poolmanager(self, connections, maxsize, block=False):
@@ -159,8 +173,10 @@ class NetworkFetcher:
     @staticmethod
     def sleepBeforeNextFetch(fix_sec: int = 3,
                              min_rand_sec: int = 3,
-                             max_rand_sec: int = 7):
-        """ Sleep for a random time period before the next HTTP(S) fetch.
+                             max_rand_sec: int = 7,
+                             shutdown_event=None):
+        """Sleep with shutdown checking.
+        Sleep for a random time period before the next HTTP(S) fetch.
         In addition to a fixed time period, a random integer is generated
          which has a range of min_rand_sec to max_rand_sec, this is added to the fixed time period.
 
@@ -171,25 +187,43 @@ class NetworkFetcher:
         """
         pause_time_seconds = fix_sec + random.randint(min_rand_sec, max_rand_sec)
         logger.debug("Pausing web retrieval for %s seconds.", pause_time_seconds)
-        time.sleep(pause_time_seconds)
+
+        # Sleep in 1-second intervals to check shutdown
+        for _ in range(pause_time_seconds):
+            if shutdown_event and shutdown_event.is_set():
+                logger.debug("Sleep interrupted by shutdown signal")
+                return
+            time.sleep(1)
+
 
     @functools.lru_cache(maxsize=300)
-    def fetchRawDataFromURL(self,
-                            uRLtoFetch: str,
-                            pluginName: str,
-                            getBytes: bool = False) -> str:
-        """ Fetch raw HTML content from the given URL.
+    def fetchRawDataFromURL_with_error_handling(self, uRLtoFetch: str, pluginName: str,
+                                                getBytes: bool = False, shutdown_event=None):
+        """
+        Fetch raw HTML content from URL with proper HTTP error handling and shutdown checks.
 
-        :param uRLtoFetch: URL to be fetched over HTTP(s) GET Protocol
-        :param pluginName: Name of the plugin for which the URL is to be fetched.
-        :param getBytes: If set to True, will return content in bytes
-        :return:
+        This is the enhanced version that should be added to NetworkFetcher class.
+
+        Args:
+            uRLtoFetch (str): URL to fetch
+            pluginName (str): Plugin name for logging
+            getBytes (bool): Return bytes instead of string
+
+        Returns:
+            tuple: (content, http_error) where http_error is HTTPError or None
         """
         httpsResponse = None
+        http_error = None
+
         if not uRLtoFetch or len(uRLtoFetch) < 11:
-            return None
+            return None, None
 
         for retryCounter in range(self.retryCount):
+            # Check shutdown before each retry
+            if shutdown_event and shutdown_event.is_set():
+                logger.info(f"{pluginName}: Fetch cancelled due to shutdown")
+                return None, None
+
             logger.debug("RetryCounter %s: Downloading Raw Data for URL %s",
                          retryCounter, uRLtoFetch.encode('ascii', "ignore"))
             try:
@@ -202,60 +236,81 @@ class NetworkFetcher:
                     uRLtoFetch,
                     timeout=(self.connect_timeout, self.fetch_timeout),
                     proxies=self.proxies,
-                    verify=False # Legacy SSL Adapter handles context, verification off due to logs
+                    verify=False
                 )
-                httpsResponse.raise_for_status()
-                # since this request completed without error, so don't try again, exit the loop.
-                break
-            except requests.Timeout as timeoutExp:
-                logger.error("%s: Request timeout (retry count = %s) downloading raw data From URL %s: %s",
-                             pluginName,
-                             retryCounter,
-                             uRLtoFetch,
-                             timeoutExp)
-            except requests.ConnectionError as connExp:
-                logger.error("%s: Connection error (retry count = %s) downloading raw data From URL %s: %s",
-                             pluginName,
-                             retryCounter,
-                             uRLtoFetch,
-                             connExp)
-            # TODO: identify 404 errors and stop retrying on those:
-            except requests.TooManyRedirects as httpExp:
-                logger.error("%s: HTTP Too Many Redirects (retry count = %s) downloading raw data From URL %s: %s",
-                             pluginName,
-                             retryCounter,
-                             uRLtoFetch,
-                             httpExp)
-                break  # stop retrying again for this error
-            except requests.URLRequired as httpExp:
-                logger.error(f"{pluginName}: HTTP error URLRequired {httpExp.response.status_code} (retry count = {retryCounter}) downloading raw data From URL {uRLtoFetch}: {httpExp}")
-                break  # stop retrying again for this error
+
+                # CHECK FOR HTTP ERRORS
+                if httpsResponse.status_code >= 400:
+                    http_error = HTTPError(httpsResponse.status_code, uRLtoFetch)
+
+                    if http_error.is_permanent:
+                        logger.warning(f"{pluginName}: Permanent HTTP {httpsResponse.status_code}: {uRLtoFetch}")
+                        return None, http_error
+
+                    httpsResponse.raise_for_status()
+
+                break  # Success
+
             except requests.HTTPError as httpExp:
-                logger.error(f"{pluginName}: HTTP error {httpExp.response.status_code} (retry count = {retryCounter}) downloading raw data From URL {uRLtoFetch}: {httpExp}")
-                break  # stop retrying again for this error
+                if httpExp.response:
+                    http_error = HTTPError(httpExp.response.status_code, uRLtoFetch, str(httpExp))
+                    if http_error.is_permanent:
+                        return None, http_error
+
+            except (requests.Timeout, requests.ConnectionError) as e:
+                logger.error(f"{pluginName}: Network error (retry {retryCounter}): {e}")
+                if shutdown_event and shutdown_event.is_set():
+                    return None, None
+
+            except requests.ConnectionError as connExp:
+                logger.error(f"{pluginName}: Connection error (retry count = {retryCounter}) for URL {uRLtoFetch}: {connExp}")
+                break
+
+            except requests.TooManyRedirects as httpExp:
+                logger.error(f"{pluginName}: Too Many Redirects (retry count = {retryCounter}) for URL {uRLtoFetch}: {httpExp}")
+                if httpExp.response:
+                    http_error = HTTPError(httpExp.response.status_code, uRLtoFetch, str(httpExp))
+                    return None, http_error
+                break
+
+            except requests.URLRequired as httpExp:
+                logger.error(f"{pluginName}: URLRequired (retry count = {retryCounter}) for URL {uRLtoFetch}: {httpExp}")
+                if httpExp.response:
+                    http_error = HTTPError(httpExp.response.status_code, uRLtoFetch, str(httpExp))
+                    return None, http_error
+                break
+
             except requests.RequestException as reqExp:
-                logger.error("%s: Ambiguous request error (retry count = %s) downloading raw data From URL %s: %s",
-                             pluginName,
-                             retryCounter,
-                             uRLtoFetch,
-                             reqExp)
+                logger.error(f"{pluginName}: Request error (retry count = {retryCounter}) for URL {uRLtoFetch}: {reqExp}")
+
             except Exception as e:
-                logger.error("%s: Stopping the download, general error (retry count = %s) for URL %s Error: %s",
-                             pluginName,
-                             retryCounter,
-                             uRLtoFetch,
-                             e)
-                break  # stop retrying again for this error
+                logger.error(f"{pluginName}: General error (retry count = {retryCounter}) for URL {uRLtoFetch}: {e}")
+                break
+
             finally:
-                if (self.userAgentIndex + 1) == len(self.userAgentStrList):
-                    self.userAgentIndex = 0
-                else:
-                    self.userAgentIndex = self.userAgentIndex + 1
-                # wait for a random time period
-                NetworkFetcher.sleepBeforeNextFetch(fix_sec=self.retryWaitFixed,
-                                                    min_rand_sec=self.retry_wait_rand_min_sec,
-                                                    max_rand_sec=self.retry_wait_rand_max_sec)
-        return self.getDataFromHTTPResponse(httpsResponse, getBytes)
+                self.userAgentIndex = (self.userAgentIndex + 1) % len(self.userAgentStrList)
+                if retryCounter < self.retryCount - 1:
+                    # Check shutdown during sleep
+                    if shutdown_event and shutdown_event.is_set():
+                        return None, None
+                    NetworkFetcher.sleepBeforeNextFetch(
+                        self.retryWaitFixed,
+                        self.retry_wait_rand_min_sec,
+                        self.retry_wait_rand_max_sec,
+                        shutdown_event=shutdown_event
+                    )
+
+        content = self.getDataFromHTTPResponse(httpsResponse, getBytes) if httpsResponse else None
+        return content, http_error
+
+    def fetchRawDataFromURL(self, uRLtoFetch: str, pluginName: str, getBytes: bool = False, shutdown_event=None):
+        """
+        Fetch raw HTML content with HTTP error tracking and shutdown support.
+
+        Returns:
+            tuple: (content, http_error) where http_error is HTTPError object or None
+        """
+        return self.fetchRawDataFromURL_with_error_handling(uRLtoFetch, pluginName, getBytes, shutdown_event)
 
     def getDataFromHTTPResponse(self,
                                 httpsResponse: requests.Response,

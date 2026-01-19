@@ -36,7 +36,7 @@
 
 __version__ = "3.0.0"
 __author__ = "Sandeep Singh Sandhu"
-__copyright__ = "Copyright 2025, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu"
+__copyright__ = "Copyright 2026, The NewsLookout Web Scraping Application, Sandeep Singh Sandhu"
 __credits__ = ["Sandeep Singh Sandhu"]
 __license__ = "GPL"
 __maintainer__ = "Sandeep Singh Sandhu"
@@ -45,132 +45,181 @@ __status__ = "Production"
 
 ##########
 
-# import standard python libraries:
-import platform
-import sys
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+NewsLookout Library Interface
+
+This module provides a simple, Pythonic interface for using NewsLookout as a library
+in your own Python applications.
+
+Example usage:
+    
+    from newslookout import NewsLookoutApp
+    
+    # Create and configure the app
+    app = NewsLookoutApp(config_file='path/to/config.conf')
+    
+    # Run for a specific date
+    app.run(run_date='2026-01-21', max_runtime=3600)
+    
+    # Or run in the background
+    app.start()
+    # ... do other work ...
+    app.stop()
+    
+    # Get statistics
+    stats = app.get_statistics()
+    print(f"URLs processed: {stats['urls_processed']}")
+"""
+
 import logging
-import logging.handlers
-from datetime import datetime
-from configparser import ConfigParser
-import getopt
 import os
+import sys
+import threading
+import time
+from datetime import datetime
+from typing import Optional, Dict, Any
+from logging.handlers import RotatingFileHandler
 
-# import project's python libraries:
+# Import core application components
 from queue_manager import QueueManager
-from scraper_utils import checkAndGetNLTKData
 from config import ConfigManager
+from scraper_utils import checkAndGetNLTKData
 
-################
+__version__ = "3.0.0"
+__author__ = "Sandeep Singh Sandhu"
 
 
-class NewsLookout:
-    """ NewsLookout Web Scraping Application
-    Main class that runs the entire application.
+
+class NewsLookoutApp:
+    """
+    Main application class for NewsLookout web scraping.
+
+    This class provides a clean API for using NewsLookout as a library,
+    allowing easy integration into other Python applications.
+
+    Attributes:
+        config_file (str): Path to configuration file
+        app_config (ConfigManager): Configuration manager instance
+        queue_manager (QueueManager): Queue and worker manager
+        is_running (bool): Whether the app is currently running
+        run_thread (threading.Thread): Background execution thread
+
+    Example:
+        >>> app = NewsLookoutApp('config.conf')
+        >>> app.run(run_date='2026-01-21')
+        >>> stats = app.get_statistics()
     """
 
-    config_file: str = os.path.join('conf', 'newslookout.conf')
-    run_date: str = datetime.now().strftime('%Y-%m-%d')
-    app_config: ConfigManager = None
-    app_queue_manager: QueueManager = None
-
-    def __init__(self):
+    def __init__(self, config_file: str, run_date: Optional[str] = None):
         """
-        Initialize the application class
-        by reading the program arguments, validating them
-        and setting the configuration data accordingly
+        Initialize the NewsLookout application.
+
+        Args:
+            config_file (str): Path to the configuration file
+            run_date (str, optional): Date to scrape in 'YYYY-MM-DD' format.
+                                     Defaults to today.
+
+        Raises:
+            FileNotFoundError: If config file doesn't exist
+            ValueError: If config file is invalid
         """
-        self.print_banner()
+        self.config_file = config_file
+        self.run_date = run_date or datetime.now().strftime('%Y-%m-%d')
+        self.app_config = None
+        self.queue_manager = None
+        self.is_running = False
+        self.run_thread = None
+        self._stats = {
+            'urls_discovered': 0,
+            'urls_processed': 0,
+            'urls_failed': 0,
+            'data_processed': 0,
+            'start_time': None,
+            'end_time': None
+        }
 
-    @staticmethod
-    def print_usage_and_exit():
-        print('Usage: newslookout -c <configuration file> -d <run date as YYYY-MM-dd>')
-        sys.exit(1)
+        # Validate config file exists
+        if not os.path.isfile(config_file):
+            raise FileNotFoundError(f"Configuration file not found: {config_file}")
 
-    def read_cmdline_args(self, sysargs: list):
-        """  Read the command line arguments and parse them.
+        # Initialize configuration
+        self._initialize_config()
 
-        :param sysargs: The command line arguments passed from the OS.
-        :return: Nothing
+        print(f"NewsLookout v{__version__} initialized")
+
+    def _initialize_config(self):
         """
-        # TODO: read config from the following environment variables
-        #      - NLTK_DATA="/opt/newslookout/models/nltk"
-        #      - NEWSLOOKOUT_DATA="/var/cache/newslookout_data"
-        #      - NEWSLOOKOUT_HOME="/opt/newslookout"
-        #      - NEWSLOOKOUT_CONFIG="/etc/newslookout/newslookout.conf"
-        #      - NEWSLOOKOUT_PLUGINS="/opt/newslookout/plugins"
-        #      - NEWSLOOKOUT_PLUGINS_CONTRIB="/opt/newslookout/plugins_contrib"
-        #      - NEWSLOOKOUT_LOG_LEVEL="INFO"
-        #      - NEWSLOOKOUT_RUNDATE_FROM="2022-10-08"
-        #      - NEWSLOOKOUT_RUNDATE_TO="2022-10-09"
-        #      - NEWSLOOKOUT_SYSLOG_SERVER=""
+        Initialize configuration and setup logging.
+
+        Raises:
+            ValueError: If configuration is invalid
+        """
         try:
-            if len(sysargs) < 3:
-                NewsLookout.print_usage_and_exit()
-            opts, args = getopt.getopt(sysargs[1:], "h:c:d:", ["configfile = ", "rundate = "])
-            for opt, arg in opts:
-                if opt in ("-h", "--help"):
-                    NewsLookout.print_usage_and_exit()
-                elif opt in ("-c", "--configfile"):
-                    self.config_file = arg
-                elif opt in ("-d", "--rundate"):
-                    self.run_date = arg
-        except getopt.GetoptError as e:
-            print("Error reading command line options:", e)
-            NewsLookout.print_usage_and_exit()
+            # Read configuration
+            self.app_config = ConfigManager(self.config_file, self.run_date)
+            self.app_config.app_version = __version__
 
-    def readConfigFile(self):
-        """ Utility function to read the configuration file,
-        and parse it into the dictionary structure used by the application.
-        """
-        self.app_config = ConfigManager(self.config_file, self.run_date)
-        self.app_config.app_version = __version__
-        config_obj = ConfigParser()
-        try:
-            config_obj.read_file(open(self.config_file, encoding='utf-8'))
-            # self.configData['configReader'] = config_obj
+            # Setup logging if not already configured
+            if not logging.getLogger().handlers:
+                self._setup_logging()
+
+            # Check and download NLTK data if needed
+            checkAndGetNLTKData()
+
+            # Initialize queue manager
+            self.queue_manager = QueueManager()
+            self.queue_manager.config(self.app_config)
+
+            logging.info(f"Configuration loaded from: {self.config_file}")
+            logging.info(f"Scraping data for date: {self.run_date}")
+
         except Exception as e:
-            print(f'ERROR: Configuration file "{self.config_file}" could not be read: {e}')
-            sys.exit(1)
+            logging.error(f"Failed to initialize configuration: {e}")
+            raise ValueError(f"Invalid configuration: {e}")
 
-    @staticmethod
-    def print_banner():
-        """ Prints the startup banner. """
-        print(f"--- NewsLookout Web Scraping Application, Version {__version__} ---")
-        print('Running on: Python version ' +
-              f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}' +
-              f' ({platform.system()})')
-        print(f'Started application at: {datetime.now().strftime("%Y-%b-%d %H:%M:%S")}')
+    def _setup_logging(self):
+        """Setup logging configuration - FILE ONLY, no console."""
+        from logging.handlers import RotatingFileHandler
 
-    def run(self):
-        """Run the application after configuring the queue manager and initialising the plugins.
-        """
-        logging.info(f'--- NewsLookout Web Scraping Application, (version {__version__}) ---')
-        logging.info(f'Retrieving data for run date: {self.run_date}')
-        checkAndGetNLTKData()
-        self.app_queue_manager.config(self.app_config)
-        # load and initialize all the plugins after everything has been configured.
-        self.app_queue_manager.initPlugins()
-        self.app_queue_manager.runAllJobs()
-        self.app_queue_manager.finishAllTasks()
+        log_level = getattr(logging, self.app_config.logLevelStr.upper(), logging.INFO)
 
-    def config(self, sys_argv: list):
-        """ Configure the application using the command line arguments
+        # Remove all existing handlers to prevent duplicates
+        root_logger = logging.getLogger()
+        for handler in root_logger.handlers[:]:
+            root_logger.removeHandler(handler)
 
-        :param sys_argv: Command line arguments
-        :return:
-        """
-        self.read_cmdline_args(sys_argv)
-        # initialise the queue manager:
-        print(f'Retrieving data for run date: {self.run_date}')
-        self.app_queue_manager = QueueManager()
-        # read and setup the configuration:
-        print(f'Reading configuration from: {self.config_file}')
-        self.readConfigFile()
-        # setup the logging mechanism:
-        NewsLookout.setup_logger(self.app_config.logfile,
-                                 log_level=self.app_config.logLevelStr,
-                                 max_size_byte=self.app_config.max_logfile_size,
-                                 backup_count=self.app_config.logfile_backup_count)
+        # Set log level
+        root_logger.setLevel(log_level)
+
+        # Create formatter
+        formatter = logging.Formatter(
+            '%(asctime)s:[%(levelname)s]:%(name)s:%(thread)s: %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+
+        # Setup file handler ONLY
+        if self.app_config.logfile:
+            file_handler = RotatingFileHandler(
+                filename=self.app_config.logfile,
+                mode='a',
+                maxBytes=self.app_config.max_logfile_size,
+                backupCount=self.app_config.logfile_backup_count,
+                encoding='utf-8'
+            )
+            file_handler.setFormatter(formatter)
+            root_logger.addHandler(file_handler)
+
+        # Suppress third-party library logging
+        logging.getLogger('urllib3').setLevel(logging.WARNING)
+        logging.getLogger('requests').setLevel(logging.WARNING)
+        logging.getLogger('newspaper').setLevel(logging.WARNING)
+
+        # Single console message to confirm logging setup
+        print(f"Logging to: {self.app_config.logfile}")
+
 
     @staticmethod
     def set_pid_file(pid_file: str):
@@ -209,55 +258,313 @@ class NewsLookout:
         else:
             logging.info(f"PID file {self.app_config.pid_file} does not exist, so unable to delete it.")
 
-    @staticmethod
-    def setup_logger(logfile: str, log_level: str = 'INFO', max_size_byte: int = 1024000, backup_count: int = 10):
-        # setup logger with DEBUG level as default
-        logLevel = logging.DEBUG
-        if log_level == 'INFO':
-            logLevel = logging.INFO
-        elif log_level == 'WARN':
-            logLevel = logging.WARNING
-        elif log_level == 'ERROR':
-            logLevel = logging.ERROR
-        # Create formatter for the logging:
-        fh_formatter = logging.Formatter('%(asctime)s:[%(levelname)s]:%(name)s:%(thread)s: %(message)s',
-                                         datefmt='%Y-%m-%d %H:%M:%S')
-        # Set up the default root logger to do nothing
-        logging.basicConfig(
-            handlers=[logging.NullHandler()],
-            level=logLevel,
-            format='%(asctime)s:%(levelname)s:%(name)s:%(thread)s: %(message)s')
-        if logfile is not None:
-            print(f'Logging events to file: {logfile}')
-            # Create file handler
-            scraperLogFileHandler = logging.handlers.RotatingFileHandler(
-                filename=logfile, mode='a', maxBytes=max_size_byte,
-                backupCount=backup_count, encoding='utf-8')
-            scraperLogFileHandler.setFormatter(fh_formatter)
-            # add to root logger
-            logging.getLogger('').addHandler(scraperLogFileHandler)
 
-    # # end of application class definition ##
+    def run(self, run_date: Optional[str] = None, max_runtime: Optional[int] = None,
+            blocking: bool = True) -> Dict[str, Any]:
+        """
+        Run the web scraping process.
+
+        Args:
+            run_date (str, optional): Date to scrape in 'YYYY-MM-DD' format
+            max_runtime (int, optional): Maximum runtime in seconds
+            blocking (bool): If True, wait for completion. If False, run in background.
+
+        Returns:
+            dict: Statistics about the scraping run
+
+        Example:
+            >>> app = NewsLookoutApp('config.conf')
+            >>> stats = app.run(run_date='2026-01-21', max_runtime=3600)
+            >>> print(f"Processed {stats['urls_processed']} URLs")
+        """
+        if self.is_running:
+            logging.warning("Application is already running")
+            return self.get_statistics()
+
+        # Update run date if provided
+        if run_date:
+            self.run_date = run_date
+            self.app_config.rundate = ConfigManager.checkAndParseDate(run_date)
+            self.queue_manager.runDate = self.app_config.rundate
+
+        self._stats['start_time'] = datetime.now()
+        self.is_running = True
+
+        if blocking:
+            self._execute(max_runtime)
+            return self.get_statistics()
+        else:
+            # Run in background thread
+            self.run_thread = threading.Thread(
+                target=self._execute,
+                args=(max_runtime,),
+                daemon=False
+            )
+            self.run_thread.start()
+            logging.info("NewsLookout started in background")
+            return {"status": "running", "message": "Application running in background"}
+
+    def _execute(self, max_runtime: Optional[int] = None):
+        """
+        Execute the scraping process.
+
+        Args:
+            max_runtime (int, optional): Maximum runtime in seconds
+        """
+        try:
+            # Initialize plugins
+            self.queue_manager.initPlugins()
+
+            # Setup timeout if specified
+            if max_runtime:
+                timer = threading.Timer(max_runtime, self.stop)
+                timer.daemon = True
+                timer.start()
+                logging.info(f"Set maximum runtime: {max_runtime} seconds")
+
+            # Run all jobs
+            self.queue_manager.runAllJobs()
+
+            # Finish up
+            self.queue_manager.shutdown()
+
+            self._stats['end_time'] = datetime.now()
+
+            # Update statistics
+            self._update_statistics()
+
+            logging.info("NewsLookout execution completed successfully")
+
+        except KeyboardInterrupt:
+            logging.info("Execution interrupted by user")
+            self.stop()
+
+        except Exception as e:
+            logging.error(f"Error during execution: {e}")
+            raise
+
+        finally:
+            self.is_running = False
+
+    def start(self):
+        """
+        Start the application in background mode.
+
+        This is equivalent to calling run(blocking=False).
+
+        Example:
+            >>> app = NewsLookoutApp('config.conf')
+            >>> app.start()
+            >>> # Do other work...
+            >>> app.stop()
+        """
+        return self.run(blocking=False)
+
+    def stop(self, timeout: int = 30):
+        """
+        Stop the running application gracefully.
+
+        Args:
+            timeout (int): Maximum seconds to wait for shutdown
+
+        Example:
+            >>> app = NewsLookoutApp('config.conf')
+            >>> app.start()
+            >>> time.sleep(60)
+            >>> app.stop()
+        """
+        if not self.is_running:
+            logging.warning("Application is not running")
+            return
+
+        logging.info("Stopping NewsLookout...")
+
+        # Signal shutdown
+        if self.queue_manager:
+            self.queue_manager.shutdown()
+
+        # Wait for background thread if it exists
+        if self.run_thread and self.run_thread.is_alive():
+            self.run_thread.join(timeout=timeout)
+
+            if self.run_thread.is_alive():
+                logging.warning(f"Application did not stop within {timeout} seconds")
+            else:
+                logging.info("Application stopped successfully")
+
+        self.is_running = False
+        self._stats['end_time'] = datetime.now()
+
+    def _update_statistics(self):
+        """Update internal statistics from queue manager."""
+        if self.queue_manager and self.queue_manager.q_status:
+            q_status = self.queue_manager.q_status
+            self._stats.update({
+                'urls_discovered': q_status.totalURLCount,
+                'urls_processed': q_status.fetchCompletCount,
+                'data_processed': q_status.dataOutputQsize
+            })
+
+    def get_statistics(self) -> Dict[str, Any]:
+        """
+        Get statistics about the current or last run.
+
+        Returns:
+            dict: Dictionary containing statistics:
+                - urls_discovered: Total URLs found
+                - urls_processed: URLs successfully scraped
+                - urls_failed: URLs that failed
+                - data_processed: Number of items processed
+                - start_time: When execution started
+                - end_time: When execution ended
+                - duration: Runtime in seconds
+                - is_running: Current running status
+
+        Example:
+            >>> stats = app.get_statistics()
+            >>> print(f"Processed {stats['urls_processed']} URLs")
+            >>> print(f"Runtime: {stats['duration']} seconds")
+        """
+        self._update_statistics()
+
+        stats = dict(self._stats)
+        stats['is_running'] = self.is_running
+
+        # Calculate duration
+        if stats['start_time']:
+            end = stats['end_time'] or datetime.now()
+            duration = (end - stats['start_time']).total_seconds()
+            stats['duration'] = duration
+        else:
+            stats['duration'] = 0
+
+        return stats
+
+    def get_plugin_status(self) -> Dict[str, str]:
+        """
+        Get status of all loaded plugins.
+
+        Returns:
+            dict: Map of plugin names to their current states
+
+        Example:
+            >>> status = app.get_plugin_status()
+            >>> for plugin, state in status.items():
+            ...     print(f"{plugin}: {state}")
+        """
+        if not self.queue_manager or not self.queue_manager.q_status:
+            return {}
+
+        return dict(self.queue_manager.q_status.currentState)
+
+    def wait_for_completion(self, timeout: Optional[int] = None):
+        """
+        Wait for the application to complete (if running in background).
+
+        Args:
+            timeout (int, optional): Maximum seconds to wait. None = wait indefinitely.
+
+        Returns:
+            bool: True if completed, False if timeout reached
+
+        Example:
+            >>> app.start()
+            >>> if app.wait_for_completion(timeout=3600):
+            ...     print("Completed successfully")
+            ... else:
+            ...     print("Timeout reached")
+        """
+        if not self.run_thread:
+            return True
+
+        self.run_thread.join(timeout=timeout)
+        return not self.run_thread.is_alive()
+
+    def __enter__(self):
+        """Context manager entry."""
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit."""
+        if self.is_running:
+            self.stop()
+
+    def __repr__(self):
+        """String representation."""
+        status = "running" if self.is_running else "stopped"
+        return f"<NewsLookoutApp(status={status}, date={self.run_date})>"
 
 
-def main():
-    # global app_inst
-    # instantiate the main application class:
-    app_inst = NewsLookout()
-    # configure the application:
-    app_inst.config(sys.argv)
-    NewsLookout.set_pid_file(app_inst.app_config.pid_file)
-    # run the application:
-    app_inst.run()
-    # clean-up before exiting:
-    app_inst.remove_pid_file()
-    print("The program has completed execution successfully.")
+# Convenience functions for quick usage
+def scrape(config_file: str, run_date: Optional[str] = None,
+           max_runtime: Optional[int] = None) -> Dict[str, Any]:
+    """Convenience function to run a scraping job.
+
+    Args:
+        config_file (str): Path to configuration file
+        run_date (str, optional): Date to scrape in 'YYYY-MM-DD' format
+        max_runtime (int, optional): Maximum runtime in seconds
+
+    Returns:
+        dict: Statistics from the scraping run
+
+    Example:
+        >>> from newslookout import scrape
+        >>> stats = scrape('config.conf', run_date='2026-01-13')
+        >>> print(f"Processed {stats['urls_processed']} URLs")
+    """
+
+    run_stats = {'urls_discovered':0, 'urls_processed':0, 'data_processed':0, 'duration':0.0}
+    app_inst = NewsLookoutApp(config_file, run_date=run_date)
+
+    try:
+        # Set PID file
+        NewsLookoutApp.set_pid_file(app_inst.app_config.pid_file)
+
+        # Run the application - THIS BLOCKS UNTIL COMPLETE
+        run_stats = app_inst.run(max_runtime=max_runtime, blocking=True)
+
+    except KeyboardInterrupt:
+        logging.info("Keyboard interrupt in main - shutdown already handled")
+        print("\nShutdown complete.")
+    except Exception as e:
+        logging.error(f"Fatal error in main: {e}", exc_info=True)
+        print(f"\nFatal error: {e}")
+        sys.exit(1)
+    finally:
+        # Clean up
+        app_inst.remove_pid_file()
+        print("\nThe program has completed execution.")
+
+    return run_stats
 
 
-# the main application class instance is a global variable:
-# global app_inst
-
+# Example usage when run as script
 if __name__ == "__main__":
-    main()
+    import argparse
 
-# # end of file ##
+    try:
+        parser = argparse.ArgumentParser(description='NewsLookout Web Scraping Application')
+        parser.add_argument('-c', '--config', required=True, help='Configuration file path')
+        parser.add_argument('-d', '--date', help='Run date (YYYY-MM-DD)')
+        parser.add_argument('-t', '--timeout', type=int, help='Maximum runtime in seconds')
+
+        args = parser.parse_args()
+
+        # Run the application
+        stats = scrape(args.config, run_date=args.date, max_runtime=args.timeout)
+
+        # Print summary
+        print("\n" + "="*50)
+        print("Scraping Summary:")
+        print("="*50)
+        print(f"URLs Discovered: {stats['urls_discovered']}")
+        print(f"URLs Processed:  {stats['urls_processed']}")
+        print(f"Data Processed:  {stats['data_processed']}")
+        print(f"Duration:        {stats['duration']:.1f} seconds")
+        print("="*50)
+    except Exception as e:
+        logging.error(f"Fatal error in main: {e}", exc_info=True)
+
+
+# End of file

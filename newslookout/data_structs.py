@@ -108,6 +108,7 @@ class ExecutionResult:
                  success: bool = False,
                  additionalLinks: list = None):
         self.URL = sURL
+        self.http_error = None
         self.rawDataFileName = rawDataFile
         self.savedDataFileName = dataFileName
         self.rawDataSize = htmlContentLen

@@ -134,8 +134,7 @@ class mod_in_nse(BasePlugin):
         return(listOfURLS)
 
     def fetchDataFromURL(self, uRLtoFetch, WorkerID):
-        """ Fetch data From given URL
-        """
+        """Fetch data From given URL"""
         self.pluginState = PluginTypes.STATE_FETCH_CONTENT
         fullPathName = ""
         dirPathName = ""
@@ -147,12 +146,35 @@ class mod_in_nse(BasePlugin):
         resultVal = None
         self.master_data_dir = self.app_config.master_data_dir
         logger.debug("Fetching %s, Worker ID %s", uRLtoFetch.encode("ascii"), WorkerID)
+
         try:
             logging.captureWarnings(True)
             (publishDate, dataUniqueID) = self.extractUniqueIDFromURL(uRLtoFetch)
-            rawData = self.downloadDataArchive(uRLtoFetch, type(self).__name__)
+
+            # Get shutdown event if available
+            shutdown_event = getattr(self, 'shutdown_event', None)
+
+            # fetchRawDataFromURL to download Data Archive returns tuple
+            fetch_result = self.networkHelper.fetchRawDataFromURL(
+                uRLtoFetch,
+                type(self).__name__,
+                shutdown_event=shutdown_event
+            )
+
+            # Handle tuple return
+            if isinstance(fetch_result, tuple):
+                rawData, http_error = fetch_result
+                if http_error:
+                    logger.error(f"HTTP error {http_error.status_code} fetching {uRLtoFetch}")
+                    return ExecutionResult(uRLtoFetch, 0, 0, publishDate, self.pluginName)
+            else:
+                rawData = fetch_result
+
+            if rawData is None:
+                logger.error(f"No data fetched from {uRLtoFetch}")
+                return ExecutionResult(uRLtoFetch, 0, 0, publishDate, self.pluginName)
+
             publishDateStr = str(publishDate.strftime("%Y-%m-%d"))
-            # write data to file:
             fileNameWithOutExt = BasePlugin.makeUniqueFileName(
                 self.pluginName,
                 self.identifyDataPathForRunDate(self.baseDirName, publishDateStr),
@@ -161,6 +183,7 @@ class mod_in_nse(BasePlugin):
             dirPathName = os.path.join(self.app_config.data_dir, publishDateStr)
             fullPathName = os.path.join(dirPathName, fileNameWithOutExt + ".zip")
             sizeOfDataDownloaded = len(rawData)
+
         except Exception as e:
             logger.error("Trying to fetch data from given URL: %s", e)
 
@@ -172,7 +195,6 @@ class mod_in_nse(BasePlugin):
             except Exception as theError:
                 logger.error("Error creating data directory '%s', Exception was: %s", dirPathName, theError)
             try:
-                # TODO: fix error - [Errno 13] Permission denied: '/var/cache/newslookout_data/2022-10-06/mod_in_nse_061022.zip'
                 with open(fullPathName, 'wb') as fp:
                     n = fp.write(rawData)
                     logger.debug("Wrote %s bytes to file: %s", n, fullPathName)
@@ -304,15 +326,23 @@ class mod_in_nse(BasePlugin):
         return(sizeOfDataDownloaded)
 
     def parseFetchedData2(self, publishDateStr, zipFileName, dataDirForDate, WorkerID, uRLtoFetch):
-        """Parse the fetched Data
-        """
+        """Parse zip file with proper error handling."""
+        import os
+        # Ensure directory exists
+        if not os.path.exists(dataDirForDate):
+            try:
+                os.makedirs(dataDirForDate, exist_ok=True)
+                logger.info(f"Created directory: {dataDirForDate}")
+            except Exception as e:
+                logger.error(f"Cannot create directory {dataDirForDate}: {e}")
+                return 0
         uncompressSize = 0
         try:
             zipDatafile = zipfile.ZipFile(zipFileName, mode='r')
             logger.debug("Expanding the fetched Zip archive, WorkerID = %s", WorkerID)
             for memberZipInfo in zipDatafile.infolist():
                 memberFileName = memberZipInfo.filename
-                if memberFileName.find('Readme.txt') < 0:
+                if memberFileName.find('Readme.txt') < 0:  # do not extract the readme file
                     try:
                         if os.path.isfile(os.path.join(dataDirForDate, memberFileName)) is False:
                             logger.debug("Extracting file '%s' from zip archive.", memberFileName)
