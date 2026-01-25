@@ -4,7 +4,7 @@ SCRIPT_PATH=`dirname $(realpath $0)`
 cd $SCRIPT_PATH
 
 PYTHON_BIN=`which python3`
-CONFIG_FILE="/etc/newslookout/newslookout.conf"
+CONFIG_FILE="/etc/newslookout.conf"
 PYTHON_APP="/opt/newslookout/bin/scraper_app.py"
 
 PYTHON_BIN='/opt/pyvenv/bin/python3.12'

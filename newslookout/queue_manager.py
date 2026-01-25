@@ -351,7 +351,10 @@ class QueueManager:
         sys.path.append(plugins_dir)
         sys.path.append(contrib_plugins_dir)
 
-        logger.debug('Loading enabled plugins: %s', enabledPluginNames)
+        logger.info(
+            f"Attempting to load from directory {plugins_dir} the following enabled plugins: " + \
+            ','.join([k for k in enabledPluginNames.keys()])
+        )
         modulesPackageName = os.path.basename(plugins_dir)
 
         for pluginFileName in importlib.resources.contents(modulesPackageName):

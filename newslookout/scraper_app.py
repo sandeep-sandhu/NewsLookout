@@ -76,6 +76,7 @@ Example usage:
 
 import logging
 import os
+from pathlib import Path
 import sys
 import threading
 import time
@@ -165,6 +166,13 @@ class NewsLookoutApp:
             # Setup logging if not already configured
             if not logging.getLogger().handlers:
                 self._setup_logging()
+
+            # check plugins directory, if incorrect then set to plugins subdirectory of script path:
+            script_path = os.path.abspath(__file__)
+            plugins_path = os.path.join(script_path, 'plugins')
+            if not Path(self.app_config.plugins_dir).is_dir():
+                self.app_config.plugins_dir = plugins_path
+                logging.info(f"Changing plugins directory to: {plugins_path}")
 
             # Check and download NLTK data if needed
             checkAndGetNLTKData()

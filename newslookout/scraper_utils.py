@@ -437,9 +437,10 @@ def sameURLWithoutQueryParams(url1: str, url2: str) -> bool:
 
 
 def extractLinks(url: str, docRoot: BeautifulSoup) -> list:
-    """ Extract all Links from beautifulSoup document object of HTML content
-    Detect and fix URL errors, such as relative links starting with /
-    Ignore invalid tags such as - javascript: , whatsappp:, mailto:, etc.
+    """
+    Extract all Links from beautifulSoup document object of HTML content
+    Detect and fix URL errors, such as relative links starting with a / character
+    Ignore invalid tags such as - `javascript: , whatsappp:, mailto:`, etc.
     """
     allLinks = []
     try:
