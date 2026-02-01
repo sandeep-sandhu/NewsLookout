@@ -239,7 +239,9 @@ class mod_en_in_ndtv(BasePlugin):
         # <link><![CDATA[https://www.ndtv.com/business/sbi-readies-mutual-fund-venture-for-ipo-2379481]]></link>
         for thisFeedURL in all_rss_feeds:
             try:
-                rawData = self.networkHelper.fetchRawDataFromURL(thisFeedURL, self.pluginName)
+                rawData, http_error = self.networkHelper.fetchRawDataFromURL(thisFeedURL, self.pluginName)
+                if http_error:
+                    return listOfURLS
                 rss_feed_xml = BeautifulSoup(rawData, 'lxml-xml')
                 for item in rss_feed_xml.channel:
                     if item.name == "item":
@@ -251,7 +253,7 @@ class mod_en_in_ndtv(BasePlugin):
                              thisFeedURL,
                              e)
         listOfURLS = retainValidArticles(listOfURLS, self.validURLStringsToCheck)
-        return(listOfURLS)
+        return listOfURLS
 
     def extractArticleBody(self, htmlContent):
         """ Extract article's text using the Beautiful Soup library

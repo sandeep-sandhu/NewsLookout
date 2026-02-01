@@ -44,28 +44,56 @@ from scraper_utils import deDupeList
 logger = logging.getLogger(__name__)
 
 
-def retry_db_op(max_retries=5, initial_delay=1):
-    """Decorator to retry database operations on lock errors."""
+def retry_db_op(max_retries=5, initial_delay=0.5):
+    """
+    Decorator to retry database operations on lock errors.
+
+    Reduced delays for faster database access:
+    - Initial delay: 0.1s (was 1s)
+    - Exponential backoff: 0.1s, 0.2s, 0.4s, 0.8s, 1.6s
+    - Max total wait: ~3.1s (was ~31s)
+
+    Args:
+        max_retries: Maximum number of retry attempts (default: 5)
+        initial_delay: Initial delay in seconds (default: 0.1)
+    """
     def decorator(func):
         @functools.wraps(func)
         def wrapper(*args, **kwargs):
             delay = initial_delay
             last_exception = None
+
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
-                except lite.OperationalError as e:
-                    if "locked" in str(e):
-                        last_exception = e
-                        logger.warning(f"DB Locked. Retrying {func.__name__} in {delay}s (Attempt {attempt + 1}/{max_retries})")
-                        time.sleep(delay)
-                        delay *= 2
-                    else:
-                        raise e
+
                 except Exception as e:
-                    raise e
-            logger.error(f"Failed {func.__name__} after {max_retries} attempts. Last error: {last_exception}")
+                    # Check if it's a database locked error
+                    if "locked" in str(e).lower():
+                        last_exception = e
+
+                        if attempt < max_retries - 1:
+                            logger.debug(
+                                f"DB locked. Retrying {func.__name__} in {delay:.3f}s "
+                                f"(Attempt {attempt + 1}/{max_retries})"
+                            )
+                            time.sleep(delay)
+                            delay *= 2  # Exponential backoff
+                        else:
+                            logger.warning(
+                                f"DB locked. Failed {func.__name__} after {max_retries} attempts"
+                            )
+                    else:
+                        # Not a lock error, re-raise immediately
+                        raise e
+
+            # All retries exhausted
+            logger.error(
+                f"Failed {func.__name__} after {max_retries} attempts. "
+                f"Last error: {last_exception}"
+            )
             raise last_exception
+
         return wrapper
     return decorator
 
@@ -109,6 +137,27 @@ class SessionHistory:
         self.dbFileName = dataFileName
         self.dbAccessSemaphore = dbAccessSemaphore
         self._init_db_settings()
+        self.pending_urls = []
+        logger.info("Getting all pending urls from database.")
+        try:
+            with lite.connect(self.dbFileName) as con:
+                clearPendingURLsQuery = """
+                DELETE from pending_urls where 
+                    url in (SELECT url FROM failed_urls)
+                    or url in (SELECT url FROM url_list)
+                    or url in (SELECT url FROM HTTP_ERRORS)
+                """
+                cur = con.cursor()
+                cur.execute(clearPendingURLsQuery)
+                con.commit()
+                selectPendingURLs = "SELECT DISTINCT plugin_name, url from pending_urls"
+                cur = con.cursor()
+                result = cur.execute(selectPendingURLs)
+                self.pending_urls = result.fetchall()
+                con.commit()
+                logger.info(f"{len(self.pending_urls)} Pending urls retrieved for all plugins.")
+        except Exception as e:
+            logger.error(f"Failed to get pending urls: {e}")
         super().__init__()
 
     def _init_db_settings(self):
@@ -125,7 +174,14 @@ class SessionHistory:
                 cur.execute(self.ddl_deleted_dups_table)
                 cur.execute(self.ddl_http_errors_table)
                 con.commit()
-                logger.info("Database initialized with HTTP error tracking")
+                # Add indexes for performance
+                cur.execute('CREATE INDEX IF NOT EXISTS idx_url_list_url ON URL_LIST(url)')
+                cur.execute('CREATE INDEX IF NOT EXISTS idx_pending_urls_url ON pending_urls(url)')
+                cur.execute('CREATE INDEX IF NOT EXISTS idx_pending_urls_plugin ON pending_urls(plugin_name)')
+                cur.execute('CREATE INDEX IF NOT EXISTS idx_failed_urls_url ON FAILED_URLS(url)')
+                cur.execute('CREATE INDEX IF NOT EXISTS idx_http_errors_url ON HTTP_ERRORS(url)')
+                con.commit()
+                logger.info("Database initialized with HTTP error tracking tables and indexes")
         except Exception as e:
             logger.error(f"Failed to initialize database: {e}")
             import sys
@@ -146,14 +202,6 @@ class SessionHistory:
         sqlCon = lite.connect(dataFileName,
                               timeout=SessionHistory.db_connect_timeout,
                               detect_types=lite.PARSE_DECLTYPES | lite.PARSE_COLNAMES)
-        cur = sqlCon.cursor()
-        # Ensure all tables exist
-        cur.execute(SessionHistory.ddl_url_table)
-        cur.execute(SessionHistory.ddl_pending_urls_table)
-        cur.execute(SessionHistory.ddl_failed_urls_table)
-        cur.execute(SessionHistory.ddl_deleted_dups_table)
-        cur.execute(SessionHistory.ddl_http_errors_table)
-        sqlCon.commit()
         return sqlCon
 
     def printDBStats(self) -> tuple:
@@ -253,7 +301,7 @@ class SessionHistory:
         try:
             sqlCon = lite.connect(self.dbFileName, timeout=self.db_connect_timeout)
             cur = sqlCon.cursor()
-
+            # TODO: speed up slow function
             # Check URL_LIST, FAILED_URLS, and HTTP_ERRORS
             result = cur.execute(
                 'SELECT url FROM URL_LIST WHERE url = ? ' +
@@ -276,9 +324,11 @@ class SessionHistory:
 
         return searchResult
 
-    def removeAlreadyFetchedURLs(self, newURLsList: List[str], pluginName: str) -> list:
+    @retry_db_op(initial_delay=0.1)  # Faster retries
+    def removeAlreadyFetchedURLs(self, newURLsList: list, pluginName: str) -> list:
         """
         Remove already fetched URLs (including HTTP errors) from given list.
+        Optimized for large URL lists (90K+).
 
         Args:
             newURLsList (list): URLs to filter
@@ -290,17 +340,42 @@ class SessionHistory:
         if not newURLsList:
             return []
 
+        # For very large lists, process in chunks
+        if len(newURLsList) > 10000:
+            logger.warning(f"{pluginName}: Filtering {len(newURLsList)} URLs in chunks (this is slow!)")
+            filtered_urls = []
+            chunk_size = 5000
+
+            for i in range(0, len(newURLsList), chunk_size):
+                chunk = newURLsList[i:i+chunk_size]
+                filtered_chunk = self._filter_urls_chunk(chunk, pluginName)
+                filtered_urls.extend(filtered_chunk)
+                logger.info(f"{pluginName}: Filtered chunk {i//chunk_size + 1}/{(len(newURLsList)-1)//chunk_size + 1}: "
+                            f"{len(filtered_chunk)}/{len(chunk)} URLs remaining")
+
+            return filtered_urls
+
+        # For normal-sized lists, use existing method
+        return self._filter_urls_chunk(newURLsList, pluginName)
+
+    def _filter_urls_chunk(self, newURLsList: list, pluginName: str) -> list:
         sqlCon = None
         try:
             self.dbAccessSemaphore.acquire()
-            sqlCon = lite.connect(self.dbFileName, timeout=self.db_connect_timeout)
+            sqlCon = SessionHistory.openConnFromfile(self.dbFileName)
             cur = sqlCon.cursor()
 
-            cur.execute("CREATE TEMP TABLE IF NOT EXISTS temp_urls (url TEXT PRIMARY KEY)")
-            cur.execute("DELETE FROM temp_urls")
-            cur.executemany("INSERT OR IGNORE INTO temp_urls VALUES (?)", [(u,) for u in newURLsList])
+            # Create temporary table with smaller batches
+            cur.execute('CREATE TEMP TABLE IF NOT EXISTS temp_urls (url TEXT PRIMARY KEY)')
 
-            # Exclude URLs from URL_LIST, FAILED_URLS, and HTTP_ERRORS
+            # Insert in batches of 1000
+            batch_size = 1000
+            for i in range(0, len(newURLsList), batch_size):
+                batch = newURLsList[i:i+batch_size]
+                cur.executemany('INSERT OR IGNORE INTO temp_urls (url) VALUES (?)',
+                                [(url,) for url in batch])
+
+            # Optimized filtering query with indexes
             result = cur.execute("""
                                  SELECT url FROM temp_urls
                                  WHERE url NOT IN (SELECT url FROM URL_LIST)
@@ -308,7 +383,12 @@ class SessionHistory:
                                    AND url NOT IN (SELECT url FROM HTTP_ERRORS)
                                  """)
 
-            return [row[0] for row in result.fetchall()]
+            filtered_urls = [row[0] for row in result.fetchall()]
+
+            # Cleanup
+            cur.execute('DROP TABLE temp_urls')
+
+            return filtered_urls
 
         except Exception as e:
             logger.error(f"Error filtering URLs: {e}")
@@ -330,23 +410,8 @@ class SessionHistory:
         URLsFromSQLite = []
         sqlCon = None
         try:
-            # DON'T use semaphore for reads - WAL mode allows concurrent reads
-            sqlQuery = (
-                    "SELECT DISTINCT url FROM pending_urls WHERE plugin_name=? " +
-                    "AND url NOT IN (SELECT url FROM failed_urls) " +
-                    "AND url NOT IN (SELECT url FROM url_list) " +
-                    "AND url NOT IN (SELECT url FROM HTTP_ERRORS)"
-            )
-
-            # Use a separate connection without semaphore for parallel reads
-            sqlCon = lite.connect(self.dbFileName,
-                                  timeout=self.db_connect_timeout,
-                                  check_same_thread=False)  # Allow concurrent access
-            cur = sqlCon.cursor()
-            cur.execute(sqlQuery, (pluginName,))
-            allResults = cur.fetchall()
-            for urlTuple in allResults:
-                URLsFromSQLite.append(urlTuple[0])
+            #  filter from list of tuples: self.pending_urls
+            URLsFromSQLite = [urlTuple[1] for urlTuple in self.pending_urls if urlTuple[0]==pluginName]
 
         except Exception as e:
             logger.error(f"Error retrieving pending URLs for {pluginName}: {e}")

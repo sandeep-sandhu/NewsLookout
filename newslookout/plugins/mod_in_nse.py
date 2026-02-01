@@ -101,7 +101,15 @@ class mod_in_nse(BasePlugin):
         self.pledgesDataExtractedFlag = False
         self.count_history_to_fetch = 1
         self.pluginState = PluginTypes.STATE_GET_URL_LIST
+
         super().__init__()
+        # NSE has SSL certificate issues - disable verification
+        import urllib3
+        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+        # Update network helper to skip SSL verification for NSE
+        if hasattr(self, 'networkHelper') and self.networkHelper:
+            self.networkHelper.verify_ssl = False
 
     def getURLsListForDate(self, runDate, sessionHistoryDB):
         """ Retrieve the URLs List For a given Date

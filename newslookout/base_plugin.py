@@ -199,6 +199,7 @@ class BasePlugin:
         self.pluginName = type(self).__name__
         self.status = PluginStatus()
         self.enable_recursion = False
+        self.queue_manager = None  # Will be set by queue manager during initialization
         self.status.set_plugin_state(PluginTypes.STATE_GET_URL_LIST)
         if self.pluginType in [PluginTypes.MODULE_NEWS_CONTENT]:
             # check required attributes:
@@ -300,6 +301,7 @@ class BasePlugin:
         # validate and filter url list before adding to queue.
         listOfURLs = self.filterNonContentURLs(listOfURLs)
         logger.info(f'{self.pluginName}: After filtering non-content URLs, URLs remaining: {len(listOfURLs)}')
+        # TODO: use alternative method to filter previously fetched urls, to speed up this process
         listOfURLs = sessionHistoryDB.removeAlreadyFetchedURLs(listOfURLs, self.pluginName)
         for listItem in listOfURLs:
             if listItem is not None:
@@ -578,6 +580,13 @@ class BasePlugin:
                 html_content, http_error = fetch_result
                 if http_error or html_content is None:
                     logger.error(f"{self.pluginName}: Failed to fetch main URL: {self.mainURL}")
+                    # Queue database operation to save failed URL
+                    if hasattr(self, 'queue_manager') and self.queue_manager:
+                        self.queue_manager.queueDBOperation(
+                            'add_failed',
+                            (thisNewsPSource.url, self.pluginName, datetime.now()),
+                            wait_for_result=False
+                        )
                     return listOfURLS
             else:
                 html_content = fetch_result
@@ -596,6 +605,16 @@ class BasePlugin:
 
                 if isinstance(fetch_result, tuple):
                     category_html, http_error = fetch_result
+                    if http_error or category_html is None:
+                        logger.error(f"{self.pluginName}: Failed to fetch category URL: {category.url}, TODO: add to failed urls")
+                        # add this url to failed_urls table
+                        # Queue database operation to save failed URL
+                        if hasattr(self, 'queue_manager') and self.queue_manager:
+                            self.queue_manager.queueDBOperation(
+                                'add_failed',
+                                (category.url, self.pluginName, datetime.now()),
+                                wait_for_result=False
+                            )
                     if category_html:
                         thisNewsPSource.categories[index].html = category_html
                 else:
@@ -614,6 +633,16 @@ class BasePlugin:
 
                 if isinstance(fetch_result, tuple):
                     feed_html, http_error = fetch_result
+                    if http_error or feed_html is None:
+                        logger.error(f"{self.pluginName}: Failed to fetch feed URL: {feed.url}, TODO: add to failed urls")
+                        # add this url to failed_urls table
+                        # Queue database operation to save failed URL
+                        if hasattr(self, 'queue_manager') and self.queue_manager:
+                            self.queue_manager.queueDBOperation(
+                                'add_failed',
+                                (feed.url, self.pluginName, datetime.now()),
+                                wait_for_result=False
+                            )
                     if feed_html:
                         thisNewsPSource.feeds[index].rss = feed_html
                 else:
@@ -666,6 +695,14 @@ class BasePlugin:
                     rawData, http_error = fetch_result
                     if http_error:
                         logger.warning(f"{self.pluginName}: HTTP {http_error.status_code} for RSS feed {thisFeedURL}")
+                        # add this url to failed_urls table
+                        # Queue database operation to save failed URL
+                        if hasattr(self, 'queue_manager') and self.queue_manager:
+                            self.queue_manager.queueDBOperation(
+                                'add_failed',
+                                (thisFeedURL, self.pluginName, datetime.now()),
+                                wait_for_result=False
+                            )
                         continue
                     if rawData is None:
                         continue
@@ -946,7 +983,17 @@ class BasePlugin:
         extractedListOfURLs = []
         for url_string in scraper_utils.deDupeList(listOfURLs):
             try:
-                htmlContent = self.networkHelper.fetchRawDataFromURL(url_string, self.pluginName)
+                htmlContent, httpError = self.networkHelper.fetchRawDataFromURL(url_string, self.pluginName)
+                if httpError:
+                    logger.warning(f"{self.pluginName}: HTTP {httpError.status_code} for extra link {url_string}")
+                    # add this url to failed_urls table
+                    # Queue database operation to save failed URL
+                    if hasattr(self, 'queue_manager') and self.queue_manager:
+                        self.queue_manager.queueDBOperation(
+                            'add_failed',
+                            (url_string, self.pluginName, datetime.now()),
+                            wait_for_result=False
+                        )
                 extractedListOfURLs = self.extractLinksFromHTML(url_string, htmlContent)
                 listof_URLs.extend(scraper_utils.deDupeList(extractedListOfURLs))
             except Exception as e2:
@@ -1092,9 +1139,23 @@ class BasePlugin:
                     if http_error and http_error.is_permanent:
                         logger.warning(f'{self.pluginName}: Skipping URL due to HTTP {http_error.status_code}: {uRLtoFetch}')
                         resultVal.http_error = http_error
+                        # Queue database operation to save failed URL
+                        if hasattr(self, 'queue_manager') and self.queue_manager:
+                            self.queue_manager.queueDBOperation(
+                                'add_failed',
+                                (uRLtoFetch, self.pluginName, datetime.now()),
+                                wait_for_result=False
+                            )
                         return resultVal
                     elif http_error:
                         logger.warning(f'{self.pluginName}: Temporary HTTP error {http_error.status_code} for URL: {uRLtoFetch}')
+                        # Queue database operation to save failed URL
+                        if hasattr(self, 'queue_manager') and self.queue_manager:
+                            self.queue_manager.queueDBOperation(
+                                'add_failed',
+                                (uRLtoFetch, self.pluginName, datetime.now()),
+                                wait_for_result=False
+                            )
                         return resultVal
                 else:
                     # Backward compatibility - single return value
@@ -1112,9 +1173,13 @@ class BasePlugin:
                     htmlContent = NewsEvent.cleanText(htmlContent)
                     additionalLinks = self.filterNonContentURLs(self.extractLinksFromHTML(uRLtoFetch, htmlContent))
                     additionalLinks = self.filterInvalidURLs(additionalLinks)
+                    # Limit additional links to prevent overwhelming the queue
+                    if len(additionalLinks) > 500:
+                        logger.warning(f"{self.pluginName}: Truncating {len(additionalLinks)} additional links to 500")
+                        additionalLinks = additionalLinks[:500]
 
                     newsPaperArticle = Article(uRLtoFetch, config=self.networkHelper.newspaper_config)
-                    newsPaperArticle.set_html(htmlContent)
+                    newsPaperArticle.download(input_html=htmlContent)
 
                     # Check shutdown before parsing
                     if shutdown_event and shutdown_event.is_set():
@@ -1176,6 +1241,7 @@ class BasePlugin:
             newpArticleObj.nlp()
         except Exception as e:
             logger.error("%s: Error parsing raw HTML from URL %s: %s", self.pluginName, uRLtoFetch, e)
+
         # run custom clean-up code on the text:
         newpArticleObj.text = self.checkAndCleanText(newpArticleObj.text, newpArticleObj.html, newpArticleObj.url)
         logger.debug("Published date: %s", newpArticleObj.publish_date)
@@ -1188,19 +1254,28 @@ class BasePlugin:
                                                                           self.dateMatchPatterns,
                                                                           URL=self.pluginName,
                                                                           plugin_name=self.pluginName)
-        # identify news agency/source if it is not properly recognized:
-        if (len(newpArticleObj.authors) < 1 or
-                (len(newpArticleObj.authors) > 0 and newpArticleObj.authors[0].find('<') >= 0)):
-            newpArticleObj.set_authors(self.extractAuthors(newpArticleObj.html))
-        # for special cases, unique id is embedded in HTML content,
-        # in such cases use the method extractUniqueIDFromContent() to identify the unique ID
-        if 'extractUniqueIDFromContent' in dir(self):
-            articleUniqueID = self.extractUniqueIDFromContent(newpArticleObj.html, uRLtoFetch)
-            logger.debug("%s: Extracted unique ID from HTML content: %s",
-                         self.pluginName, articleUniqueID)
-        else:
-            # otherwise, for almost all other cases, use URL to identify unique ID
-            articleUniqueID = self.extractUniqueIDFromURL(uRLtoFetch)
+
+        try:
+            # identify news agency/source if it is not properly recognized:
+            if (len(newpArticleObj.authors) < 1 or
+                    (len(newpArticleObj.authors) > 0 and newpArticleObj.authors[0].find('<') >= 0)):
+                newpArticleObj.authors = self.extractAuthors(newpArticleObj.html)
+
+            # for special cases, unique id is embedded in HTML content,
+            # in such cases use the method extractUniqueIDFromContent() to identify the unique ID
+            if 'extractUniqueIDFromContent' in dir(self):
+                articleUniqueID = self.extractUniqueIDFromContent(newpArticleObj.html, uRLtoFetch)
+                logger.debug("%s: Extracted unique ID from HTML content: %s",
+                             self.pluginName, articleUniqueID)
+            else:
+                # otherwise, for almost all other cases, use URL to identify unique ID
+                articleUniqueID = self.extractUniqueIDFromURL(uRLtoFetch)
+        except Exception as e:
+            logger.error("%s: Error setting author / unique id for URL %s: %s",
+                         self.pluginName,
+                         uRLtoFetch,
+                         e)
+
         # put all the cleaned up data into an NewsEvent object: parsedCleanData
         try:
             parsedCleanData.importNewspaperArticleData(newpArticleObj)

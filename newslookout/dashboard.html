@@ -40,6 +40,7 @@
         .state-running { background-color: #d1e7dd; color: #0f5132; }
         .state-stopped { background-color: #f8d7da; color: #842029; }
         .state-get-url-list { background-color: #fff3cd; color: #664d03; }
+        .state-fetch-content { background-color: #cfe2ff; color: #084298; }
         .state-process-data { background-color: #cfe2ff; color: #084298; }
         .progress {
             height: 8px;
@@ -89,6 +90,17 @@
             padding: 2px 6px;
             border-radius: 10px;
             margin-left: 8px;
+        }
+        .worker-pair-status {
+            font-size: 0.75rem;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .spinning {
+            animation: spin 2s linear infinite;
         }
     </style>
 </head>
@@ -203,98 +215,64 @@
         </div>
     </div>
 
-    <!-- Plugin Status Table -->
-    <div class="card mb-4">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <h5 class="mb-0">
-                <i class="bi bi-plug"></i> Plugin Status
-            </h5>
-            <div>
-                    <span class="badge bg-primary queue-badge">
-                        DB Ops: <span id="db-queue">0</span>
-                    </span>
-                <span class="badge bg-info queue-badge">
-                        Fetch: <span id="fetch-queue">0</span>
-                    </span>
-                <span class="badge bg-warning queue-badge">
-                        Processing: <span id="process-queue">0</span>
-                    </span>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover mb-0">
-                    <thead class="table-light">
-                    <tr>
-                        <th>Plugin</th>
-                        <th>Type</th>
-                        <th>State</th>
-                        <th>Priority</th>
-                        <th>URLs (Total/Pending/Processed)</th>
-                        <th>Worker Status</th>
-                    </tr>
-                    </thead>
-                    <tbody id="plugins-table-body">
-                    <!-- Plugin rows will be inserted here by JavaScript -->
-                    </tbody>
-                </table>
+    <!-- Content Plugins Table -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-newspaper"></i> Content Scraping Plugins</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                            <tr>
+                                <th>Plugin Name</th>
+                                <th>URL Discovery</th>
+                                <th>URLs Discovered</th>
+                                <th>URLs Fetched</th>
+                                <th>Progress</th>
+                                <th>Worker Status</th>
+                            </tr>
+                            </thead>
+                            <tbody id="content-plugins-table-body">
+                            <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Workers Status -->
-    <div class="row">
-        <div class="col-md-6">
+    <!-- Data Processing Plugins Table -->
+    <div class="row mb-4">
+        <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-person-badge"></i> Active Workers
-                    </h5>
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-cpu"></i> Data Processing Plugins</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-4 text-center">
-                            <div class="display-6 text-primary" id="url-workers-count">0</div>
-                            <div class="small">URL Discovery</div>
-                        </div>
-                        <div class="col-4 text-center">
-                            <div class="display-6 text-success" id="content-workers-count">0</div>
-                            <div class="small">Content Fetching</div>
-                        </div>
-                        <div class="col-4 text-center">
-                            <div class="display-6 text-purple" id="data-workers-count">0</div>
-                            <div class="small">Data Processing</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0">
-                        <i class="bi bi-database"></i> Database Status
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <span id="db-status" class="badge bg-success">Connected</span>
-                        </div>
-                        <div class="small">
-                                <span class="text-danger">
-                                    <i class="bi bi-exclamation-triangle"></i> HTTP 403: <span id="http-403">0</span>
-                                </span>
-                            <span class="ms-3">
-                                    <i class="bi bi-exclamation-circle"></i> HTTP 404: <span id="http-404">0</span>
-                                </span>
-                        </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                            <tr>
+                                <th>Plugin Name</th>
+                                <th>Priority</th>
+                                <th>URLs Input</th>
+                                <th>URLs Processed</th>
+                                <th>Progress</th>
+                            </tr>
+                            </thead>
+                            <tbody id="data-plugins-table-body">
+                            <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
                     </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
 <!-- Bootstrap JS Bundle with Popper -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
@@ -318,23 +296,26 @@
     const stateMap = {
         'STATE_STOPPED': 'Stopped',
         'STATE_GET_URL_LIST': 'Getting URLs',
+        'STATE_FETCH_CONTENT': 'Fetching Content',
         'STATE_PROCESS_DATA': 'Processing Data',
-        'STATE_RUNNING': 'Running'
+        'STATE_RUNNING': 'Running',
+        'STATE_NOT_STARTED': 'Not Started'
     };
 
     // State class mapping for badges
     const stateClassMap = {
         'STATE_STOPPED': 'state-stopped',
         'STATE_GET_URL_LIST': 'state-get-url-list',
+        'STATE_FETCH_CONTENT': 'state-fetch-content',
         'STATE_PROCESS_DATA': 'state-process-data',
-        'STATE_RUNNING': 'state-running'
+        'STATE_RUNNING': 'state-running',
+        'STATE_NOT_STARTED': 'state-stopped'
     };
 
     // Type icon mapping
     const typeIconMap = {
-        'url_discovery': { icon: 'bi-compass', class: 'url-discovery' },
-        'content_fetching': { icon: 'bi-download', class: 'content-fetching' },
-        'data_processing': { icon: 'bi-cpu', class: 'data-processing' }
+        'content_plugins': { icon: 'bi-download', class: 'content-fetching', label: 'Content' },
+        'data_processing': { icon: 'bi-cpu', class: 'data-processing', label: 'Data Processing' }
     };
 
     // Initialize the page
@@ -365,14 +346,8 @@
             // Show loading state
             document.body.classList.add('loading');
 
-            // In a real scenario, we'd fetch from the API
-            // For this example, we'll use the provided JSON data
-            // Uncomment the following line to use the real API:
             const response = await fetch(API_URL);
             const data = await response.json();
-
-            // For demo purposes, we'll use the provided JSON data directly
-            //const data = getDemoData();
 
             updateDashboard(data);
 
@@ -394,6 +369,10 @@
         // Update application info
         document.getElementById('app-status').className =
             data.application.is_running ? 'app-status app-running' : 'app-status app-stopped';
+        document.getElementById('app-status').innerHTML =
+            data.application.is_running ?
+                '<i class="bi bi-check-circle-fill"></i> Running' :
+                '<i class="bi bi-x-circle-fill"></i> Stopped';
         document.getElementById('app-version').textContent = data.application.version;
 
         // Update performance metrics
@@ -412,8 +391,11 @@
             `badge ${data.database.connection_status === 'connected' ? 'bg-success' : 'bg-danger'}`;
         document.getElementById('db-status').textContent =
             data.database.connection_status.charAt(0).toUpperCase() + data.database.connection_status.slice(1);
-        document.getElementById('http-403').textContent = data.database.http_errors.HTTP_403;
-        document.getElementById('http-404').textContent = data.database.http_errors.HTTP_404;
+
+        // Update HTTP error counts
+        const httpErrors = data.database.http_errors || {};
+        document.getElementById('http-403').textContent = httpErrors.HTTP_403 || 0;
+        document.getElementById('http-404').textContent = httpErrors.HTTP_404 || 0;
 
         // Update plugins table
         updatePluginsTable(data.plugins, data.workers);
@@ -422,150 +404,194 @@
     // Update performance metrics
     function updatePerformanceMetrics(performance) {
         // URL Discovery
-        const urlDiscoveryProgress = performance.url_discovery.progress_percent;
+        const urlDiscoveryProgress = performance.url_discovery.progress_percent || 0;
         document.getElementById('url-discovery-progress').textContent = `${urlDiscoveryProgress.toFixed(2)}%`;
         document.getElementById('url-discovery-bar').style.width = `${urlDiscoveryProgress}%`;
-        document.getElementById('url-discovery-completed').textContent = performance.url_discovery.plugins_completed;
-        document.getElementById('url-discovery-total').textContent = performance.url_discovery.plugins_total;
+        document.getElementById('url-discovery-completed').textContent = performance.url_discovery.plugins_completed || 0;
+        document.getElementById('url-discovery-total').textContent = performance.url_discovery.plugins_total || 0;
 
         // Content Fetching
-        const contentFetchingProgress = performance.content_fetching.progress_percent;
+        const contentFetchingProgress = performance.content_fetching.progress_percent || 0;
         document.getElementById('content-fetching-progress').textContent = `${contentFetchingProgress.toFixed(2)}%`;
         document.getElementById('content-fetching-bar').style.width = `${contentFetchingProgress}%`;
-        document.getElementById('content-fetching-processed').textContent = performance.content_fetching.completed;
-        document.getElementById('content-fetching-total').textContent = performance.content_fetching.total;
+        document.getElementById('content-fetching-processed').textContent = performance.content_fetching.completed || 0;
+        document.getElementById('content-fetching-total').textContent = performance.content_fetching.total || 0;
 
         // Data Processing
-        const dataProcessingProgress = performance.data_processing.progress_percent;
+        const dataProcessingProgress = performance.data_processing.progress_percent || 0;
         document.getElementById('data-processing-progress').textContent = `${dataProcessingProgress.toFixed(2)}%`;
         document.getElementById('data-processing-bar').style.width = `${dataProcessingProgress}%`;
-        document.getElementById('data-processing-completed').textContent = performance.data_processing.completed;
-        document.getElementById('data-processing-total').textContent = performance.data_processing.total;
+        document.getElementById('data-processing-completed').textContent = performance.data_processing.completed || 0;
+        document.getElementById('data-processing-total').textContent = performance.data_processing.total || 0;
     }
 
-    // Update worker counts
+    // Update worker counts - FIXED for worker_pairs structure
     function updateWorkerCounts(workers) {
-        // Count alive workers for each type
-        const urlWorkersAlive = workers.url_discovery_workers.filter(w => w.is_alive).length;
-        const contentWorkersAlive = workers.content_fetch_workers.filter(w => w.is_alive).length;
-        const dataWorkersAlive = workers.data_processing_workers.filter(w => w.is_alive).length;
+        // Count worker pairs (total pairs and active)
+        const workerPairs = workers.worker_pairs || [];
+        const totalPairs = workerPairs.length;
+        const activePairs = workerPairs.filter(pair => pair.url_worker_alive || pair.content_worker_alive).length;
 
-        document.getElementById('url-workers-count').textContent = urlWorkersAlive;
-        document.getElementById('content-workers-count').textContent = contentWorkersAlive;
+        // Count URL discovery workers (alive in pairs)
+        const urlWorkersAlive = workerPairs.filter(pair => pair.url_worker_alive).length;
+
+        // Count data processing workers
+        const dataWorkers = workers.data_processing_workers || [];
+        const dataWorkersAlive = dataWorkers.filter(w => w.is_alive).length;
+
+        document.getElementById('url-workers-count').textContent = totalPairs;
+        document.getElementById('content-workers-count').textContent = urlWorkersAlive;
         document.getElementById('data-workers-count').textContent = dataWorkersAlive;
     }
 
-    // Update plugins table
+    // Update plugins tables - separate content and data processing
     function updatePluginsTable(plugins, workers) {
-        // Clear the table
-        pluginsTableBody.innerHTML = '';
+        const contentTableBody = document.getElementById('content-plugins-table-body');
+        const dataTableBody = document.getElementById('data-plugins-table-body');
 
-        // Combine all plugins into a single array with their types
-        const allPlugins = [];
+        // Clear tables
+        contentTableBody.innerHTML = '';
+        dataTableBody.innerHTML = '';
 
-        // URL Discovery plugins
-        plugins.url_discovery.forEach(plugin => {
-            allPlugins.push({
-                ...plugin,
-                type: 'url_discovery',
-                typeLabel: 'URL Discovery'
-            });
-        });
+        // Process content plugins
+        if (plugins.content_plugins) {
+            plugins.content_plugins.forEach(plugin => {
+                const row = document.createElement('tr');
+                const workerStatus = getWorkerStatus(plugin.name, 'content_plugins', workers);
 
-        // Content Fetching plugins
-        plugins.content_fetching.forEach(plugin => {
-            allPlugins.push({
-                ...plugin,
-                type: 'content_fetching',
-                typeLabel: 'Content Fetching'
-            });
-        });
+                const totalUrls = plugin.total_urls || 0;
+                const fetchedUrls = plugin.processed_urls || 0;
+                const progressPct = totalUrls > 0 ? (fetchedUrls / totalUrls * 100) : 0;
 
-        // Data Processing plugins
-        plugins.data_processing.forEach(plugin => {
-            allPlugins.push({
-                ...plugin,
-                type: 'data_processing',
-                typeLabel: 'Data Processing'
-            });
-        });
+                // URL Discovery status
+                const discoveryComplete = workerStatus.url_discovery_complete;
+                const discoveryIcon = discoveryComplete
+                    ? '<i class="bi bi-check-circle-fill text-success"></i> Complete'
+                    : '<i class="bi bi-arrow-repeat text-primary spinning"></i> In Progress';
 
-        // Create table rows for each plugin
-        allPlugins.forEach(plugin => {
-            const row = document.createElement('tr');
-            const workerStatus = getWorkerStatus(plugin.name, plugin.type, workers);
-
-            // Determine if plugin has URL stats
-            const hasUrlStats = plugin.total_urls !== undefined;
-
-            row.innerHTML = `
-                <td>
-                    <div class="d-flex align-items-center">
-                        <div class="plugin-icon ${typeIconMap[plugin.type].class}">
-                            <i class="bi ${typeIconMap[plugin.type].icon}"></i>
+                row.innerHTML = `
+                    <td><strong>${plugin.name}</strong></td>
+                    <td>${discoveryIcon}</td>
+                    <td><span class="badge bg-primary">${totalUrls}</span></td>
+                    <td><span class="badge bg-success">${fetchedUrls}</span></td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-success" role="progressbar"
+                                 style="width: ${progressPct.toFixed(1)}%"
+                                 aria-valuenow="${progressPct}" aria-valuemin="0" aria-valuemax="100">
+                                ${progressPct.toFixed(1)}%
+                            </div>
                         </div>
-                        <div>
-                            <strong>${plugin.name}</strong>
-                        </div>
-                    </div>
-                </td>
-                <td>
-                    <span class="badge plugin-type-badge ${typeIconMap[plugin.type].class.replace('-', '-bg-')}">
-                        ${plugin.typeLabel}
-                    </span>
-                </td>
-                <td>
-                    <span class="state-badge ${stateClassMap[plugin.state]}">
-                        ${stateMap[plugin.state] || plugin.state}
-                    </span>
-                </td>
-                <td>
-                    <span class="badge bg-secondary">${plugin.priority}</span>
-                </td>
-                <td>
-                    ${hasUrlStats ?
-                        `<div class="small">
-                            <span class="text-dark">${plugin.total_urls}</span> /
-                            <span class="text-warning">${plugin.pending_urls}</span> /
-                            <span class="text-success">${plugin.processed_urls}</span>
-                        </div>
-                        <div class="progress" style="height: 4px;">
-                            <div class="progress-bar bg-success" style="width: ${plugin.total_urls ? (plugin.processed_urls / plugin.total_urls * 100) : 0}%"></div>
-                        </div>` :
-                        '<span class="text-muted">N/A</span>'}
-                </td>
-                <td>
-                    <span class="${workerStatus.is_alive ? 'text-success' : 'text-danger'}">
-                        <i class="bi ${workerStatus.is_alive ? 'bi-check-circle' : 'bi-x-circle'}"></i>
-                        ${workerStatus.is_alive ? 'Active' : 'Inactive'}
-                    </span>
-                </td>
-            `;
+                        <small class="text-muted">${fetchedUrls} / ${totalUrls}</small>
+                    </td>
+                    <td>${workerStatus.html}</td>
+                `;
 
-            pluginsTableBody.appendChild(row);
-        });
-    }
-
-    // Get worker status for a plugin
-    function getWorkerStatus(pluginName, pluginType, workers) {
-        let workerList;
-
-        switch(pluginType) {
-            case 'url_discovery':
-                workerList = workers.url_discovery_workers;
-                break;
-            case 'content_fetching':
-                workerList = workers.content_fetch_workers;
-                break;
-            case 'data_processing':
-                // Data processing workers don't have plugin association
-                return { is_alive: true };
-            default:
-                return { is_alive: false };
+                contentTableBody.appendChild(row);
+            });
         }
 
-        const worker = workerList.find(w => w.plugin === pluginName);
-        return worker || { is_alive: false };
+        // Process data processing plugins - sorted by priority
+        if (plugins.data_processing) {
+            // Sort by priority (lower number = higher priority)
+            const sortedDataPlugins = plugins.data_processing.sort((a, b) =>
+                (a.priority || 999) - (b.priority || 999)
+            );
+
+            sortedDataPlugins.forEach(plugin => {
+                const row = document.createElement('tr');
+
+                const inputUrls = plugin.urls_input || 0;
+                const processedUrls = plugin.urls_processed || 0;
+                const progressPct = inputUrls > 0 ? (processedUrls / inputUrls * 100) : 0;
+
+                row.innerHTML = `
+                    <td><strong>${plugin.name}</strong></td>
+                    <td><span class="badge bg-info">${plugin.priority || 'N/A'}</span></td>
+                    <td><span class="badge bg-secondary">${inputUrls}</span></td>
+                    <td><span class="badge bg-success">${processedUrls}</span></td>
+                    <td>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar bg-info" role="progressbar"
+                                 style="width: ${progressPct.toFixed(1)}%"
+                                 aria-valuenow="${progressPct}" aria-valuemin="0" aria-valuemax="100">
+                                ${progressPct.toFixed(1)}%
+                            </div>
+                        </div>
+                        <small class="text-muted">${processedUrls} / ${inputUrls}</small>
+                    </td>
+                `;
+
+                dataTableBody.appendChild(row);
+            });
+        }
+
+        // Show message if no plugins
+        if (!plugins.content_plugins || plugins.content_plugins.length === 0) {
+            contentTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No content plugins running</td></tr>';
+        }
+        if (!plugins.data_processing || plugins.data_processing.length === 0) {
+            dataTableBody.innerHTML = '<tr><td colspan="5" class="text-center text-muted">No data processing plugins configured</td></tr>';
+        }
+    }
+
+    // Get worker status for a plugin - UPDATED
+    function getWorkerStatus(pluginName, pluginType, workers) {
+        if (pluginType === 'data_processing') {
+            const dataWorkers = workers.data_processing_workers || [];
+            const aliveCount = dataWorkers.filter(w => w.is_alive).length;
+            return {
+                is_alive: aliveCount > 0,
+                url_discovery_complete: true,  // N/A for data processing
+                html: `<span class="${aliveCount > 0 ? 'text-success' : 'text-danger'}">
+                        <i class="bi ${aliveCount > 0 ? 'bi-check-circle' : 'bi-x-circle'}"></i>
+                        ${aliveCount} workers
+                    </span>`
+            };
+        }
+
+        // For content plugins, check worker_pairs
+        const workerPairs = workers.worker_pairs || [];
+        const pair = workerPairs.find(p => p.plugin === pluginName);
+
+        if (!pair) {
+            return {
+                is_alive: false,
+                url_discovery_complete: false,
+                html: '<span class="text-muted"><i class="bi bi-dash-circle"></i> No worker</span>'
+            };
+        }
+
+        const urlWorkerAlive = pair.url_worker_alive || false;
+        const contentWorkerAlive = pair.content_worker_alive || false;
+        const urlDiscoveryComplete = pair.url_discovery_complete || false;
+
+        const statusParts = [];
+        if (urlWorkerAlive) {
+            statusParts.push('<span class="text-primary"><i class="bi bi-search"></i> Discovering</span>');
+        } else if (urlDiscoveryComplete) {
+            statusParts.push('<span class="text-success"><i class="bi bi-check"></i> Discovery Done</span>');
+        }
+
+        if (contentWorkerAlive) {
+            statusParts.push('<span class="text-success"><i class="bi bi-download"></i> Fetching</span>');
+        } else {
+            statusParts.push('<span class="text-muted"><i class="bi bi-pause"></i> Idle</span>');
+        }
+
+        if (statusParts.length === 0) {
+            return {
+                is_alive: false,
+                url_discovery_complete: urlDiscoveryComplete,
+                html: '<span class="text-danger"><i class="bi bi-x-circle"></i> Stopped</span>'
+            };
+        }
+
+        return {
+            is_alive: urlWorkerAlive || contentWorkerAlive,
+            url_discovery_complete: urlDiscoveryComplete,
+            html: `<div class="worker-pair-status">${statusParts.join(' | ')}</div>`
+        };
     }
 
     // Timer functions
@@ -607,114 +633,6 @@
     function resetCountdownTimer() {
         secondsUntilRefresh = REFRESH_INTERVAL / 1000;
         refreshTimerSpan.textContent = secondsUntilRefresh;
-    }
-
-    // Demo data function (for when API is not available)
-    function getDemoData() {
-        // This is the exact JSON structure you provided
-        return {
-            "timestamp": new Date().toISOString(),
-            "application": {
-                "name": "NewsLookout",
-                "version": "3.0.0",
-                "is_running": true
-            },
-            "plugins": {
-                "url_discovery": [
-                    {"name": "mod_in_gdelt", "state": "STATE_STOPPED", "priority": 1, "total_urls": 0, "pending_urls": 0, "processed_urls": 0}
-                ],
-                "content_fetching": [
-                    {"name": "mod_en_in_business_std", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 5303, "pending_urls": 5295, "processed_urls": 7},
-                    {"name": "mod_en_in_hindu", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 6661, "pending_urls": 6658, "processed_urls": 2},
-                    {"name": "mod_en_in_indiakanoon", "state": "STATE_GET_URL_LIST", "priority": 5, "total_urls": 1114, "pending_urls": 1106, "processed_urls": 7},
-                    {"name": "mod_en_in_inexp_business", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 1344, "pending_urls": 1327, "processed_urls": 15},
-                    {"name": "mod_en_in_livemint", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 5701, "pending_urls": 5699, "processed_urls": 1},
-                    {"name": "mod_en_in_moneycontrol", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 17027, "pending_urls": 17024, "processed_urls": 2},
-                    {"name": "mod_en_in_ecotimes", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 7797, "pending_urls": 7794, "processed_urls": 2},
-                    {"name": "mod_en_in_forbes", "state": "STATE_GET_URL_LIST", "priority": 4, "total_urls": 417, "pending_urls": 410, "processed_urls": 6},
-                    {"name": "mod_en_in_ndtv", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 17978, "pending_urls": 17976, "processed_urls": 1},
-                    {"name": "mod_en_in_timesofindia", "state": "STATE_GET_URL_LIST", "priority": 3, "total_urls": 3238, "pending_urls": 3229, "processed_urls": 8},
-                    {"name": "mod_en_in_trak", "state": "STATE_GET_URL_LIST", "priority": 4, "total_urls": 1, "pending_urls": 0, "processed_urls": 1},
-                    {"name": "mod_in_bse", "state": "STATE_STOPPED", "priority": 2, "total_urls": 0, "pending_urls": 0, "processed_urls": 0},
-                    {"name": "mod_in_nse", "state": "STATE_STOPPED", "priority": 2, "total_urls": 0, "pending_urls": 0, "processed_urls": 0}
-                ],
-                "data_processing": [
-                    {"name": "mod_dataprep", "state": "STATE_PROCESS_DATA", "priority": 1},
-                    {"name": "mod_keywordflags", "state": "STATE_PROCESS_DATA", "priority": 3}
-                ]
-            },
-            "queues": {
-                "fetch_completed": {"size": 0, "total_processed": 8},
-                "data_processing_input": {"size": 0},
-                "data_processing_output": {"size": 8},
-                "database_operations": {"size": 25}
-            },
-            "workers": {
-                "url_discovery_workers": [
-                    {"id": 1, "plugin": "mod_en_in_business_std", "is_alive": true, "state": 10},
-                    {"id": 2, "plugin": "mod_en_in_hindu", "is_alive": true, "state": 10},
-                    {"id": 3, "plugin": "mod_en_in_indiakanoon", "is_alive": true, "state": 10},
-                    {"id": 4, "plugin": "mod_en_in_inexp_business", "is_alive": true, "state": 10},
-                    {"id": 5, "plugin": "mod_en_in_livemint", "is_alive": true, "state": 10},
-                    {"id": 6, "plugin": "mod_en_in_moneycontrol", "is_alive": true, "state": 10},
-                    {"id": 7, "plugin": "mod_in_gdelt", "is_alive": true, "state": 80},
-                    {"id": 8, "plugin": "mod_en_in_ecotimes", "is_alive": true, "state": 10},
-                    {"id": 9, "plugin": "mod_en_in_forbes", "is_alive": true, "state": 10},
-                    {"id": 10, "plugin": "mod_en_in_ndtv", "is_alive": true, "state": 10},
-                    {"id": 11, "plugin": "mod_en_in_timesofindia", "is_alive": true, "state": 10},
-                    {"id": 12, "plugin": "mod_en_in_trak", "is_alive": true, "state": 10},
-                    {"id": 13, "plugin": "mod_in_bse", "is_alive": false, "state": 80},
-                    {"id": 14, "plugin": "mod_in_nse", "is_alive": false, "state": 80}
-                ],
-                "content_fetch_workers": [
-                    {"id": 1, "plugin": "mod_en_in_business_std", "is_alive": true, "state": 10},
-                    {"id": 2, "plugin": "mod_en_in_hindu", "is_alive": true, "state": 10},
-                    {"id": 3, "plugin": "mod_en_in_indiakanoon", "is_alive": true, "state": 10},
-                    {"id": 4, "plugin": "mod_en_in_inexp_business", "is_alive": true, "state": 10},
-                    {"id": 5, "plugin": "mod_en_in_livemint", "is_alive": true, "state": 10},
-                    {"id": 6, "plugin": "mod_en_in_moneycontrol", "is_alive": true, "state": 10},
-                    {"id": 7, "plugin": "mod_en_in_ecotimes", "is_alive": true, "state": 10},
-                    {"id": 8, "plugin": "mod_en_in_forbes", "is_alive": true, "state": 10},
-                    {"id": 9, "plugin": "mod_en_in_ndtv", "is_alive": true, "state": 10},
-                    {"id": 10, "plugin": "mod_en_in_timesofindia", "is_alive": true, "state": 10},
-                    {"id": 11, "plugin": "mod_en_in_trak", "is_alive": true, "state": 10},
-                    {"id": 12, "plugin": "mod_in_bse", "is_alive": false, "state": 80},
-                    {"id": 13, "plugin": "mod_in_nse", "is_alive": false, "state": 80}
-                ],
-                "data_processing_workers": [
-                    {"id": "100", "is_alive": true},
-                    {"id": "101", "is_alive": true},
-                    {"id": "102", "is_alive": true},
-                    {"id": "103", "is_alive": true},
-                    {"id": "104", "is_alive": true}
-                ]
-            },
-            "database": {
-                "connection_status": "connected",
-                "http_errors": {"HTTP_403": 6, "HTTP_404": 1}
-            },
-            "performance": {
-                "url_discovery": {
-                    "plugins_completed": 3,
-                    "plugins_total": 14,
-                    "progress_percent": 21.43
-                },
-                "content_fetching": {
-                    "completed": 8,
-                    "total": 66581,
-                    "pending": 66518,
-                    "progress_percent": 0.01,
-                    "speed_urls_per_hour": 100,
-                    "estimated_completion": "2026-02-12T16:32:19.040605"
-                },
-                "data_processing": {
-                    "completed": 8,
-                    "total": 8,
-                    "progress_percent": 100.0,
-                    "speed_items_per_hour": 0
-                }
-            }
-        };
     }
 </script>
 </body>

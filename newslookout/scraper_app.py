@@ -89,10 +89,6 @@ from queue_manager import QueueManager
 from config import ConfigManager
 from scraper_utils import checkAndGetNLTKData
 
-__version__ = "3.0.0"
-__author__ = "Sandeep Singh Sandhu"
-
-
 
 class NewsLookoutApp:
     """
@@ -166,6 +162,8 @@ class NewsLookoutApp:
             # Setup logging if not already configured
             if not logging.getLogger().handlers:
                 self._setup_logging()
+
+            logging.info(f"======== Started application NewsLookout v{__version__} ========")
 
             # check plugins directory, if incorrect then set to plugins subdirectory of script path:
             script_path = os.path.abspath(__file__)

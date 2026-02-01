@@ -45,14 +45,17 @@
 #                                                                                                         #
 # #########################################################################################################
 
-import logging
-import threading
-import time
-import queue
+
 import copy
 from datetime import datetime, timedelta
 from typing import Dict, Any, List, Optional
 from pathlib import Path
+import logging
+import threading
+import time
+import queue
+from datetime import datetime
+from typing import Optional
 
 import enlighten
 from fastapi import FastAPI
@@ -64,6 +67,7 @@ import uvicorn
 
 from data_structs import PluginTypes, QueueStatus
 import scraper_utils
+
 
 logger = logging.getLogger(__name__)
 
@@ -362,9 +366,8 @@ class PluginWorker(threading.Thread):
                     self.pluginObj.clearQueue()
                     break
 
-                # Use direct DB call instead of queue for checking URLs
-                # This was causing massive slowdown - each URL check was waiting for DB thread
-                if not self.sessionHistoryDB.url_was_attempted(sURL, self.pluginName):
+                # URLs are pre-filtered when loaded from database, no need to check again
+                if True:  # Process all URLs from queue
                     logger.debug(f'{self.pluginName} started fetching URL: {sURL}')
                     fetchResult = self.pluginObj.fetchDataFromURL(sURL, self.workerID)
 
@@ -382,22 +385,29 @@ class PluginWorker(threading.Thread):
                     elif fetchResult is not None and fetchResult.wasSuccessful:
                         self.queue_manager.addToScrapeCompletedQueue(fetchResult)
 
-                        # Handle additional links if present
+                        # Handle additional links - only save to DB, don't add to current queue
                         if fetchResult.additionalLinks:
-                            # Filter URLs using direct DB call for speed
-                            filtered_urls = self.sessionHistoryDB.removeAlreadyFetchedURLs(
-                                fetchResult.additionalLinks,
-                                self.pluginName
+                            # Limit additional links to prevent overwhelming the system
+                            max_additional_links = 100
+                            limited_links = fetchResult.additionalLinks[:max_additional_links]
+
+                            if len(fetchResult.additionalLinks) > max_additional_links:
+                                logger.warning(f"{self.name}: Truncated {len(fetchResult.additionalLinks)} additional URLs to {max_additional_links}")
+
+                            filtered_urls = self.session_history.removeAlreadyFetchedURLs(
+                                limited_links,
+                                self.plugin_name
                             )
 
                             if filtered_urls:
-                                logger.debug(f'{self.pluginName} added {len(filtered_urls)} additional URLs')
-                                # Queue DB write operation (async, no wait)
+                                logger.info(f"{self.name}: Saving {len(filtered_urls)} additional URLs to pending (will process in next run)")
+                                # Only save to DB for future processing, don't add to current queue
                                 self.queue_manager.queueDBOperation(
                                     'add_pending',
-                                    (filtered_urls, self.pluginName),
+                                    (filtered_urls, self.plugin_name),
                                     wait_for_result=False
                                 )
+                                # DO NOT add to plugin queue during current run
                     else:
                         # Queue failed URL to DB (async, no wait)
                         self.queue_manager.queueDBOperation(
@@ -517,8 +527,20 @@ class DataProcessor(threading.Thread):
 
         logger.info(f'Data processing thread {self.workerID} started')
 
-        while (self.q_status.isPluginStillFetchingoverNetwork or
-               self.q_status.dataInputQsize > 0):
+        while True:
+            # Exit if all content-fetching worker pairs are dead AND input queue is drained
+            all_pairs_dead = not any(
+                p.is_alive() for p in self.queue_manager.worker_pairs.values()
+            )
+            if all_pairs_dead and self.queue_manager.dataProcQueue.empty():
+                logger.info(f"Data processor {self.workerID}: All worker pairs complete and queue empty - exiting")
+                break
+
+            # Legacy condition kept as secondary guard
+            if not (self.q_status.isPluginStillFetchingoverNetwork or
+                    self.q_status.dataInputQsize > 0):
+                logger.info(f"Data processor {self.workerID}: isPluginStillFetching=False and queue empty - exiting")
+                break
 
             # Periodic shutdown check
             if time.time() - last_check > check_interval:
@@ -562,6 +584,490 @@ class DataProcessor(threading.Thread):
                 logger.error("Data processor: Error checking plugin state: %s", statusCheckError)
 
         logger.info(f'Data processing thread {self.workerID} finished')
+
+
+
+
+
+class WorkerPair:
+    """
+    Coordinates a pair of workers: URL discovery + content fetching.
+
+    This class ensures proper lifecycle management:
+    - URL worker starts immediately, times out after configured seconds
+    - Content worker monitors URL worker status
+    - Content worker terminates when queue is empty AND URL worker is done
+    """
+
+    def __init__(self, plugin, session_history, queue_manager, worker_id: str):
+        """
+        Initialize a coordinated worker pair.
+
+        Args:
+            plugin: Plugin instance to execute
+            session_history: Database interface
+            queue_manager: Queue manager instance
+            worker_id: Unique identifier for this worker pair
+        """
+        self.plugin = plugin
+        self.session_history = session_history
+        self.queue_manager = queue_manager
+        self.worker_id = worker_id
+        self.plugin_name = type(plugin).__name__
+
+        # Worker threads
+        self.url_worker: Optional[URLDiscoveryWorker] = None
+        self.content_worker: Optional[ContentFetchWorker] = None
+
+        # Coordination flags
+        self.url_discovery_complete = threading.Event()
+        self.url_discovery_timeout = 600  # 10 minutes default
+
+        # Statistics
+        self.urls_discovered = 0
+        self.urls_processed = 0
+
+        logger.info(f"WorkerPair {worker_id} created for plugin {self.plugin_name}")
+
+    def initialize(self, run_date: datetime, url_timeout: int = 600):
+        """
+        Initialize both workers in the pair.
+
+        Args:
+            run_date: Date for scraping
+            url_timeout: Maximum seconds for URL discovery
+        """
+        self.url_discovery_timeout = url_timeout
+
+        # Create URL discovery worker
+        self.url_worker = URLDiscoveryWorker(
+            self.plugin,
+            self.session_history,
+            self.queue_manager,
+            self.url_discovery_complete,
+            run_date,
+            url_timeout,
+            name=f"URL-{self.worker_id}"
+        )
+
+        # Create content fetch worker
+        self.content_worker = ContentFetchWorker(
+            self.plugin,
+            self.session_history,
+            self.queue_manager,
+            self.url_discovery_complete,
+            name=f"Fetch-{self.worker_id}"
+        )
+
+        logger.info(f"WorkerPair {self.worker_id} initialized with {url_timeout}s URL timeout")
+
+    def start(self):
+        """Start both workers in the pair."""
+        if not self.url_worker or not self.content_worker:
+            raise RuntimeError("Workers not initialized. Call initialize() first.")
+
+        logger.info(f"Starting WorkerPair {self.worker_id}")
+
+        # Start URL worker first
+        self.url_worker.start()
+
+        # Start content worker (it will wait for URLs)
+        self.content_worker.start()
+
+    def join(self, timeout: Optional[float] = None):
+        """
+        Wait for both workers to complete.
+
+        Args:
+            timeout: Maximum time to wait (None = indefinite)
+        """
+        if self.url_worker:
+            self.url_worker.join(timeout=timeout)
+
+        if self.content_worker:
+            self.content_worker.join(timeout=timeout)
+
+    def is_alive(self) -> bool:
+        """Check if any worker in the pair is still running."""
+        url_alive = self.url_worker.is_alive() if self.url_worker else False
+        content_alive = self.content_worker.is_alive() if self.content_worker else False
+        return url_alive or content_alive
+
+    def get_status(self) -> dict:
+        """Get status of both workers."""
+        return {
+            'worker_id': self.worker_id,
+            'plugin': self.plugin_name,
+            'url_worker_alive': self.url_worker.is_alive() if self.url_worker else False,
+            'content_worker_alive': self.content_worker.is_alive() if self.content_worker else False,
+            'url_discovery_complete': self.url_discovery_complete.is_set(),
+            'queue_size': self.plugin.getQueueSize(),
+            'total_urls': self.plugin.urlQueueTotalSize,
+            'processed_urls': self.plugin.urlProcessedCount if hasattr(self.plugin, 'urlProcessedCount') else 0
+        }
+
+
+class URLDiscoveryWorker(threading.Thread):
+    """
+    Worker thread that discovers URLs from news sources.
+
+    Features:
+    - Starts immediately
+    - Times out after configured seconds
+    - Signals completion to content worker
+    """
+
+    def __init__(self, plugin, session_history, queue_manager,
+                 completion_event: threading.Event, run_date: datetime,
+                 timeout: int, name: str):
+        """
+        Initialize URL discovery worker.
+
+        Args:
+            plugin: Plugin instance
+            session_history: Database interface
+            queue_manager: Queue manager
+            completion_event: Event to signal when discovery is complete
+            run_date: Date for scraping
+            timeout: Maximum seconds for URL discovery
+            name: Thread name
+        """
+        self.plugin = plugin
+        self.plugin_name = type(plugin).__name__
+        super().__init__(name=self.plugin_name, daemon=False)
+        self.session_history = session_history
+        self.queue_manager = queue_manager
+        self.completion_event = completion_event
+        self.run_date = run_date
+        self.timeout = timeout
+        self.start_time = None
+
+        logger.debug(f"URLDiscoveryWorker {name} initialized")
+
+    def run(self):
+        """Main execution method."""
+        self.start_time = time.time()
+
+        logger.info(f"{self.name}: Starting URL discovery (timeout: {self.timeout}s)")
+
+        try:
+            # Check shutdown before starting
+            if self.queue_manager.shutdown_event.is_set():
+                logger.info(f"{self.name}: Shutdown detected before start")
+                return
+
+            # STEP 1: Retrieve pending URLs from database
+            logger.info(f"{self.name}: Retrieving pending URLs from database...")
+            pending_urls = []
+            try:
+                pending_urls = self.session_history.retrieveTodoURLList(self.plugin_name)
+                if pending_urls:
+                    logger.info(f"{self.name}: Retrieved {len(pending_urls)} pending URLs from database")
+                    # CRITICAL: Don't add pending URLs to queue during discovery
+                    # They should only be processed in dedicated content-only runs
+                    # For now, log and skip to focus on new URL discovery
+                    logger.warning(f"{self.name}: Skipping {len(pending_urls)} pending URLs - they will be processed in next run without URL discovery")
+                    # DO NOT ADD: for url in pending_urls: self.plugin.urlQueue.put(url)
+            except Exception as e:
+                logger.error(f"{self.name}: Error retrieving pending URLs: {e}")
+
+            # STEP 2: Discover new URLs with timeout monitoring
+            urls = self._discover_urls_with_timeout()
+
+            if urls and not self.queue_manager.shutdown_event.is_set():
+                # Add URLs to plugin queue
+                logger.info(f"{self.name}: Adding {len(urls)} newly discovered URLs to queue")
+
+                # Queue DB operation for pending URLs
+                self.queue_manager.queueDBOperation(
+                    'add_pending',
+                    (urls, self.plugin_name),
+                    wait_for_result=False
+                )
+
+                # Add to plugin's fetch queue
+                self.plugin.addURLsListToQueue(urls, self.session_history)
+
+            # Signal completion and add end marker
+            if not self.queue_manager.shutdown_event.is_set():
+                try:
+                    self.plugin.putQueueEndMarker()
+                except Exception as e:
+                    logger.error(f"{self.name}: Error putting queue end marker: {e}")
+
+        except Exception as e:
+            logger.error(f"{self.name}: Error during URL discovery: {e}")
+            # Ensure end marker is placed even on error
+            try:
+                self.plugin.putQueueEndMarker()
+            except:
+                pass
+
+        finally:
+            # Always signal completion
+            elapsed = time.time() - self.start_time
+            logger.info(f"{self.name}: URL discovery complete (elapsed: {elapsed:.1f}s)")
+            self.completion_event.set()
+
+    def _discover_urls_with_timeout(self) -> list:
+        """
+        Discover URLs with timeout checking.
+
+        Returns:
+            list: Discovered URLs
+        """
+        urls = []
+
+        try:
+            # Check if plugin supports URL discovery
+            if not hasattr(self.plugin, 'getURLsListForDate'):
+                logger.warning(f"{self.name}: Plugin does not support URL discovery")
+                return urls
+
+            # Periodic timeout check wrapper
+            check_interval = 5  # Check every 5 seconds
+
+            # Start discovery in a separate thread to allow timeout
+            discovery_complete = threading.Event()
+            discovered_urls = []
+            discovery_error = [None]  # List to allow modification in nested function
+
+            def discover():
+                try:
+                    logger.info(f"{self.name}: Starting URL discovery call...")
+                    start_time = time.time()
+                    result = self.plugin.getURLsListForDate(
+                        self.run_date,
+                        self.session_history
+                    )
+                    elapsed = time.time() - start_time
+                    logger.info(f"{self.name}: URL discovery call completed in {elapsed:.1f}s, found {len(result) if result else 0} URLs")
+
+                    discovered_urls.extend(result if result else [])
+                except Exception as e:
+                    discovery_error[0] = e
+                finally:
+                    discovery_complete.set()
+
+            discovery_thread = threading.Thread(target=discover, daemon=False)
+            discovery_thread.start()
+
+            # Wait with timeout checking
+            elapsed = 0
+            while elapsed < self.timeout:
+                # Check if discovery completed
+                if discovery_complete.wait(timeout=check_interval):
+                    # Discovery completed normally
+                    logger.info(f"{self.name}: URL discovery completed successfully")
+                    break
+
+                elapsed = time.time() - self.start_time
+
+                # Check for shutdown
+                if self.queue_manager.shutdown_event.is_set():
+                    logger.warning(f"{self.name}: Shutdown during URL discovery")
+                    self.plugin.is_stopped = True
+                    break
+
+                # Check for timeout
+                if elapsed >= self.timeout:
+                    logger.warning(f"{self.name}: URL discovery timeout reached ({self.timeout}s)")
+                    logger.warning(f"{self.name}: Forcing discovery complete with {len(discovered_urls)} URLs found")
+                    self.plugin.is_stopped = True
+                    break
+
+            # CRITICAL: If thread is still running, give it 2 more seconds then force-stop
+            if discovery_thread.is_alive():
+                logger.warning(f"{self.name}: Discovery thread still running, waiting 2 seconds...")
+                discovery_thread.join(timeout=2)
+                if discovery_thread.is_alive():
+                    logger.error(f"{self.name}: Discovery thread did not stop, but continuing anyway")
+
+            # Wait a bit for thread to finish
+            discovery_thread.join(timeout=1)
+
+            if discovery_error[0]:
+                logger.error(f"{self.name}: Discovery error: {discovery_error[0]}")
+
+            urls = discovered_urls
+
+        except Exception as e:
+            logger.error(f"{self.name}: Error in URL discovery: {e}")
+
+        return urls
+
+
+class ContentFetchWorker(threading.Thread):
+    """
+    Worker thread that fetches content from discovered URLs.
+
+    Features:
+    - Monitors URL discovery worker status
+    - Processes URLs as they arrive
+    - Terminates when queue empty AND URL discovery complete
+    """
+
+    def __init__(self, plugin, session_history, queue_manager,
+                 url_discovery_complete: threading.Event, name: str):
+        """
+        Initialize content fetch worker.
+
+        Args:
+            plugin: Plugin instance
+            session_history: Database interface
+            queue_manager: Queue manager
+            url_discovery_complete: Event indicating URL discovery is done
+            name: Thread name
+        """
+        self.plugin = plugin
+        self.plugin_name = type(plugin).__name__
+        super().__init__(name=self.plugin_name, daemon=False)
+
+        self.session_history = session_history
+        self.queue_manager = queue_manager
+        self.url_discovery_complete = url_discovery_complete
+
+        self.queue_check_interval = 2  # Check queue every 2 seconds
+        self.shutdown_check_interval = 1  # Check shutdown every second
+
+        logger.debug(f"ContentFetchWorker {name} initialized")
+
+    def run(self):
+        """Main execution method."""
+        logger.info(f"{self.name}: Starting content fetching")
+
+        consecutive_empty_checks = 0
+        max_empty_checks = 5  # Exit after 5 consecutive empty queue checks when discovery is done
+
+        try:
+            while True:
+                # Check shutdown
+                if self.queue_manager.shutdown_event.is_set():
+                    logger.info(f"{self.name}: Shutdown signal received")
+                    break
+
+                # Try to get URL from queue
+                try:
+                    url = self.plugin.getNextItemFromFetchQueue(timeout=self.queue_check_interval)
+
+                    # Check for sentinel
+                    if url is None:
+                        logger.info(f"{self.name}: Received queue end marker")
+                        break
+
+                    # Reset empty counter - we got a URL
+                    consecutive_empty_checks = 0
+
+                    # Process URL
+                    self._process_url(url)
+
+                except queue.Empty:
+                    # Queue is empty - check conditions
+                    if self.url_discovery_complete.is_set():
+                        consecutive_empty_checks += 1
+                        logger.debug(f"{self.name}: Queue empty, discovery complete, check {consecutive_empty_checks}/{max_empty_checks}")
+
+                        if consecutive_empty_checks >= max_empty_checks:
+                            logger.info(f"{self.name}: Queue empty and URL discovery complete after {max_empty_checks} checks - stopping")
+                            break
+                    else:
+                        # URL discovery still running, reset counter and wait
+                        consecutive_empty_checks = 0
+                        logger.debug(f"{self.name}: Queue empty but URL discovery still running, waiting...")
+                        continue
+
+                except Exception as e:
+                    logger.error(f"{self.name}: Error getting URL from queue: {e}")
+                    time.sleep(1)
+
+        except Exception as e:
+            logger.error(f"{self.name}: Error during content fetching: {e}")
+
+        finally:
+            # Update plugin state
+            self.plugin.pluginState = PluginTypes.STATE_STOPPED
+            queue_size = self.plugin.urlQueue.qsize()
+            logger.info(f"{self.name}: Content fetching complete. Final queue size: {queue_size}")
+
+    def _should_stop(self) -> bool:
+        """
+        Determine if worker should stop.
+
+        Returns:
+            bool: True if should stop, False otherwise
+        """
+        # This method is no longer used - logic moved to run()
+        # Keeping for backward compatibility
+        return (
+                self.url_discovery_complete.is_set() and
+                self.plugin.isQueueEmpty()
+        )
+
+    def _process_url(self, url: str):
+        """
+        Process a single URL.
+
+        Args:
+            url: URL to fetch and process
+        """
+        try:
+            # skip Check if already attempted
+            # if self.session_history.url_was_attempted(url, self.plugin_name):
+            #     logger.debug(f"{self.name}: URL already attempted: {url}")
+            #     return
+
+            # Fetch content
+            logger.debug(f"{self.name}: Fetching URL: {url}")
+            # Diagnostic logging every 50 URLs
+            self.plugin.urlProcessedCount = getattr(self.plugin, 'urlProcessedCount', 0) + 1
+            if self.plugin.urlProcessedCount % 50 == 0:
+                queue_remaining = self.plugin.urlQueue.qsize()
+                logger.info(f"{self.name}: Processed {self.plugin.urlProcessedCount} URLs, "
+                            f"{queue_remaining} remaining in queue, "
+                            f"Discovery complete: {self.url_discovery_complete.is_set()}")
+            fetch_result = self.plugin.fetchDataFromURL(url, self.name)
+
+            if fetch_result:
+                # Handle HTTP errors
+                if hasattr(fetch_result, 'http_error') and fetch_result.http_error:
+                    if fetch_result.http_error.is_permanent:
+                        self.session_history.addHTTPError(
+                            url,
+                            self.plugin_name,
+                            fetch_result.http_error.status_code,
+                            fetch_result.http_error.message
+                        )
+                        logger.info(f"{self.name}: HTTP {fetch_result.http_error.status_code}: {url}")
+                    return
+
+                # Handle successful fetch
+                if fetch_result.wasSuccessful:
+                    self.queue_manager.addToScrapeCompletedQueue(fetch_result)
+
+                    # Handle additional links
+                    if fetch_result.additionalLinks:
+                        filtered_urls = self.session_history.removeAlreadyFetchedURLs(
+                            fetch_result.additionalLinks,
+                            self.plugin_name
+                        )
+
+                        if filtered_urls:
+                            logger.debug(f"{self.name}: Adding {len(filtered_urls)} additional URLs")
+                            self.queue_manager.queueDBOperation(
+                                'add_pending',
+                                (filtered_urls, self.plugin_name),
+                                wait_for_result=False
+                            )
+                else:
+                    # Failed fetch
+                    self.queue_manager.queueDBOperation(
+                        'add_failed',
+                        (url, self.plugin_name, datetime.now()),
+                        wait_for_result=False
+                    )
+
+        except Exception as e:
+            logger.error(f"{self.name}: Error processing URL {url}: {e}")
 
 
 
@@ -846,36 +1352,44 @@ class StatusAPIServer:
             }
         }
 
-    def _get_plugins_status(self) -> Dict[str, Any]:
-        """Get status of all plugins."""
+    def _get_plugins_status(self) -> dict:
+        """Get status of all plugins - Updated for WorkerPair architecture."""
+        from data_structs import PluginTypes
+
         plugins_status = {
-            "url_discovery": [],
-            "content_fetching": [],
+            "content_plugins": [],
             "data_processing": []
         }
 
         for plugin_name, plugin in self.queue_manager.pluginNameToObjMap.items():
-            from data_structs import PluginTypes
-
             plugin_info = {
                 "name": plugin_name,
-                "state": PluginTypes.decodeNameFromIntVal(plugin.pluginState),
+                "state": PluginTypes.decodeNameFromIntVal(plugin.pluginState) if hasattr(plugin, 'pluginState') else 'UNKNOWN',
                 "priority": plugin.executionPriority
             }
 
+            # Add URL/queue info for content plugins
             if plugin.pluginType in [PluginTypes.MODULE_NEWS_CONTENT,
                                      PluginTypes.MODULE_NEWS_AGGREGATOR,
-                                     PluginTypes.MODULE_DATA_CONTENT]:
+                                     PluginTypes.MODULE_DATA_CONTENT,
+                                     PluginTypes.MODULE_NEWS_API]:
                 plugin_info.update({
-                    "total_urls": plugin.urlQueueTotalSize,
-                    "pending_urls": plugin.getQueueSize() if hasattr(plugin, 'getQueueSize') else 0,
-                    "processed_urls": plugin.urlProcessedCount if hasattr(plugin, 'urlProcessedCount') else 0
+                    "total_urls": plugin.urlQueueTotalSize if hasattr(plugin, 'urlQueueTotalSize') else 0,
+                    "pending_urls": plugin.urlQueue.qsize() if hasattr(plugin, 'urlQueue') else 0,
+                    "processed_urls": plugin.urlProcessedCount if hasattr(plugin, 'urlProcessedCount') else 0,
+                    "discovered_urls": plugin.urlQueueTotalSize if hasattr(plugin, 'urlQueueTotalSize') else 0,
                 })
 
-                if plugin.pluginType == PluginTypes.MODULE_NEWS_AGGREGATOR:
-                    plugins_status["url_discovery"].append(plugin_info)
-                else:
-                    plugins_status["content_fetching"].append(plugin_info)
+                # Add worker pair status if available
+                if hasattr(self.queue_manager, 'worker_pairs') and plugin_name in self.queue_manager.worker_pairs:
+                    pair = self.queue_manager.worker_pairs[plugin_name]
+                    plugin_info['worker_pair'] = {
+                        'url_discovery_complete': pair.url_discovery_complete.is_set(),
+                        'url_worker_alive': pair.url_worker.is_alive() if pair.url_worker else False,
+                        'content_worker_alive': pair.content_worker.is_alive() if pair.content_worker else False
+                    }
+
+                plugins_status["content_plugins"].append(plugin_info)
 
             elif plugin.pluginType == PluginTypes.MODULE_DATA_PROCESSOR:
                 plugins_status["data_processing"].append(plugin_info)
@@ -900,38 +1414,32 @@ class StatusAPIServer:
             }
         }
 
-    def _get_workers_status(self) -> Dict[str, Any]:
-        """Get status of all workers."""
+    def _get_workers_status(self) -> dict:
+        """Get status of all workers - Updated for WorkerPair architecture."""
         workers_status = {
-            "url_discovery_workers": [],
-            "content_fetch_workers": [],
+            "worker_pairs": [],
             "data_processing_workers": []
         }
 
-        # URL discovery workers
-        for worker_id, worker in self.queue_manager.urlSrcWorkers.items():
-            workers_status["url_discovery_workers"].append({
-                "id": worker_id,
-                "plugin": worker.pluginName,
-                "is_alive": worker.is_alive(),
-                "state": worker.pluginObj.pluginState if hasattr(worker.pluginObj, 'pluginState') else None
-            })
+        # Worker pairs (replaces separate URL and content workers)
+        if hasattr(self.queue_manager, 'worker_pairs'):
+            for plugin_name, pair in self.queue_manager.worker_pairs.items():
+                try:
+                    pair_status = pair.get_status()
+                    workers_status["worker_pairs"].append(pair_status)
+                except Exception as e:
+                    workers_status["worker_pairs"].append({
+                        "plugin": plugin_name,
+                        "error": str(e)
+                    })
 
-        # Content fetch workers
-        for worker_id, worker in self.queue_manager.contentFetchWorkers.items():
-            workers_status["content_fetch_workers"].append({
-                "id": worker_id,
-                "plugin": worker.pluginName,
-                "is_alive": worker.is_alive(),
-                "state": worker.pluginObj.pluginState if hasattr(worker.pluginObj, 'pluginState') else None
-            })
-
-        # Data processing workers
-        for idx, worker in enumerate(self.queue_manager.dataProcessWorkerList):
-            workers_status["data_processing_workers"].append({
-                "id": worker.workerID,
-                "is_alive": worker.is_alive()
-            })
+        # Data processing workers (unchanged)
+        if hasattr(self.queue_manager, 'dataProcessWorkerList'):
+            for worker in self.queue_manager.dataProcessWorkerList:
+                workers_status["data_processing_workers"].append({
+                    "id": getattr(worker, 'workerID', 'unknown'),
+                    "is_alive": worker.is_alive() if hasattr(worker, 'is_alive') else False
+                })
 
         return workers_status
 

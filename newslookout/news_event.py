@@ -378,9 +378,9 @@ class NewsEvent(JSONEncoder):
             allKeywords = []
             if type(newspaperArticle.keywords).__name__ == 'list':
                 allKeywords = allKeywords + newspaperArticle.keywords
-            if type(newspaperArticle.meta_data['keywords']).__name__ == 'str':
+            if 'keywords' in newspaperArticle.meta_data and type(newspaperArticle.meta_data['keywords']).__name__ == 'str':
                 allKeywords = allKeywords + newspaperArticle.meta_data['keywords'].split(',')
-            if type(newspaperArticle.meta_data['news_keywords']).__name__ == 'str':
+            if 'news_keywords' in newspaperArticle.meta_data and type(newspaperArticle.meta_data['news_keywords']).__name__ == 'str':
                 allKeywords = allKeywords + newspaperArticle.meta_data['news_keywords'].split(',')
             self.setKeyWords(allKeywords)
         except Exception as theError:
