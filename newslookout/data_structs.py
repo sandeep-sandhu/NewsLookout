@@ -96,6 +96,8 @@ class ExecutionResult:
     pluginName = None
     articleID = None
     additionalLinks = []
+    archivePath = None
+    articleID = None
 
     def __init__(self,
                  sURL: str,
@@ -106,11 +108,15 @@ class ExecutionResult:
                  dataFileName: str = None,
                  rawDataFile: str = None,
                  success: bool = False,
-                 additionalLinks: list = None):
+                 additionalLinks: list = None,
+                 archivePath: str = None,
+                 articleID: str = None):
         self.URL = sURL
         self.http_error = None
         self.rawDataFileName = rawDataFile
         self.savedDataFileName = dataFileName
+        self.archivePath = archivePath
+        self.articleID = articleID
         self.rawDataSize = htmlContentLen
         self.textSize = textContentLen
         self.publishDate = publishDate
@@ -123,8 +129,10 @@ class ExecutionResult:
 
     def getAsTuple(self) -> tuple:
         """" Get execution result details as a tuple.
+        Note: archivePath is not included as it's not stored in the URL_LIST database table.
         """
-        return (self.URL, self.pluginName, self.publishDate, self.rawDataSize, self.textSize)
+        return (self.URL, self.pluginName, self.publishDate,
+                self.rawDataSize, self.textSize)
 
 class PluginStatus:
     start_time: datetime
@@ -260,20 +268,20 @@ class QueueStatus:
             self.fetchPendingCount = (
                     self.fetchPendingCount +
                     self.queue_mgr.pluginNameToObjMap[pluginName].getQueueSize()
-                )
+            )
             self.totalQsizeMap[pluginName] = self.queue_mgr.pluginNameToObjMap[pluginName].urlQueueTotalSize
             self.totalURLCount = self.totalURLCount + self.queue_mgr.pluginNameToObjMap[pluginName].urlQueueTotalSize
             self.isPluginStillFetchingoverNetwork = (
-                self.isPluginStillFetchingoverNetwork or
-                self.queue_mgr.pluginNameToObjMap[pluginName].pluginState in [
-                    PluginTypes.STATE_GET_URL_LIST, PluginTypes.STATE_FETCH_CONTENT]
-                )
+                    self.isPluginStillFetchingoverNetwork or
+                    self.queue_mgr.pluginNameToObjMap[pluginName].pluginState in [
+                        PluginTypes.STATE_GET_URL_LIST, PluginTypes.STATE_FETCH_CONTENT]
+            )
             self.areAllPluginsStopped = (
                     self.areAllPluginsStopped and
                     self.queue_mgr.pluginNameToObjMap[pluginName].pluginState == PluginTypes.STATE_STOPPED)
             self.currentState[pluginName] = PluginTypes.decodeNameFromIntVal(
                 self.queue_mgr.pluginNameToObjMap[pluginName].pluginState
-                )
+            )
             if self.queue_mgr.pluginNameToObjMap[pluginName].pluginState == PluginTypes.STATE_GET_URL_LIST:
                 self.countOfPluginsInURLSrcState = self.countOfPluginsInURLSrcState + 1
         # update other queue parameters from the queue manager object

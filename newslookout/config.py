@@ -149,6 +149,8 @@ class ConfigManager:
         self.app_version = 0
         self.logLevelStr = 'INFO'
         self.max_logfile_size = 1024 * 1024
+        self.archive_base_path = 'data'
+        self.use_archive_storage = True
         self.newspaper_config = None
         self.verify_ca_cert = True
         self.fetch_timeout = 60
@@ -293,6 +295,9 @@ class ConfigManager:
                 'log_level',
                 default='INFO'
             )
+            self.archive_base_path = self.checkAndSanitizeConfigString('storage', 'archive_base_path', default='data')
+            use_archive_storage_str = self.checkAndSanitizeConfigString('storage','use_archive_storage', default='True')
+            self.use_archive_storage = True if (use_archive_storage_str == 'True' or use_archive_storage_str == 'true') else False
             self.logfile_backup_count = self.checkAndSanitizeConfigInt(
                 'logging',
                 'logfile_backup_count',

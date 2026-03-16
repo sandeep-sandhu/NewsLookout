@@ -59,6 +59,7 @@ import sys
 import os
 from datetime import datetime
 from queue import Queue
+import json
 
 # import web retrieval and text processing python libraries:
 from bs4 import BeautifulSoup
@@ -78,6 +79,7 @@ from scraper_utils import is_valid_url
 from scraper_utils import retainValidArticles, removeInValidArticles
 from scraper_utils import sameURLWithoutQueryParams
 from session_hist import SessionHistory
+from archive_writer import get_archive_writer
 
 ##########
 
@@ -95,6 +97,9 @@ class BasePlugin:
     app_config = None
     configReader = None
     baseDirName = ""
+    archive_base_path = 'data'
+    use_archive_storage = True
+    archive_writer = None
     bSaveHTMLFile = True
     tempArticleData = None
     nonContentURLs = []
@@ -238,6 +243,12 @@ class BasePlugin:
         try:
             logger.debug("%s: Reading the configuration parameters", self.pluginName)
             self.baseDirName = self.app_config.data_dir
+            self.archive_base_path = self.app_config.archive_base_path
+            self.use_archive_storage = self.app_config.use_archive_storage
+            if self.use_archive_storage == True:
+                self.archive_writer = get_archive_writer(self.archive_base_path)
+            else:
+                self.archive_writer = None
             if self.app_config.save_html.lower() == "true":
                 self.bSaveHTMLFile = True
             else:
@@ -259,6 +270,33 @@ class BasePlugin:
                     self.dateMatchPatterns[dateRegex] = (re.compile(dateRegex), self.articleDateRegexps[dateRegex])
         except Exception as e:
             logger.error("%s: Could not apply configuration parameters: %s", self.pluginName, e)
+
+    def save_article_to_archive(self, json_content: str, raw_html: bytes,
+                                article_id: str, publish_date) -> tuple:
+        """
+        Save article data to archive instead of individual files.
+
+        :param article_data: Dictionary containing article data
+        :param raw_html: Raw HTML content (bytes, uncompressed)
+        :param article_id: Unique article identifier
+        :param publish_date: Publication date
+        :return: Tuple of (archive_path, article_id)
+        """
+        if not self.use_archive_storage or self.archive_writer is None:
+            raise ValueError("Archive storage not enabled")
+
+        # Note: HTML should NOT be bz2 compressed before passing to archive writer
+        # The 7z archive provides its own compression
+        # If HTML is already bz2 compressed, the writer will decompress it
+
+        # Write to archive
+        return self.archive_writer.write_article(
+            json_content=json_content,
+            raw_html_content=raw_html,  # Pass uncompressed or bz2 (will be handled)
+            article_id=article_id,
+            publish_date=publish_date,
+            plugin_name=self.pluginName
+        )
 
     def getStatusString(self) -> str:
         """ Prepare status text to be printed out by the worker thread in the log
@@ -1076,6 +1114,25 @@ class BasePlugin:
             logger.error("%s: Error when downloading Data Archive: %s", pluginName, e)
         return htmlcontent
 
+    def writeFiles(self, article: NewsEvent, fileNameWithOutExt: str, htmlContent, saveHTMLFile: bool = False):
+        jsonContent = article.toJSON()
+        article_id = article.getArticleID()
+        publish_date = article.getPublishDate()
+        try:
+            archive_path, internal_path = self.save_article_to_archive(
+                json_content=jsonContent,
+                raw_html=htmlContent,
+                article_id=str(article_id),
+                publish_date=publish_date
+            )
+            logger.info(f"Saved article {article_id} to archive: {archive_path}")
+            return archive_path, internal_path
+        except Exception as e:
+            logger.error(f"Error saving to archive: {e}", exc_info=True)
+            # Fall back to legacy storage if archive fails
+            logger.warning("Falling back to legacy file storage")
+
+
     def fetchDataFromURL(self, uRLtoFetch: str, WorkerID: int) -> ExecutionResult:
         """
         Fetches and cleans data from a given URL. It takes in two inputs - the URL to fetch (uRLtoFetch), and an identifier for the worker thread executing the plugin (WorkerID).
@@ -1195,9 +1252,10 @@ class BasePlugin:
                                                             validData.getPublishDate().strftime("%Y-%m-%d")),
                             validData.getArticleID(),
                             URL=validData.getURL())
-                        validData.writeFiles(savefileNameWithOutExt,
-                                             str(htmlContent),
-                                             saveHTMLFile=self.bSaveHTMLFile)
+                        # validData.writeFiles(savefileNameWithOutExt,
+                        #                      str(htmlContent),
+                        #                      saveHTMLFile=self.bSaveHTMLFile)
+                        self.writeFiles(validData, savefileNameWithOutExt, htmlContent.encode('utf-8')) # TOD convert into bytes
                         resultVal = ExecutionResult(uRLtoFetch,
                                                     validData.getHTMLSize(),
                                                     validData.getTextSize(),

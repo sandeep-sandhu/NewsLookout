@@ -163,6 +163,9 @@ class NewsLookoutApp:
             if not logging.getLogger().handlers:
                 self._setup_logging()
 
+            # Set PID file:
+            NewsLookoutApp.set_pid_file(self.app_config.pid_file)
+
             logging.info(f"======== Started application NewsLookout v{__version__} ========")
 
             # check plugins directory, if incorrect then set to plugins subdirectory of script path:
@@ -524,9 +527,6 @@ def scrape(config_file: str, run_date: Optional[str] = None,
     app_inst = NewsLookoutApp(config_file, run_date=run_date)
 
     try:
-        # Set PID file
-        NewsLookoutApp.set_pid_file(app_inst.app_config.pid_file)
-
         # Run the application - THIS BLOCKS UNTIL COMPLETE
         run_stats = app_inst.run(max_runtime=max_runtime, blocking=True)
 
