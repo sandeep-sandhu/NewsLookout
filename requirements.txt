@@ -2,7 +2,7 @@ beautifulsoup4
 configparser
 lxml
 lxml[html_clean]
-newspaper3k
+newspaper4k
 nltk
 pandas
 requests
