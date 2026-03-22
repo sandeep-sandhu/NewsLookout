@@ -1,0 +1,146 @@
+# This is the configuration file template for the NewsLookout web scraping application.
+# It is organised into 4 sections: installation, operation, logging and plugins.
+# NewsLookout default configuration
+# Generated automatically on first run.
+# Edit the paths to suit your environment before using.
+
+##################################################################################################
+#                                                                                                #
+# Notice:                                                                                        #
+# This software is intended for demonstration and educational purposes only. This software is    #
+# experimental and a work in progress. Under no circumstances should these files be used in      #
+# relation to any critical system(s). Use of these files is at your own risk.                    #
+#                                                                                                #
+# Before using it for web scraping any website, always consult that website's terms of use.      #
+# Do not use this software to fetch any data from any website that has forbidden use of web      #
+# scraping or similar mechanisms, or violates its terms of use in any other way. The author is   #
+# not liable for such kind of inappropriate use of this software.                                #
+#                                                                                                #
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,            #
+# INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR       #
+# PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE      #
+# FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR           #
+# OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER         #
+# DEALINGS IN THE SOFTWARE.                                                                      #
+#                                                                                                #
+##################################################################################################
+
+
+[environment]
+# Base directory for all data files.
+# On Windows this might be: C:\Users\YourName\AppData\Roaming\newslookout\data
+# On Linux/macOS this might be: ~/.local/share/newslookout/data
+data_dir = %(user_data)s/data
+
+# Log file location
+# location of the log file, here it is specified relative to the data directory
+log_file = %(user_log)s/newslookout.log
+
+# PID file location
+# If a PID (process identifier) file exists, the application will not launch.
+# This is to prevent multiple instances being launched on the same machine.
+# As part of the shutdown sequence, the PID file will be automatically deleted.
+pid_file = %(user_log)s/newslookout.pid
+
+# SQLite session history database
+# the sqlite data file that stores the history of previously retrieved URLs
+completed_urls_datafile = %(user_data)s/data/completed_urls.db
+
+# Archive storage path
+archive_base_path = %(user_data)s/data/archive
+
+# Master data directory (NLP models, keyword lists, etc.)
+master_data_dir = %(user_data)s/data/master_data
+
+# Contributed (custom) plugins directory
+plugins_contributed_dir = %(user_data)s/plugins_contrib
+
+# the user agents to use for the web scraper's HTTP(S) requests:
+# use pipe delimiter to specify multiple different user agents
+# these will be rotated in round robin manner with each subsequent request.
+
+[logging]
+# log levels can be one of the following
+# (starting from less verbosity to full verbosity): ERROR, WARNING, INFO, or DEBUG
+# log_level=ERROR
+# log_level=WARNING
+# log_level=INFO
+# log_level=DEBUG
+log_level = INFO
+
+# max file size of the log file, when the log file grows
+# beyond this size limit, it will be rotated:
+max_logfile_size_bytes = 10485760
+
+# this many backups of the log file will be retained
+logfile_backup_count = 10
+
+[network]
+# Set to false only in testing environments with self-signed certs
+# WARNING: set this to False only if a cert cannot be verified since it may be internal to an organisation.
+# if it is set to False, requests will accept any TLS certificate presented by the server,
+# and will ignore hostname mismatches and/or expired certificates, which will make the application
+# vulnerable to man-in-the-middle (MitM) attacks.
+verify_ca_cert = true
+
+# time in seconds to wait for when retrieving a page:
+fetch_timeout = 60
+# time to wait to establish TCP connection:
+connect_timeout = 10
+# number of times to retry connecting if failed
+retry_count = 3
+# The number of seconds to wait when calculating the random wait time between web fetches to the same URL
+retry_wait_sec = 10
+# Proxy settings (leave empty if not required)
+proxy_url_http =
+proxy_url_https =
+# proxy configuration paramters, for example:
+# proxy_url_http=127.0.0.1:8080
+# proxy_url_https=127.0.0.1:8080
+# user authentication to the proxy, username and password are decoded before converting to plain text:
+# proxy certificate path for the organisation's proxy server, this is to be trusted
+# If proxy_ca_certfile parameter is set to a directory, it must have been processed using the c_rehash utility supplied with OpenSSL.
+
+
+[operations]
+# How many seconds between progress display refreshes
+progress_refresh_interval = 5
+# Set to true to also save raw HTML alongside JSON articles
+save_html = false
+
+[rest_api]
+# Set to true to enable the built-in HTTP status dashboard
+enabled = false
+host = 127.0.0.1
+port = 8080
+
+[plugins]
+# List enabled plugin names here, one per line.
+# the number after the pipe character '|' indicates execution priority,
+# A lower number indicates higher priority, so it will be run before others are run
+
+# mod_en_in_business_std = true
+# mod_en_in_hindu = true
+# mod_en_in_livemint = true
+# mod_dataprep = true
+# mod_keywordflags = true
+
+
+# --- Put configuration parameters specific to each plugin here ---
+# As a good practice, to avoid mixing up config names, prefix each config parameter with the plugin name,
+
+
+# For the spacy model used for the dedupe plugin:
+# install the model as follows: python -m spacy download en_core_web_lg
+# For the news event tone classification model - finBERT:
+# Download the models from:
+# https://gohkust-my.sharepoint.com/:f:/g/personal/imyiyang_ust_hk/EksJcamJpclJlbMweFfB5DQB1XrsxURYN5GSqZw3jmSeSw?e=KAyhsX
+# save the model file and the config.json file to this folder:
+# obtain the vocabulary file from:
+# https://gohkust-my.sharepoint.com/:t:/g/personal/imyiyang_ust_hk/EX3C-KM9bTxOjdttsPslLZUBw_mh9Jdh8PB0WTv6b2tEIA?e=DYBVJY
+# It is recommended to keep the dedupe and event data processing plugins disabled,
+# they can slow down the entire application since the models are very large and computationally intensive,
+# unless you are running the application on very capable hardware.
+
+
+## end of file ##

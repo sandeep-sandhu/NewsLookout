@@ -47,8 +47,8 @@ def test_queue_manager_init_config():
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
                                   config_file)
-    app_inst.app_queue_manager.config(app_inst.app_config)
-    assert type(app_inst.app_queue_manager.fetchCompletedQueue) == queue.Queue,\
+    app_inst.queue_manager.config(app_inst.app_config)
+    assert type(app_inst.queue_manager.fetchCompletedQueue) == queue.Queue,\
         'Queue manager: fetchCompletedQueue was not configured correctly.'
 
 

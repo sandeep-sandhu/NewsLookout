@@ -1,0 +1,9 @@
+
+include requirements.txt
+include README.md
+include LICENSE
+recursive-include src/newslookout/conf *
+include src/newslookout/dashboard.html
+recursive-include src/newslookout/plugins *.py
+recursive-include src/newslookout/plugins_contrib *.py
+include src/newslookout/plugins_contrib/template_for_plugin.py

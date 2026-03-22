@@ -44,13 +44,16 @@ def getAppFolders():
 
 
 def getMockAppInstance(parentFolder: str, rundate: str, configfile: str):
-    from scraper_app import NewsLookout
-    mock_sys_argv = ['python.exe', '-c', configfile,
-                     '-d', rundate]
-    # instantiate the main application class
-    local_app_inst = NewsLookout()
-    local_app_inst.config(mock_sys_argv)
-    return(local_app_inst)
+    from newslookout.scraper_app import NewsLookoutApp
+    # Remove any stale PID file that a previous test may have left
+    # behind. The production constructor calls set_pid_file() and will
+    # sys.exit(1) if the file already exists.
+    for _pid_candidate in ['.//newslookout.pid', './newslookout.pid', 'newslookout.pid']:
+        if os.path.isfile(_pid_candidate):
+            os.remove(_pid_candidate)
+
+    local_app_inst = NewsLookoutApp(configfile, rundate)
+    return local_app_inst
 
 
 def list_all_files(directoryName):
@@ -96,10 +99,10 @@ def get_network_substitute_fun(plugin_name: str, testdata_dir: str, file_no: int
     else:
         htmlBz2FileName = listofFiles[0]
     print(f'Generating data supplying function to get data from file #{file_no}')
-    def replacement_fun(uRLtoFetch, pluginName, getBytes=False):
+    def replacement_fun(uRLtoFetch, pluginName, getBytes=False, shutdown_event=None):
         html_content = read_bz2html_file(htmlBz2FileName)
         print(f'Read {len(html_content)} characters of HTML content from file: {htmlBz2FileName}')
-        return(html_content)
+        return (html_content, None)   # return (content, http_error=None) to match real signature
     return(replacement_fun)
 
 

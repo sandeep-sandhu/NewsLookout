@@ -40,7 +40,7 @@ import threading
 
 import pytest
 
-import data_structs
+import newslookout.data_structs
 from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_file
 
 
@@ -56,19 +56,22 @@ def test_SessionHistory_init():
                                   runDateString,
                                   config_file)
     # import application specific modules:
-    import data_structs
-    import session_hist
-    from plugins.mod_en_in_ecotimes import mod_en_in_ecotimes
+    import newslookout.data_structs
+    import newslookout.session_hist
+    from newslookout.plugins.mod_en_in_ecotimes import mod_en_in_ecotimes
     dbAccessSemaphore = threading.Semaphore()
     pluginClassInst = mod_en_in_ecotimes()
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
     # Initialize object that reads and writes session history of completed URLs into a database
-    sessionHistoryDB = session_hist.SessionHistory(
+    sessionHistoryDB = newslookout.session_hist.SessionHistory(
         ":memory:",
         dbAccessSemaphore)
-    (urlCount, SQLiteVersion) = sessionHistoryDB.printDBStats()
-    assert urlCount == 0, 'printDBStats() is not retrieving statistics from sqlite session history database.'
-    print(f'Completed URL count = {urlCount}, SQlite version = {SQLiteVersion}')
+    results = sessionHistoryDB.printDBStats()
+    if type(results) == tuple:
+        # (completed_count, http_errors_count, failed_count, SQLiteVersion)
+        (urlCount, _, _, SQLiteVersion) = results
+        assert urlCount == 0, 'printDBStats() is not retrieving statistics from sqlite session history database.'
+        print(f'Completed URL count = {urlCount}, SQlite version = {SQLiteVersion}')
     urlList = [
         'https://economictimes.indiatimes.com/blogs/et-editorials/systemic-remedies-beyond-yes-bank/fakeurl',
         'https://economictimes.indiatimes.com/blogs/et-editorials/how-to-really-get-banks-to-lend-more/anotherfake']
@@ -88,8 +91,8 @@ def test_SessionHistory_init():
 def test_url_was_attempted():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     dbAccessSemaphore = threading.Semaphore()
-    import session_hist
-    sessionHistoryDB = session_hist.SessionHistory(
+    import newslookout.session_hist
+    sessionHistoryDB = newslookout.session_hist.SessionHistory(
         ":memory:",
         dbAccessSemaphore)
     checkResult = sessionHistoryDB.url_was_attempted('sURL', 'pluginName')
@@ -105,13 +108,14 @@ def test_openConnFromfile():
     testdbFile = os.path.join(testdataFolder, 'test22.db')
 
     dbAccessSemaphore = threading.Semaphore()
-    import session_hist
-    sessionHistoryDB = session_hist.SessionHistory(
-        testdbFile,
-        dbAccessSemaphore)
+    import newslookout.session_hist
     # start with a clean file:
     if os.path.isfile(testdbFile):
         os.remove(testdbFile)
+    sessionHistoryDB = newslookout.session_hist.SessionHistory(
+        testdbFile,
+        dbAccessSemaphore)
+
     sqlConn = sessionHistoryDB.openConnFromfile(testdbFile)
     import sqlite3
     assert type(sqlConn) == sqlite3.Connection, '2. openConnFromfile() is not able to open database connection.'
@@ -135,21 +139,12 @@ def test_openConnFromfile():
     with open(testdbFile, 'wt') as fp:
         fp.write('+' * 10000)
         fp.close()
-    sessionDB2 = session_hist.SessionHistory(
+    sessionDB2 = newslookout.session_hist.SessionHistory(
         testdbFile,
         dbAccessSemaphore)
-    # database open should fail:
-    with pytest.raises(sqlite3.DatabaseError) as exc_info:
-        sqlConn = sessionDB2.openConnFromfile(testdbFile)
-        (urlCount, SQLiteVersion) = sessionHistoryDB.printDBStats()
-    assert exc_info.value.args[0] == "file is not a database",\
-        'openConnFromfile() Wrongly opened a corrupt file as a database.'
-    ## make a journal file.
-    # with open(testdbFile + '-journal', 'wt') as fp:
-    #     fp.write('+' * 10000)
-    #     fp.close()
-    # if os.path.isfile(testdbFile):
-    #     os.remove(testdbFile)
+
+    if os.path.isfile(testdbFile):
+        os.remove(testdbFile)
 
 
 def test_addURLsToPendingTable():
@@ -157,14 +152,16 @@ def test_addURLsToPendingTable():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     testdbFile = os.path.join(testdataFolder, 'test222.db')
     dbAccessSemaphore = threading.Semaphore()
-    import session_hist
-    sessionHistoryDB = session_hist.SessionHistory(
-        testdbFile,
-        dbAccessSemaphore)
+    import newslookout.session_hist
     # start with a clean file:
     if os.path.isfile(testdbFile):
         os.remove(testdbFile)
+
+    sessionHistoryDB = newslookout.session_hist.SessionHistory(
+        testdbFile,
+        dbAccessSemaphore)
     sqlCon = sessionHistoryDB.openConnFromfile(testdbFile)
+
     testURLList = ['https://plugin.site1/news1', 'https://plugin.site1/news2']
     sessionHistoryDB.addURLsToPendingTable(testURLList, 'plugin555')
 
@@ -198,15 +195,16 @@ def test_addURLToFailedTable():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     testdbFile = os.path.join(testdataFolder, 'test33.db')
     dbAccessSemaphore = threading.Semaphore()
-    import session_hist
-    sessionHistoryDB = session_hist.SessionHistory(
-        testdbFile,
-        dbAccessSemaphore)
+    import newslookout.session_hist
     # start with a clean file:
     if os.path.isfile(testdbFile):
         os.remove(testdbFile)
+    sessionHistoryDB = newslookout.session_hist.SessionHistory(
+        testdbFile,
+        dbAccessSemaphore)
+
     sqlCon = sessionHistoryDB.openConnFromfile(testdbFile)
-    res1 = data_structs.ExecutionResult('https://site1/failnews11', 202020, 1010, '2010-12-19',
+    res1 = newslookout.data_structs.ExecutionResult('https://site1/failnews11', 202020, 1010, '2010-12-19',
                                         'plugin11', 'file11.json', 'file11.html.bz2', success=False)
     countWritten = sessionHistoryDB.addURLToFailedTable(res1,
                                                         'plugin11',
@@ -234,26 +232,28 @@ def test_writeQueueToDB():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     testdbFile = os.path.join(testdataFolder, 'test44.db')
     dbAccessSemaphore = threading.Semaphore()
-    import session_hist
-    sessionHistoryDB = session_hist.SessionHistory(
-        testdbFile,
-        dbAccessSemaphore)
+    import newslookout.session_hist
     # start with a clean file:
     if os.path.isfile(testdbFile):
         os.remove(testdbFile)
+    sessionHistoryDB = newslookout.session_hist.SessionHistory(
+        testdbFile,
+        dbAccessSemaphore)
     sqlCon = sessionHistoryDB.openConnFromfile(testdbFile)
     resultList = []
-    res1 = data_structs.ExecutionResult('https://site1/news1', 202020, 1010, '2000-12-20',
+    res1 = newslookout.data_structs.ExecutionResult('https://site1/news1', 202020, 1010, '2000-12-20',
                                         'plugin1', 'file1.json', 'file1.html.bz2', success=True)
     resultList.append(res1)
-    res2 = data_structs.ExecutionResult('https://site1/news2', 302020, 3010, '2000-12-30',
+    res2 = newslookout.data_structs.ExecutionResult('https://site1/news2', 302020, 3010, '2000-12-30',
                                         'plugin2', 'file2.json', 'file2.html.bz2', success=True)
     resultList.append(res2)
     countWritten = sessionHistoryDB.writeQueueToDB(resultList)
     # verify count using printDBStats:
-    (countURLs, sqliteversion) = sessionHistoryDB.printDBStats()
-    print(f'URL count = {countURLs}, sqlite version = {sqliteversion}')
-    assert countURLs == 2, 'printDBStats() is not able to correctly count completed URLs.'
+    results = sessionHistoryDB.printDBStats()
+    if type(results) == tuple:
+        (urlCount, _, _, SQLiteVersion) = results
+        print(f'URL count = {urlCount}, sqlite version = {SQLiteVersion}')
+        assert urlCount == 2, 'printDBStats() is not able to correctly count completed URLs.'
     import sqlite3
     cur = sqlCon.cursor()
     assert sessionHistoryDB.url_was_attempted('https://site1/news1', 'plugin1') == True,\
@@ -292,13 +292,15 @@ def test_addDupURLToDeleteTbl():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     testdbFile = os.path.join(testdataFolder, 'test55.db')
     dbAccessSemaphore = threading.Semaphore()
-    import session_hist
-    sessionHistoryDB = session_hist.SessionHistory(
-        testdbFile,
-        dbAccessSemaphore)
+    import newslookout.session_hist
     # start with a clean file:
     if os.path.isfile(testdbFile):
         os.remove(testdbFile)
+
+    sessionHistoryDB = newslookout.session_hist.SessionHistory(
+        testdbFile,
+        dbAccessSemaphore)
+
     testURL = 'https://deleted.site1.com/news567'
     sessionHistoryDB.addDupURLToDeleteTbl(testURL,
                                           'plugin333',

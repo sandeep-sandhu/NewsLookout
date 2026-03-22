@@ -43,6 +43,9 @@ import pytest
 from . import getAppFolders, getMockAppInstance #, list_all_files, read_bz2html_file
 import requests
 
+from unittest.mock import patch, MagicMock
+import requests
+
 # ###################################
 
 # from http import server
@@ -78,18 +81,20 @@ def test_fetchRawDataFromURL():
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
                                   config_file)
-    import network
+    from newslookout import network
     allowedDomains = ['google.com']
     netw_inst = network.NetworkFetcher(app_inst.app_config, allowedDomains)
     uRLtoFetch = 'http://google.com'
-    returnResult = netw_inst.fetchRawDataFromURL(uRLtoFetch, 'plugin1', getBytes=False)
-    print(f'Size of data fetched from {uRLtoFetch} :\n{len(returnResult)}')
-    assert len(returnResult) > 1024, 'Network class is not fetching sufficient data.'
+    content, http_error = netw_inst.fetchRawDataFromURL(uRLtoFetch, 'plugin1', getBytes=False)
+    assert http_error is None, f'Unexpected HTTP error: {http_error}'
+    assert content is not None, 'Fetched content is None'
+    print(f'Size of data fetched from {uRLtoFetch}: {len(content)}')
+    assert len(content) > 1024, 'Network class is not fetching sufficient data.'
 
 
 def test_sleepBeforeNextFetch():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    import network
+    from newslookout import network
     startTime = datetime.now()
     network.NetworkFetcher.sleepBeforeNextFetch()
     endTime = datetime.now()
@@ -106,34 +111,55 @@ def test_sleepBeforeNextFetch():
     assert time_diff_sec >= 3, 'Network sleepBeforeNextFetch() is not correctly waiting upto minimum time delay.'
     assert time_diff_sec <= 5, 'Network sleepBeforeNextFetch() is not correctly waiting till maximum time delay.'
 
-class networktester:
-    def __init__(self):
+class TestNetworkFetcher:
+    def setup_method(self):
+        """Set up a NetworkFetcher instance for each test."""
         (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-        import network
-        self.netw_inst = network.NetworkFetcher(app_inst.app_config)
-
-    def test_fetchRawDataFromURL_valid(self):
-        self.netw_inst.fetchRawDataFromURL('http://example.com', 'plugin1')
-        # Assert response is not None
+        global app_inst
+        app_inst = getMockAppInstance(parentFolder, '2021-06-10', config_file)
+        from newslookout import network
+        self.netw_inst = network.NetworkFetcher(app_inst.app_config, ['example.com'])
 
     def test_fetchRawDataFromURL_invalid_url(self):
-        result = self.netw_inst.fetchRawDataFromURL('invalidurl', 'plugin1')
-        # Assert result is None
+        content, err = self.netw_inst.fetchRawDataFromURL('inv', 'plugin1')
+        assert content is None, 'Short invalid URL should return None content'
+        assert err is None
 
     def test_fetchRawDataFromURL_timeout(self):
-        # Patch requests.get to raise a Timeout
-        with patch('requests.get') as mock_get:
-            mock_get.side_effect = requests.Timeout
-            result = self.netw_inst.fetchRawDataFromURL('http://example.com', 'plugin1')
-            # Assert result is None
+        with patch.object(self.netw_inst.session, 'get', side_effect=requests.Timeout):
+            content, err = self.netw_inst.fetchRawDataFromURL(
+                'http://example.com', 'plugin1')
+            assert content is None
 
-    def test_fetchRawDataFromURL_retries(self):
-        # Patch requests.get to raise an error only on first call
-        with patch('requests.get') as mock_get:
-            mock_get.side_effect = [requests.Timeout, mock.DEFAULT]
-            result = self.netw_inst.fetchRawDataFromURL('http://example.com', 'plugin1')
-            # Assert requests.get was called twice
-            # Assert result is not None
+    def test_fetchRawDataFromURL_http_permanent_error(self):
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        with patch.object(self.netw_inst.session, 'get', return_value=mock_response):
+            content, err = self.netw_inst.fetchRawDataFromURL(
+                'http://example.com/notfound', 'plugin1')
+            assert content is None
+            assert err is not None
+            assert err.status_code == 404
+            assert err.is_permanent is True
+
+    def test_fetchRawDataFromURL_http_transient_error(self):
+        mock_response = MagicMock()
+        mock_response.status_code = 503
+        with patch.object(self.netw_inst.session, 'get', return_value=mock_response):
+            content, err = self.netw_inst.fetchRawDataFromURL(
+                'http://example.com/unavailable', 'plugin1')
+            assert err is not None
+            assert err.is_permanent is False
+
+    def test_getDataFromHTTPResponse_missing_content_type(self):
+        """Regression test for BUG-05: None content-type should not crash."""
+        from newslookout import network
+        mock_response = MagicMock()
+        mock_response.encoding = 'utf-8'
+        mock_response.text = '<html>test</html>'
+        mock_response.headers = {}          # no Content-Type header
+        result = self.netw_inst.getDataFromHTTPResponse(mock_response, getBytes=False)
+        assert result == '<html>test</html>'
 
 
 if __name__ == "__main__":

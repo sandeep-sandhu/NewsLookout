@@ -37,7 +37,7 @@ import sys
 import os
 from datetime import datetime
 
-import network
+import newslookout.network
 import queue
 import threading
 import logging
@@ -52,7 +52,7 @@ global app_inst
 
 logger = logging.getLogger(__name__)
 
-def testPluginSubClass():
+def test_plugin_subclass():
     """Test case Base Plugin Class
     """
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -66,9 +66,9 @@ def testPluginSubClass():
                                   runDateString,
                                   config_file)
     # import application specific modules:
-    from plugins.mod_en_in_business_std import mod_en_in_business_std
-    import data_structs
-    import session_hist
+    from newslookout.plugins.mod_en_in_business_std import mod_en_in_business_std
+    import newslookout.data_structs
+    import newslookout.session_hist
     pluginClassInst = mod_en_in_business_std()
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
     assert type(pluginClassInst).__name__ == "mod_en_in_business_std", \
@@ -84,7 +84,7 @@ def testPluginSubClass():
     assert pluginClassInst.getStatusString() == 'State = STATE_GET_URL_LIST', \
         "mod_en_in_business_std Plugin status not set correctly!"
     pluginClassInst.initNetworkHelper()
-    assert type(pluginClassInst.networkHelper) == network.NetworkFetcher, "mod_en_in_business_std network fetcher not init!"
+    assert type(pluginClassInst.networkHelper) == newslookout.network.NetworkFetcher, "mod_en_in_business_std network fetcher not init!"
     pluginClassInst.setURLQueue(queue.Queue())
     assert type(pluginClassInst.urlQueue) == queue.Queue, "mod_en_in_business_std queue not set!"
 
@@ -102,7 +102,7 @@ def test_fetchDataFromURL():
     dirlist = list_all_files(os.path.join(nltk_path, 'tokenizers', 'punkt'))
     print(f'Listing of NLTK data: {dirlist}')
     import nltk
-    import data_structs
+    import newslookout.data_structs
     # monkey patch to substitute network fetch.
     pluginClassInst.networkHelper.fetchRawDataFromURL = get_network_substitute_fun(
         pluginClassInst.pluginName,
@@ -119,7 +119,7 @@ def test_fetchDataFromURL():
     print('Additional links:')
     for j, addl_url in enumerate(resultVal.additionalLinks):
         print(f'{j+1}:\t{addl_url}')
-    assert type(resultVal) == data_structs.ExecutionResult, 'fetchDataFromURL() not returning exec result correctly.'
+    assert type(resultVal) == newslookout.data_structs.ExecutionResult, 'fetchDataFromURL() not returning exec result correctly.'
     try:
         fsPointer = nltk.data.find('tokenizers/punkt')
         logger.debug("NLTK punkt tokenizers is available.")
@@ -141,7 +141,8 @@ def test_fetchDataFromURL():
             print(f'Deleted temp raw-data file {resultVal.savedDataFileName + ".html.bz2"} successfully.')
         # test alternate logic to extract article body content:
         print(f'Initial body text extracted:\n{doc_obj["text"]}')
-        htmlContent = pluginClassInst.networkHelper.fetchRawDataFromURL(uRLtoFetch, pluginClassInst.pluginName)
+        fetch_result = pluginClassInst.networkHelper.fetchRawDataFromURL(uRLtoFetch, pluginClassInst.pluginName)
+        htmlContent, _ = fetch_result if isinstance(fetch_result, tuple) else (fetch_result, None)
         bodytext = pluginClassInst.extractArticleBody(htmlContent)
         print(f'Alternate method extracted body text of size = {len(bodytext)}')
         assert len(bodytext) == 0, \
@@ -165,7 +166,7 @@ def test_extractUniqueIDFromURL():
     assert uniqueID == '119011800410', "extractUniqueIDFromURL() is not correctly identifying article unique ID"
 
 
-def extractAuthors():
+def test_extractAuthors():
     # TODO: implement this
     pass
 
@@ -176,6 +177,6 @@ def test_extractIndustries():
 
 
 if __name__ == "__main__":
-    testPluginSubClass()
+    test_plugin_subclass()
 
 # end of file

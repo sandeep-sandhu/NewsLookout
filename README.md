@@ -47,6 +47,40 @@ NewsLookout is a comprehensive, multi-threaded web scraping framework designed f
 pip install newslookout
 ```
 
+### Directory layout after installation
+
+When installed via pip, NewsLookout stores all user-writable files outside the Python
+package directory so that package upgrades never overwrite your data or configuration.
+
+| Platform | Config file | Log / PID files | Data & archive |
+|----------|-------------|-----------------|----------------|
+| **Linux** | `~/.config/newslookout/newslookout.conf` | `~/.local/state/newslookout/` | `~/.local/share/newslookout/data/` |
+| **macOS** | `~/Library/Preferences/newslookout/newslookout.conf` | `~/Library/Logs/newslookout/` | `~/Library/Application Support/newslookout/data/` |
+| **Windows** | `%APPDATA%\newslookout\newslookout.conf` | `%APPDATA%\newslookout\` | `%APPDATA%\newslookout\data\` |
+
+> **Tip:** You can override any path in the config file.  Set the `data_dir`, `log_file`,
+> and `archive_base_path` keys under `[environment]` to any absolute path you prefer.
+
+### First run
+
+The first time you run `newslookout` without specifying a config file it will:
+
+1. Create the default configuration at the platform-appropriate path shown above.
+2. Print the path and exit so you can review it before scraping begins.
+
+```bash
+newslookout          # first run: creates config and exits
+# Edit the config, then:
+newslookout -d 2024-03-22
+```
+
+You can also point to a custom config explicitly:
+
+```bash
+newslookout -c /path/to/my.conf -d 2024-03-22
+```
+
+
 ### From Source
 
 ```bash
@@ -71,34 +105,33 @@ NewsLookout requires Python 3.8+ and will install the following dependencies:
 
 ### NLP Data Model Dependencies
 
-Download the spacy model using this command:
-```console
+After installation, download the required NLP model data:
+
+```bash
+# spaCy model (required for deduplication plugin)
 python -m spacy download en_core_web_lg
-```
 
-For NLTK, refer to the NLTK website on downloading the data - https://www.nltk.org/data.html.
-Specifically, the following data needs to be downloaded:
-  1. reuters
-  1. universal_treebanks_v20
-  1. maxent_treebank_pos_tagger
-  1. punkt
-
-To do this, you could either use the nltk downloader - run the following commands:
-
-```console
+# NLTK data (required for keyword extraction)
+python - <<'EOF'
 import nltk
-nltk.download('punkt')
-nltk.download('punkt_tab')
-nltk.download('maxent_treebank_pos_tagger')
-nltk.download('reuters')
-nltk.download('universal_treebanks_v20')
+for pkg in ['punkt', 'punkt_tab', 'maxent_treebank_pos_tagger',
+            'reuters', 'universal_treebanks_v20']:
+    nltk.download(pkg)
+EOF
 ```
+
+If NLTK data is stored in a non-standard location, set the `NLTK_DATA` environment variable
+to its path. See https://www.nltk.org/data.html for details.
+
 
 Alternatively, you could manually download these from the source location - https://github.com/nltk/nltk_data/tree/gh-pages/packages
 
-If these are not installed to one of the standard locations,
-you will need to set the NLTK_DATA environment variable to specify the location of this NLTK data.
-Refer to the instructions given at the NLTK website about downloading these model files - https://www.nltk.org/data.html.
+For NLTK, refer to the NLTK website on downloading the data - https://www.nltk.org/data.html.
+Specifically, the following data needs to be downloaded:
+1. reuters
+1. universal_treebanks_v20
+1. maxent_treebank_pos_tagger
+1. punkt
 
 
 
@@ -642,6 +675,18 @@ recursion_level = 1  # Minimum recursion
 - Set up alerts for critical errors
 - Test plugins with edge cases
 - Handle malformed HTML gracefully
+
+### Common log errors and fixes
+
+| Log message | Cause | Fix |
+|-------------|-------|-----|
+| `can't compare offset-naive and offset-aware datetimes` | The news site returns a timezone-aware publication date | Apply Patch 2 to `base_plugin.py` |
+| `'NoneType' object has no attribute 'getURL'` in `mod_keywordflags` | The JSON article file for a previously scraped URL no longer exists on disk | Apply Patch 4 to `worker.py`; also verify your `data_dir` path in the config |
+| `Invalid article_id: None` / `Falling back to legacy file storage` | The URL did not match any `urlMatchPatterns` in the plugin | Apply Patch 3 to `base_plugin.py` |
+| `Error fetching status: TypeError: can't access property "textContent" … is null` | Dashboard JS runs before DOM is ready | Apply Patch 5 to `dashboard.html` |
+| `Request for font "Ubuntu Sans" blocked at visibility level 2` | Browser privacy policy blocks Google Fonts | Apply Patch 5a to `dashboard.html` |
+| Installed package appears under `src/newslookout` instead of `newslookout` | Missing `src`-layout config in `setup.cfg` / `pyproject.toml` | Apply Patches 9 and 10 |
+
 
 ## Support and Contributing
 

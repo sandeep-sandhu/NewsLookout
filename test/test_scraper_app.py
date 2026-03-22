@@ -62,17 +62,17 @@ def test_isqueuemanager_initialised():
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
                                   config_file)
-    from queue_manager import QueueManager
-    assert isinstance(app_inst.app_queue_manager, QueueManager), 'The queue manager was not initialised correctly'
+    from newslookout.queue_manager import QueueManager
+    assert isinstance(app_inst.queue_manager, QueueManager), 'The queue manager was not initialised correctly'
 
 def test_isqueuemanager_config():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
                                   config_file)
-    app_inst.app_queue_manager.config(app_inst.app_config)
-    from session_hist import SessionHistory
-    assert isinstance(app_inst.app_queue_manager.sessionHistoryDB, SessionHistory),\
+    app_inst.queue_manager.config(app_inst.app_config)
+    from newslookout.session_hist import SessionHistory
+    assert isinstance(app_inst.queue_manager.sessionHistoryDB, SessionHistory),\
         'The session history was not initialised correctly'
 
 def test_fetchCycleTime_config():
@@ -80,8 +80,8 @@ def test_fetchCycleTime_config():
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
                                   config_file)
-    app_inst.app_queue_manager.config(app_inst.app_config)
-    assert app_inst.app_queue_manager.fetchCycleTime > 60, 'Queue manager: fetchCycleTime was not configured correctly.'
+    app_inst.queue_manager.config(app_inst.app_config)
+    assert app_inst.queue_manager.fetchCycleTime > 60, 'Queue manager: fetchCycleTime was not configured correctly.'
 
 
 def test_pidfile_add():

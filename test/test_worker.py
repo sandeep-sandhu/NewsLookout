@@ -36,9 +36,9 @@ import sys
 import os
 import threading
 
-from data_structs import PluginTypes
+from newslookout.data_structs import PluginTypes
 from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_file
-
+from newslookout import scraper_utils
 
 # ###################################
 
@@ -51,18 +51,18 @@ def test_worker_init():
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
                                   config_file)
-    app_inst.app_queue_manager.config(app_inst.app_config)
-    from plugins.mod_en_in_inexp_business import mod_en_in_inexp_business
-    import data_structs
-    import session_hist
+    app_inst.queue_manager.config(app_inst.app_config)
+    from newslookout.plugins.mod_en_in_inexp_business import mod_en_in_inexp_business
+    import newslookout.data_structs
+    import newslookout.session_hist
     pluginInst = mod_en_in_inexp_business()
     dbAccessSem = threading.Semaphore()
-    sessionHistoryDB = session_hist.SessionHistory(':memory:', dbAccessSem)
-    from worker import PluginWorker, ProgressWatcher, DataProcessor
+    sessionHistoryDB = newslookout.session_hist.SessionHistory(':memory:', dbAccessSem)
+    from newslookout.worker import PluginWorker, ProgressWatcher, DataProcessor
     workerInst = PluginWorker(pluginInst,
                               PluginTypes.TASK_GET_URL_LIST,
                               sessionHistoryDB,
-                              app_inst.app_queue_manager)
+                              app_inst.queue_manager)
     assert type(workerInst) == PluginWorker, 'Worker object is not initialising correctly'
     print(f'Queue Fill wait time = {workerInst.queueFillwaitTime}')
     assert workerInst.queueFillwaitTime == 120, 'Worker object is not initialising queue wait time correctly'
@@ -105,26 +105,57 @@ def test_ProgressWatcher_init():
     app_inst = getMockAppInstance(parentFolder,
                                   '2021-06-10',
                                   config_file)
-    app_inst.app_queue_manager.config(app_inst.app_config)
-    from plugins.mod_en_in_inexp_business import mod_en_in_inexp_business
-    import data_structs
-    import session_hist
-    import queue_manager
+    app_inst.queue_manager.config(app_inst.app_config)
+    from newslookout.plugins.mod_en_in_inexp_business import mod_en_in_inexp_business
+    import newslookout.data_structs
+    import newslookout.session_hist
+    import newslookout.queue_manager
     pluginInst = mod_en_in_inexp_business()
     allPluginObjsMap = {'plugin2': b'objectbytes', 'plugin1':b'objectotherbytes'}
     dbAccessSem = threading.Semaphore()
-    sessionHistoryDB = session_hist.SessionHistory(':memory:', dbAccessSem)
-    queue_status = queue_manager.QueueStatus(app_inst.app_queue_manager)
-    from worker import PluginWorker, ProgressWatcher, DataProcessor
+    sessionHistoryDB = newslookout.session_hist.SessionHistory(':memory:', dbAccessSem)
+    queue_status = newslookout.queue_manager.QueueStatus(app_inst.queue_manager)
+    from newslookout.worker import PluginWorker, ProgressWatcher, DataProcessor
     workerInst = ProgressWatcher(allPluginObjsMap,
                                  sessionHistoryDB,
-                                 app_inst.app_queue_manager,
+                                 app_inst.queue_manager,
                                  queue_status,
                                  app_inst.app_config,
                                  name='55',
                                  daemon=False)
     assert type(workerInst) == ProgressWatcher, 'ProgressWatcher object is not initialising correctly'
 
+
+def test_DataProcessor_processItem_skips_already_processed():
+    """DataProcessor should not re-process URLs already in alreadyDataProcList."""
+    (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
+    global app_inst
+    app_inst = getMockAppInstance(parentFolder, '2021-06-10', config_file)
+    app_inst.queue_manager.config(app_inst.app_config)
+    from newslookout.worker import DataProcessor
+    from newslookout.data_structs import ExecutionResult
+    import threading
+
+    # Build a minimal execution result
+    exec_result = ExecutionResult(
+        'https://example.com/article/1', 1000, 500, '2021-06-10',
+        'test_plugin', dataFileName='/data/test_plugin_1', success=True
+    )
+    # Pre-populate alreadyDataProcList to simulate duplication
+    app_inst.queue_manager.alreadyDataProcList = [exec_result.URL]
+    # processItem should add to processed queue without calling plugin
+    called = []
+    class FakePlugin:
+        pluginName = 'fake'
+        def loadDocument(self, f): called.append(f); return None
+    DataProcessor.processItem(
+        app_inst.queue_manager,
+        exec_result,
+        [],
+        {},
+        'worker-1'
+    )
+    assert called == [], 'processItem must not call loadDocument for already-processed URLs'
 
 if __name__ == "__main__":
     test_worker_init()

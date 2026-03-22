@@ -43,8 +43,8 @@ from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_fi
 
 def test_setClassification():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    import news_event
-    thisObj = news_event.NewsEvent()
+    import newslookout.news_event
+    thisObj = newslookout.news_event.NewsEvent()
     classificationScores = {'positive': 0.90, 'neutral': 0.10, 'negative': 0.25}
     thisObj.setClassification(classificationScores)
     assert thisObj.getClassification() == classificationScores, \
@@ -53,16 +53,16 @@ def test_setClassification():
 
 def test_setModuleName():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    import news_event
-    thisObj = news_event.NewsEvent()
+    import newslookout.news_event
+    thisObj = newslookout.news_event.NewsEvent()
     thisObj.setModuleName('mod_myplugin_zyx')
     assert thisObj.getModuleName() == 'mod_myplugin_zyx', 'setModuleName() is not working correctly'
 
 
 def test_setTriggerWordFlag():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    import news_event
-    thisObj = news_event.NewsEvent()
+    import newslookout.news_event
+    thisObj = newslookout.news_event.NewsEvent()
     thisObj.setTriggerWordFlag('key1', 0)
     thisObj.setTriggerWordFlag('key2', 1)
     trigDictionary = thisObj.getTriggerWords()
@@ -72,9 +72,9 @@ def test_setTriggerWordFlag():
 
 def test_toJSON():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    import news_event
+    import newslookout.news_event
     import json
-    thisObj = news_event.NewsEvent()
+    thisObj = newslookout.news_event.NewsEvent()
     thisObj.setText('The article text')
     thisObj.setTitle('The Title')
     thisObj.setURL('https://www.news.com/today/stories')
@@ -87,8 +87,8 @@ def test_toJSON():
 
 def test_setIndustries():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    import news_event
-    thisObj = news_event.NewsEvent()
+    import newslookout.news_event
+    thisObj = newslookout.news_event.NewsEvent()
     articleIndustryList = ['Auto', 'BFSI']
     thisObj.setIndustries(articleIndustryList)
     assert thisObj.urlData["industries"] == ['Auto', 'BFSI'], 'setIndustries() is not working correctly'
@@ -96,8 +96,8 @@ def test_setIndustries():
 
 def test_setArticleID():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    import news_event
-    thisObj = news_event.NewsEvent()
+    import newslookout.news_event
+    thisObj = newslookout.news_event.NewsEvent()
     uniqueID = '102847593'
     thisObj.setArticleID(uniqueID)
     assert thisObj.getArticleID() == uniqueID, 'setArticleID() is not working correctly'
@@ -105,8 +105,8 @@ def test_setArticleID():
 
 def test_readFromJSON():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    import news_event
-    thisObj = news_event.NewsEvent()
+    import newslookout.news_event
+    thisObj = newslookout.news_event.NewsEvent()
     # get json from test-data folder
     jsonFilename = os.path.join(testdataFolder, 'test_readFromJSON.json')
     thisObj.readFromJSON(jsonFilename)
@@ -117,19 +117,19 @@ def test_readFromJSON():
 
 def test_cleanText():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    import news_event
+    import newslookout.news_event
     testData = ' This is SOME dirty text.â€™🙂â™\t '
-    resultData = news_event.NewsEvent.cleanText(testData)
+    resultData = newslookout.news_event.NewsEvent.cleanText(testData)
     print(f'Input text was: "{testData}", Output text is: "{resultData}"')
     assert resultData == 'This is SOME dirty text.', 'cleanText() is not working correctly'
     testData = '“Double Quotes”'
-    resultData = news_event.NewsEvent.cleanText(testData)
+    resultData = newslookout.news_event.NewsEvent.cleanText(testData)
     print(f'Input text was: {testData}, Output text is: {resultData}')
-    assert news_event.NewsEvent.cleanText(testData) == '\'Double Quotes\'',\
+    assert newslookout.news_event.NewsEvent.cleanText(testData) == '\'Double Quotes\'',\
         'cleanText() is not working correctly: not cleaning special character double quotes'
-    assert news_event.NewsEvent.cleanText('‘Quotes’') == '\'Quotes\'', \
+    assert newslookout.news_event.NewsEvent.cleanText('‘Quotes’') == '\'Quotes\'', \
         'cleanText() is not working correctly: not cleaning special character quotes'
-    assert news_event.NewsEvent.cleanText('–Hyphens—') == '-Hyphens-', \
+    assert newslookout.news_event.NewsEvent.cleanText('–Hyphens—') == '-Hyphens-', \
         'cleanText() is not working correctly: not cleaning special character hyphens'
 
 def test_writeFiles():
@@ -138,8 +138,8 @@ def test_writeFiles():
 
 def test_importNewspaperArticleData():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    import news_event
-    thisObj = news_event.NewsEvent()
+    import newslookout.news_event
+    thisObj = newslookout.news_event.NewsEvent()
     from newspaper import Article
     newspaperArticle = Article('https://somesite.com/news/todaysarticle.html')
     # newspaperArticle.url = 'https://somesite.com/news/todaysarticle.html'

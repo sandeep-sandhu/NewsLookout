@@ -34,7 +34,7 @@
 # import standard python libraries:
 import sys
 import os
-import network
+from newslookout import network
 import queue
 import threading
 import logging
@@ -49,7 +49,7 @@ global app_inst
 
 logger = logging.getLogger(__name__)
 
-def testPluginSubClass():
+def test_plugin_subclass():
     """Test instantiation of this Plugin object
     """
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -60,9 +60,9 @@ def testPluginSubClass():
                                   runDateString,
                                   config_file)
     # import application specific modules:
-    from plugins.mod_eventclass import mod_eventclass
-    import data_structs
-    import session_hist
+    from newslookout.plugins.mod_eventclass import mod_eventclass
+    from newslookout import data_structs
+    from newslookout import session_hist
     # instantiate the plugin object:
     pluginClassInst = mod_eventclass()
     print(f'Instantiated plugin name: {pluginClassInst.pluginName}')
@@ -86,6 +86,6 @@ def test_processDataObj():
 
 
 if __name__ == "__main__":
-    testPluginSubClass()
+    test_plugin_subclass()
 
 # end of file

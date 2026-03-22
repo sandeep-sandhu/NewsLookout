@@ -34,7 +34,10 @@
 # import standard python libraries:
 import sys
 import os
-import network
+
+import pytest
+
+import newslookout.network
 import queue
 import threading
 import logging
@@ -50,7 +53,7 @@ global app_inst
 logger = logging.getLogger(__name__)
 
 
-def testPluginSubClass():
+def test_plugin_subclass():
     """Test instantiation of this Plugin object
     """
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -61,9 +64,9 @@ def testPluginSubClass():
                                   runDateString,
                                   config_file)
     # import application specific modules:
-    from plugins.mod_dedupe import mod_dedupe
-    import data_structs
-    import session_hist
+    from newslookout.plugins.mod_dedupe import mod_dedupe
+    import newslookout.data_structs
+    import newslookout.session_hist
     # instantiate the plugin object:
     pluginClassInst = mod_dedupe()
     print(f'Instantiated plugin name: {pluginClassInst.pluginName}')
@@ -71,22 +74,28 @@ def testPluginSubClass():
         "mod_dedupe Plugin was not initialising correctly"
     pluginClassInst.config(app_inst.app_config)
     dbAccessSemaphore = threading.Semaphore()
-    sessionHistoryDB = session_hist.SessionHistory(
+    sessionHistoryDB = newslookout.session_hist.SessionHistory(
         ":memory:",
         dbAccessSemaphore)
     pluginClassInst.additionalConfig(sessionHistoryDB)
 
 
 def test_processDataObj():
-    """  Test processDataObj()
-    :return:
-    """
     global pluginClassInst
-    print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-
+    import os
+    json_files = [f for f in list_all_files(testdataFolder) if f.endswith('.json')]
+    if not json_files:
+        pytest.skip('No JSON test data files found')
+    doc = pluginClassInst.loadDocument(json_files[0])
+    assert doc is not None, 'loadDocument must return a NewsEvent object'
+    # processDataObj should complete without raising an exception
+    try:
+        pluginClassInst.processDataObj(doc)
+    except Exception as e:
+        pytest.fail(f'processDataObj raised an unexpected exception: {e}')
 
 if __name__ == "__main__":
-    testPluginSubClass()
+    test_plugin_subclass()
 
 # end of file

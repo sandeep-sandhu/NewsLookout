@@ -35,15 +35,39 @@
 import sys
 import os
 
-from data_structs import QueueStatus
+from newslookout.data_structs import QueueStatus
 from . import getAppFolders, getMockAppInstance, list_all_files, read_bz2html_file
 
 
 # ###################################
 
+def test_PluginStatus_getStatusString():
+    """Regression test for BUG-08: @staticmethod missing from getStatusString."""
+    from newslookout.data_structs import PluginStatus, PluginTypes
+    # Call as static method
+    result = PluginStatus.getStatusString(PluginTypes.MODULE_NEWS_CONTENT, PluginTypes.STATE_GET_URL_LIST)
+    assert 'STATE_GET_URL_LIST' in result
+
+def test_PluginStatus_set_states():
+    from newslookout.data_structs import PluginStatus, PluginTypes
+    ps = PluginStatus()
+    ps.set_plugin_state(PluginTypes.STATE_FETCH_CONTENT)
+    assert ps.plugin_state == PluginTypes.STATE_FETCH_CONTENT
+    ps.set_URL_count(42)
+    assert ps.total_URL_count == 42
+    ps.set_URL_fetched_count(10)
+    assert ps.total_url_fetched == 10
+
+def test_QueueStatus_getStatusChange():
+    from newslookout.data_structs import QueueStatus
+    prev = {'pluginA': 10, 'pluginB': 10}
+    curr = {'pluginA': 20, 'pluginB': 10}
+    msgs = QueueStatus.getStatusChange(prev, curr)
+    assert any('pluginA' in m for m in msgs), 'Changed plugin should appear in status messages'
+    assert not any('pluginB' in m for m in msgs), 'Unchanged plugin should not appear'
 
 def test_decodeNameFromIntVal():
-    from data_structs import PluginTypes
+    from newslookout.data_structs import PluginTypes
     assert PluginTypes.decodeNameFromIntVal(10) == 'STATE_GET_URL_LIST',\
         'test_decodeNameFromIntVal() is not decoding types into names correctly'
     assert PluginTypes.decodeNameFromIntVal(20) == 'STATE_FETCH_CONTENT', \
@@ -53,7 +77,7 @@ def test_decodeNameFromIntVal():
 
 
 def test_ExecutionResult_init():
-    from data_structs import ExecutionResult
+    from newslookout.data_structs import ExecutionResult
     testObject = ExecutionResult('https://www.site.com/',
                                  41410,
                                  2120,
@@ -79,8 +103,8 @@ def test_QueueStatus_init():
     app_inst = getMockAppInstance(parentFolder,
                                   runDateString,
                                   config_file)
-    app_inst.app_queue_manager.config(app_inst.app_config)
-    qstatusobj = QueueStatus(app_inst.app_queue_manager)
+    app_inst.queue_manager.config(app_inst.app_config)
+    qstatusobj = QueueStatus(app_inst.queue_manager)
     qstatusobj.updateStatus()
     assert type(qstatusobj) == QueueStatus, 'QueueStatus is not initialising correctly'
 

@@ -36,12 +36,12 @@ import sys
 import os
 from datetime import datetime
 
-import network
+import newslookout.network
 import queue
 import threading
 import logging
 from . import getAppFolders, getMockAppInstance
-from . import list_all_files, read_bz2html_file
+from . import list_all_files
 from . import altfetchRawDataFromURL, get_network_substitute_fun
 
 # ###################################
@@ -51,7 +51,7 @@ global app_inst
 
 logger = logging.getLogger(__name__)
 
-def testPluginSubClass():
+def test_plugin_subclass():
     """Test case Base Plugin Class
     """
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -65,9 +65,9 @@ def testPluginSubClass():
                                   runDateString,
                                   config_file)
     # import application specific modules:
-    from plugins.mod_en_in_forbes import mod_en_in_forbes
-    import data_structs
-    import session_hist
+    from newslookout.plugins.mod_en_in_forbes import mod_en_in_forbes
+    import newslookout.data_structs
+    import newslookout.session_hist
     logging.getLogger().setLevel(logging.DEBUG)
     pluginClassInst = mod_en_in_forbes()
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
@@ -85,17 +85,21 @@ def testPluginSubClass():
         "mod_en_in_forbes Plugin status not set correctly!"
     pluginClassInst.initNetworkHelper()
     print(f'Network fetcher object instantiated with type = {type(pluginClassInst.networkHelper)}')
-    assert type(pluginClassInst.networkHelper) == network.NetworkFetcher, "mod_en_in_forbes network fetcher not init!"
+    assert type(pluginClassInst.networkHelper) == newslookout.network.NetworkFetcher, "mod_en_in_forbes network fetcher not init!"
     pluginClassInst.setURLQueue(queue.Queue())
     assert type(pluginClassInst.urlQueue) == queue.Queue, "mod_en_in_forbes queue not set!"
     dbAccessSemaphore = threading.Semaphore()
     # Initialize object that reads and writes session history of completed URLs into a database
-    sessionHistoryDB = session_hist.SessionHistory(
+    sessionHistoryDB = newslookout.session_hist.SessionHistory(
         ":memory:",
         dbAccessSemaphore)
-    (urlCount, SQLiteVersion) = sessionHistoryDB.printDBStats()
-    app_inst.app_queue_manager.config(app_inst.app_config)
-    instNetwork = network.NetworkFetcher(app_inst.app_config, ['www.forbesindia.com'])
+    results = sessionHistoryDB.printDBStats()
+    if type(results) == tuple:
+        (urlCount, _, _, SQLiteVersion) = results
+        assert urlCount == 0, 'printDBStats() is not retrieving statistics from sqlite session history database.'
+        print(f'Completed URL count = {urlCount}, SQlite version = {SQLiteVersion}')
+    app_inst.queue_manager.config(app_inst.app_config)
+    instNetwork = newslookout.network.NetworkFetcher(app_inst.app_config, ['www.forbesindia.com'])
     print(f'Network object attribute - customHeader: {instNetwork.customHeader}')
     print(f'Network object attribute - fetch_timeout: {instNetwork.fetch_timeout}')
     assert instNetwork.fetch_timeout == 60, 'NetworkFetcher() not initialising fetch timeout from config file.'
@@ -105,10 +109,10 @@ def testPluginSubClass():
 def test_config():
     global app_inst
     logging.getLogger().setLevel(logging.DEBUG)
-    app_inst.app_queue_manager.config(app_inst.app_config)
-    app_inst.app_queue_manager.initPlugins()
-    print(f'Plugins initialised:\n {app_inst.app_queue_manager.pluginNameToObjMap}')
-    assert 'mod_en_in_forbes' in app_inst.app_queue_manager.pluginNameToObjMap,\
+    app_inst.queue_manager.config(app_inst.app_config)
+    app_inst.queue_manager.initPlugins()
+    print(f'Plugins initialised:\n {app_inst.queue_manager.pluginNameToObjMap}')
+    assert 'mod_en_in_forbes' in app_inst.queue_manager.pluginNameToObjMap,\
         "Plugin could not be initialised."
 
 
@@ -124,7 +128,7 @@ def test_fetchDataFromURL():
     os.environ["NLTK_DATA"] = nltk_path
     dirlist = list_all_files(os.path.join(nltk_path, 'tokenizers', 'punkt'))
     print(f'Listing of NLTK data: {dirlist}')
-    import data_structs
+    import newslookout.data_structs
     import nltk
     # monkey patch to substitute network fetch.
     pluginClassInst.networkHelper.fetchRawDataFromURL = get_network_substitute_fun(
@@ -143,7 +147,7 @@ def test_fetchDataFromURL():
     print('Additional links:')
     for j, addl_url in enumerate(resultVal.additionalLinks):
         print(f'{j+1}:\t{addl_url}')
-    assert type(resultVal) == data_structs.ExecutionResult, 'fetchDataFromURL() not returning exec result correctly.'
+    assert type(resultVal) == newslookout.data_structs.ExecutionResult, 'fetchDataFromURL() not returning exec result correctly.'
     try:
         fsPointer = nltk.data.find('tokenizers/punkt')
         logger.debug("NLTK punkt tokenizers is available.")
@@ -161,7 +165,8 @@ def test_fetchDataFromURL():
             os.remove(resultVal.savedDataFileName + ".html.bz2")
             print(f'Deleted temp raw-data file {resultVal.savedDataFileName + ".html.bz2"} successfully.')
         # test alternate logic to extract article body content:
-        htmlContent = pluginClassInst.networkHelper.fetchRawDataFromURL(uRLtoFetch, pluginClassInst.pluginName)
+        fetch_result = pluginClassInst.networkHelper.fetchRawDataFromURL(uRLtoFetch, pluginClassInst.pluginName)
+        htmlContent, _ = fetch_result if isinstance(fetch_result, tuple) else (fetch_result, None)
         bodytext = pluginClassInst.extractArticleBody(htmlContent)
         print(f'Alternate method extracted body text of size = {len(bodytext)}')
         assert len(bodytext) == 0, \
@@ -185,7 +190,7 @@ def test_extractUniqueIDFromURL():
     assert uniqueID == '69123', "extractUniqueIDFromURL() is not correctly identifying article unique ID"
 
 
-def extractAuthors():
+def test_extractAuthors():
     # TODO: implement this
     pass
 
@@ -196,6 +201,6 @@ def test_extractIndustries():
 
 
 if __name__ == "__main__":
-    testPluginSubClass()
+    test_plugin_subclass()
 
 # end of file

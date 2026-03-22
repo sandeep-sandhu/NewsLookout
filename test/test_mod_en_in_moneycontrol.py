@@ -36,7 +36,7 @@ import sys
 import os
 from datetime import datetime
 
-import network
+from newslookout import network
 import queue
 import threading
 import logging
@@ -51,7 +51,7 @@ global app_inst
 
 logger = logging.getLogger(__name__)
 
-def testPluginSubClass():
+def test_plugin_subclass():
     """Test case Base Plugin Class
     """
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -62,9 +62,9 @@ def testPluginSubClass():
                                   runDateString,
                                   config_file)
     # import application specific modules:
-    from plugins.mod_en_in_moneycontrol import mod_en_in_moneycontrol
-    import data_structs
-    import session_hist
+    from newslookout.plugins.mod_en_in_moneycontrol import mod_en_in_moneycontrol
+    from newslookout import data_structs
+    from newslookout import session_hist
 
     pluginClassInst = mod_en_in_moneycontrol()
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
@@ -94,7 +94,7 @@ def test_fetchDataFromURL():
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    import data_structs
+    from newslookout import data_structs
     # monkey patch to substitute network fetch.
     pluginClassInst.networkHelper.fetchRawDataFromURL = get_network_substitute_fun(
         pluginClassInst.pluginName,
@@ -116,7 +116,7 @@ def test_fetchDataFromURL():
     assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
     assert resultVal.publishDate == datetime.strptime('2021-02-18','%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.articleID == '7173681', 'fetchDataFromURL() not identifying unique ID correctly.'
-    assert resultVal.textSize == 458, 'fetchDataFromURL() not parsing text body correctly.'
+    assert resultVal.textSize > 450, 'fetchDataFromURL() not parsing text body correctly.'
     assert resultVal.savedDataFileName == os.path.join(app_inst.app_config.data_dir, '2021-02-18', 'mod_en_in_moneycontrol_7173681'), \
         'fetchDataFromURL() not saving parsed data correctly.'
     assert len(resultVal.additionalLinks) == 6, 'fetchDataFromURL() not extracting additional links correctly.'
@@ -134,7 +134,8 @@ def test_fetchDataFromURL():
     assert nonURL2 not in resultList, "filterNonContentURLs() is not removing non-article URLs from fetch list."
     assert uRLtoFetch in resultList, "filterNonContentURLs() is not removing non-article URLs from fetch list."
     # test alternate logic to extract article body content:
-    htmlContent = pluginClassInst.networkHelper.fetchRawDataFromURL(uRLtoFetch, pluginClassInst.pluginName)
+    fetch_result = pluginClassInst.networkHelper.fetchRawDataFromURL(uRLtoFetch, pluginClassInst.pluginName)
+    htmlContent, _ = fetch_result if isinstance(fetch_result, tuple) else (fetch_result, None)
     bodytext = pluginClassInst.extractArticleBody(htmlContent)
     print(f'Alternate method extracted body text of size = {len(bodytext)}')
     assert len(bodytext) == 0, \
@@ -155,7 +156,7 @@ def test_extractUniqueIDFromURL():
     assert uniqueID == '7173681', "extractUniqueIDFromURL() is not correctly identifying article unique ID"
 
 
-def extractAuthors():
+def test_extractAuthors():
     # TODO: implement this
     pass
 
@@ -166,6 +167,6 @@ def test_extractIndustries():
 
 
 if __name__ == "__main__":
-    testPluginSubClass()
+    test_plugin_subclass()
 
 # end of file

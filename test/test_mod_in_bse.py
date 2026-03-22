@@ -34,7 +34,7 @@
 # import standard python libraries:
 import sys
 import os
-import network
+from newslookout import network
 import queue
 import threading
 import logging
@@ -49,7 +49,7 @@ global app_inst
 
 logger = logging.getLogger(__name__)
 
-def testPluginSubClass():
+def test_plugin_subclass():
     """Test case Base Plugin Class
     """
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -60,9 +60,9 @@ def testPluginSubClass():
                                   runDateString,
                                   config_file)
     # import application specific modules:
-    from plugins.mod_in_bse import mod_in_bse
-    import data_structs
-    import session_hist
+    from newslookout.plugins.mod_in_bse import mod_in_bse
+    from newslookout import data_structs
+    from newslookout import session_hist
 
     pluginClassInst = mod_in_bse()
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
@@ -91,7 +91,7 @@ def test_fetchDataFromURL():
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    import data_structs
+    from newslookout import data_structs
     # TODO: implement this
 
 def test_extractArchiveURLLinksForDate():
@@ -109,6 +109,6 @@ def test_extractUniqueIDFromURL():
 
 
 if __name__ == "__main__":
-    testPluginSubClass()
+    test_plugin_subclass()
 
 # end of file
