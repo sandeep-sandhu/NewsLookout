@@ -20,4 +20,5 @@ flake8
 pytest
 pytest-html
 pytest-cov
+coveralls
 flask

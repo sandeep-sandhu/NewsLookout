@@ -190,8 +190,7 @@ class SessionHistory:
                 logger.info("Database initialized with HTTP error tracking tables and indexes")
         except Exception as e:
             logger.error(f"Failed to initialize database: {e}")
-            import sys
-            sys.exit(1)
+            raise
 
     @staticmethod
     def openConnFromfile(dataFileName: str) -> lite.Connection:
