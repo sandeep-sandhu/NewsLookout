@@ -111,9 +111,11 @@ def test_readFromJSON():
     jsonFilename = os.path.join(testdataFolder, 'test_readFromJSON.json')
     thisObj.readFromJSON(jsonFilename)
     print(f'Read the data of length {len(thisObj.urlData)} from test json file')
-    assert thisObj.getPublishDate() == datetime.datetime.strptime("2019-12-23",'%Y-%m-%d'), 'readFromJSON() is not working correctly, incorrect pub date'
-    assert thisObj.urlData["title"] == "Explained: What is the Citizenship Amendment Bill?",\
+    assert thisObj.getPublishDate() == datetime.datetime.strptime(
+        "2019-12-23", '%Y-%m-%d'), 'readFromJSON() is not working correctly, incorrect pub date'
+    assert thisObj.urlData["title"] == "Explained: What is the Citizenship Amendment Bill?", \
         'readFromJSON() is not working correctly, title not read correctly.'
+
 
 def test_cleanText():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -125,16 +127,18 @@ def test_cleanText():
     testData = '“Double Quotes”'
     resultData = newslookout.news_event.NewsEvent.cleanText(testData)
     print(f'Input text was: {testData}, Output text is: {resultData}')
-    assert newslookout.news_event.NewsEvent.cleanText(testData) == '\'Double Quotes\'',\
+    assert newslookout.news_event.NewsEvent.cleanText(testData) == '\'Double Quotes\'', \
         'cleanText() is not working correctly: not cleaning special character double quotes'
     assert newslookout.news_event.NewsEvent.cleanText('‘Quotes’') == '\'Quotes\'', \
         'cleanText() is not working correctly: not cleaning special character quotes'
     assert newslookout.news_event.NewsEvent.cleanText('–Hyphens—') == '-Hyphens-', \
         'cleanText() is not working correctly: not cleaning special character hyphens'
 
+
 def test_writeFiles():
     # TODO: implement this
-    assert 1==1, 'writeFiles() is not working correctly'
+    assert 1 == 1, 'writeFiles() is not working correctly'
+
 
 def test_importNewspaperArticleData():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -159,9 +163,9 @@ def test_importNewspaperArticleData():
         'importNewspaperArticleData() is not working correctly; News article Title not imported!'
     assert thisObj.getURL() == 'https://somesite.com/news/todaysarticle.html', \
         'importNewspaperArticleData() is not working correctly; published date string not imported!'
-    assert thisObj.getPublishDate() == datetime.datetime.strptime('2021-01-31','%Y-%m-%d'), \
+    assert thisObj.getPublishDate() == datetime.datetime.strptime('2021-01-31', '%Y-%m-%d'), \
         'importNewspaperArticleData() is not working correctly; published date string not imported!'
-    assert thisObj.getKeywords() == ['First KeyWord', 'Second KeyWord', 'keyw1', 'keyw2', 'keyw3', 'keyw4'],\
+    assert thisObj.getKeywords() == ['First KeyWord', 'Second KeyWord', 'keyw1', 'keyw2', 'keyw3', 'keyw4'], \
         'importNewspaperArticleData() is not working correctly; keyword not imported'
     assert thisObj.getAuthors() == ['Author 1', 'Agency 2'], \
         'importNewspaperArticleData() is not working correctly; keyword not imported'

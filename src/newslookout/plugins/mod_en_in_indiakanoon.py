@@ -193,7 +193,7 @@ class mod_en_in_indiakanoon(BasePlugin):
         industries = []
         if type(htmlText) == bytes:
             htmlText = htmlText.decode('UTF-8')
-        return(industries)
+        return (industries)
 
     def extractAuthors(self, htmlText):
         """ Extract the author/Source from the html content
@@ -208,7 +208,7 @@ class mod_en_in_indiakanoon(BasePlugin):
                 authors.append(matchRes.group(2))
         except Exception as e:
             logger.error("Error extracting authors: %s", e)
-        return(authors)
+        return (authors)
 
     def extractArticleBody(self, htmlContent):
         """ Extract the text body of this article
@@ -224,7 +224,7 @@ class mod_en_in_indiakanoon(BasePlugin):
                 body_text = body_text + " " + str(item).strip()
         except Exception as e:
             logger.error("Error retrieving content of article: %s, URL = %s", e, self.URLToFetch)
-        return(body_text)
+        return (body_text)
 
     def get_child_tags(self, parent_tag):
         allText = []
@@ -247,7 +247,7 @@ class mod_en_in_indiakanoon(BasePlugin):
                     allText = allText + member.contents
         except Exception as e:
             logger.error(f"Error retrieving child tags from parent: {e}", e)
-        return(allText)
+        return (allText)
 
     def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
@@ -271,7 +271,7 @@ class mod_en_in_indiakanoon(BasePlugin):
                 cleanedText = cleanedText.replace(stringToFilter, " ")
         except Exception as e:
             logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        return (cleanedText)
 
 
 # # end of file ##

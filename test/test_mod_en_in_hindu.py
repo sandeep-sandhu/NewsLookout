@@ -51,6 +51,7 @@ global app_inst
 
 logger = logging.getLogger(__name__)
 
+
 def test_plugin_subclass():
     """Test case Base Plugin Class
     """
@@ -113,7 +114,8 @@ def test_fetchDataFromURL():
     assert type(resultVal) == newslookout.data_structs.ExecutionResult, 'fetchDataFromURL() not returning exec result correctly.'
     assert resultVal.wasSuccessful is True, 'fetchDataFromURL() did not complete successfully'
     assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.publishDate == datetime.strptime('2020-02-01','%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
+    assert resultVal.publishDate == datetime.strptime(
+        '2020-02-01', '%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.articleID == '30713792', 'fetchDataFromURL() not identifying unique ID correctly.'
     assert resultVal.textSize > 2000, 'fetchDataFromURL() not parsing text body correctly.'
     assert resultVal.savedDataFileName == os.path.join(app_inst.app_config.data_dir, '2020-02-01', 'mod_en_in_hindu_30713792'), \

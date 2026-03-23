@@ -51,6 +51,7 @@ global app_inst
 
 logger = logging.getLogger(__name__)
 
+
 def test_plugin_subclass():
     """Test case Base Plugin Class
     """
@@ -113,7 +114,8 @@ def test_fetchDataFromURL():
     assert type(resultVal) == data_structs.ExecutionResult, 'fetchDataFromURL() not returning exec result correctly.'
     assert resultVal.wasSuccessful is True, 'fetchDataFromURL() did not complete successfully'
     assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.publishDate == datetime.strptime('2021-02-18','%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
+    assert resultVal.publishDate == datetime.strptime(
+        '2021-02-18', '%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.articleID == '11613646112891', 'fetchDataFromURL() not identifying unique ID correctly.'
     assert resultVal.textSize > 2000, 'fetchDataFromURL() not parsing text body correctly.'
     assert resultVal.savedDataFileName == os.path.join(app_inst.app_config.data_dir, '2021-02-18', 'mod_en_in_livemint_11613646112891'), \

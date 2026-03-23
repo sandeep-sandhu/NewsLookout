@@ -174,21 +174,25 @@ class mod_en_in_timesofindia(BasePlugin):
         super().__init__()
 
     # Special function for this plugin
-    def extractUniqueIDFromContent(self, htmlContent, URLToFetch):
+    def extractUniqueIDFromContent(self, htmlContent, URLToFetch: str):
         """ Identify Unique ID From content
         Pattern: data-articlemsid="154959"
                  data-articlemsid="143505"
         """
         uniqueString = "zzz-zzz-zzz"
+        crcValue = None
         # If htmlContent is a bytes object, then convert it to a string:
         if type(htmlContent) == bytes:
             htmlContent = htmlContent.decode('UTF-8')
+
         try:
             # calculate CRC string if url does not have unique id:
             if type(URLToFetch) == bytes:
-                uniqueString = str(calculateCRC32(URLToFetch))
+                crcValue = str(calculateCRC32(URLToFetch))
+                uniqueString = crcValue
             else:
-                uniqueString = str(calculateCRC32(URLToFetch.encode('utf-8')))
+                crcValue = str(calculateCRC32(URLToFetch.encode('utf-8')))
+                uniqueString = crcValue
         except Exception as e:
             logger.error("%s: When calculating CRC32 of URL: %s , URL was: %s",
                          self.pluginName,
@@ -205,7 +209,7 @@ class mod_en_in_timesofindia(BasePlugin):
                              self.pluginName,
                              e,
                              uniquePattern)
-            return(uniqueString)
+            return (uniqueString)
         else:
             logger.warning("%s: Invalid content found when trying to identify unique ID", URLToFetch)
         if uniqueString == crcValue:
@@ -229,7 +233,7 @@ class mod_en_in_timesofindia(BasePlugin):
                         body_text = body_text + child.strip()
         except Exception as e:
             logger.error("Error extracting article content for URL %s : %s", url, e)
-        return(body_text)
+        return (body_text)
 
     def extractIndustries(self, uRLtoFetch, htmlText):
         """ Extract the industry of the articles from its URL or contents
@@ -241,7 +245,7 @@ class mod_en_in_timesofindia(BasePlugin):
             docRoot.find_all('div')
         except Exception as e:
             logger.error("Error extracting industries: %s", e)
-        return(industries)
+        return (industries)
 
     def extractAuthors(self, htmlText):
         """ extract Authors/Agency/Source from html
@@ -256,7 +260,7 @@ class mod_en_in_timesofindia(BasePlugin):
                 authors.append(regResults[2])
         except Exception as e:
             logger.error("Error extracting news agent from text: %s", e)
-        return(authors)
+        return (authors)
 
     def checkAndCleanText(self, inputText: str, rawData: str, url: str):
         """ Check and clean article text
@@ -268,7 +272,7 @@ class mod_en_in_timesofindia(BasePlugin):
             for badString in self.invalidTextStrings:
                 if cleanedText.find(badString) >= 0:
                     logger.debug("%s: Found invalid text strings in data extracted: %s", self.pluginName, badString)
-                    return(None)
+                    return (None)
             # replace repeated spaces, tabs, hyphens, '\n', '\r\n', etc.
             cleanedText = filterRepeatedchars(cleanedText,
                                               deDupeList([' ', '\t', '\n', '\r\n', '-', '_', '.']))
@@ -277,7 +281,7 @@ class mod_en_in_timesofindia(BasePlugin):
                 cleanedText = cleanedText.replace(stringToFilter, " ")
         except Exception as e:
             logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        return (cleanedText)
 
 
 # # end of file ##

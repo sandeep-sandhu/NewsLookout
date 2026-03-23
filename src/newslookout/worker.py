@@ -392,7 +392,8 @@ class PluginWorker(threading.Thread):
                             limited_links = fetchResult.additionalLinks[:max_additional_links]
 
                             if len(fetchResult.additionalLinks) > max_additional_links:
-                                logger.warning(f"{self.name}: Truncated {len(fetchResult.additionalLinks)} additional URLs to {max_additional_links}")
+                                logger.warning(
+                                    f"{self.name}: Truncated {len(fetchResult.additionalLinks)} additional URLs to {max_additional_links}")
 
                             filtered_urls = self.session_history.removeAlreadyFetchedURLs(
                                 limited_links,
@@ -400,7 +401,8 @@ class PluginWorker(threading.Thread):
                             )
 
                             if filtered_urls:
-                                logger.info(f"{self.name}: Saving {len(filtered_urls)} additional URLs to pending (will process in next run)")
+                                logger.info(
+                                    f"{self.name}: Saving {len(filtered_urls)} additional URLs to pending (will process in next run)")
                                 # Only save to DB for future processing, don't add to current queue
                                 self.queue_manager.queueDBOperation(
                                     'add_pending',
@@ -593,9 +595,6 @@ class DataProcessor(threading.Thread):
         logger.info(f'Data processing thread {self.workerID} finished')
 
 
-
-
-
 class WorkerPair:
     """
     Coordinates a pair of workers: URL discovery + content fetching.
@@ -741,7 +740,7 @@ class URLDiscoveryWorker(threading.Thread):
         """
         self.plugin = plugin
         self.plugin_name = type(plugin).__name__
-        super().__init__(name=self.plugin_name, daemon=False)
+        super().__init__(name=self.plugin_name, daemon=True)
         self.session_history = session_history
         self.queue_manager = queue_manager
         self.completion_event = completion_event
@@ -773,7 +772,8 @@ class URLDiscoveryWorker(threading.Thread):
                     # CRITICAL: Don't add pending URLs to queue during discovery
                     # They should only be processed in dedicated content-only runs
                     # For now, log and skip to focus on new URL discovery
-                    logger.warning(f"{self.name}: Skipping {len(pending_urls)} pending URLs - they will be processed in next run without URL discovery")
+                    logger.warning(
+                        f"{self.name}: Skipping {len(pending_urls)} pending URLs - they will be processed in next run without URL discovery")
                     # DO NOT ADD: for url in pending_urls: self.plugin.urlQueue.put(url)
             except Exception as e:
                 logger.error(f"{self.name}: Error retrieving pending URLs: {e}")
@@ -848,7 +848,8 @@ class URLDiscoveryWorker(threading.Thread):
                         self.session_history
                     )
                     elapsed = time.time() - start_time
-                    logger.info(f"{self.name}: URL discovery call completed in {elapsed:.1f}s, found {len(result) if result else 0} URLs")
+                    logger.info(
+                        f"{self.name}: URL discovery call completed in {elapsed:.1f}s, found {len(result) if result else 0} URLs")
 
                     discovered_urls.extend(result if result else [])
                 except Exception as e:
@@ -856,7 +857,7 @@ class URLDiscoveryWorker(threading.Thread):
                 finally:
                     discovery_complete.set()
 
-            discovery_thread = threading.Thread(target=discover, daemon=False)
+            discovery_thread = threading.Thread(target=discover, daemon=True)
             discovery_thread.start()
 
             # Wait with timeout checking
@@ -928,7 +929,7 @@ class ContentFetchWorker(threading.Thread):
         """
         self.plugin = plugin
         self.plugin_name = type(plugin).__name__
-        super().__init__(name=self.plugin_name, daemon=False)
+        super().__init__(name=self.plugin_name, daemon=True)
 
         self.session_history = session_history
         self.queue_manager = queue_manager
@@ -972,10 +973,12 @@ class ContentFetchWorker(threading.Thread):
                     # Queue is empty - check conditions
                     if self.url_discovery_complete.is_set():
                         consecutive_empty_checks += 1
-                        logger.debug(f"{self.name}: Queue empty, discovery complete, check {consecutive_empty_checks}/{max_empty_checks}")
+                        logger.debug(
+                            f"{self.name}: Queue empty, discovery complete, check {consecutive_empty_checks}/{max_empty_checks}")
 
                         if consecutive_empty_checks >= max_empty_checks:
-                            logger.info(f"{self.name}: Queue empty and URL discovery complete after {max_empty_checks} checks - stopping")
+                            logger.info(
+                                f"{self.name}: Queue empty and URL discovery complete after {max_empty_checks} checks - stopping")
                             break
                     else:
                         # URL discovery still running, reset counter and wait
@@ -1075,7 +1078,6 @@ class ContentFetchWorker(threading.Thread):
 
         except Exception as e:
             logger.error(f"{self.name}: Error processing URL {url}: {e}")
-
 
 
 class ProgressWatcher(threading.Thread):
@@ -1558,7 +1560,7 @@ class StatusAPIServer:
                 logger.info(f"Status API confirmed running at http://{self.host}:{self.port}/status")
             else:
                 logger.warning(f"Status API may not be running on port {self.port}")
-                print(f"⚠ Status API verification failed")
+                print("!!! Status API verification failed")
         except Exception as e:
             logger.error(f"Error verifying Status API: {e}")
 

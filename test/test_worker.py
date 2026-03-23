@@ -44,6 +44,7 @@ from newslookout import scraper_utils
 
 global app_inst
 
+
 def test_worker_init():
     # Test PluginWorker object init.
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -69,6 +70,7 @@ def test_worker_init():
     workerInst.setRunDate(app_inst.app_config.rundate)
     assert workerInst.runDate == app_inst.app_config.rundate, 'Worker object is unable to set rundate correctly'
     # test runURLListGatherTasks()
+
     def patch_fun(paramA, paramB):
         return ['https://www.newindianexpress.com/news1',
                 'https://www.newindianexpress.com/news2',
@@ -76,16 +78,16 @@ def test_worker_init():
     # patch mock function for getURLsListForDate():
     pluginInst.getURLsListForDate = patch_fun
     workerInst.runURLListGatherTasks()
-    assert pluginInst.getQueueSize()>0, 'runURLListGatherTasks()  is not retrieving URLs correctly.'
-    while pluginInst.getQueueSize()>0:
+    assert pluginInst.getQueueSize() > 0, 'runURLListGatherTasks()  is not retrieving URLs correctly.'
+    while pluginInst.getQueueSize() > 0:
         print(f'Queue size: {pluginInst.getQueueSize()}')
         print(f'Next item in queue: {pluginInst.getNextItemFromFetchQueue()}')
 
     # test news aggregator URL sourcing logic:
-    test_dom_plugin_map = {'www.newindianexpress.com':'plugin1', 'www.thehindu.com':'plugin2'}
-    allPluginObjs = {'plugin2': b'objectbytes', 'plugin1':b'objectotherbytes'}
+    test_dom_plugin_map = {'www.newindianexpress.com': 'plugin1', 'www.thehindu.com': 'plugin2'}
+    allPluginObjs = {'plugin2': b'objectbytes', 'plugin1': b'objectotherbytes'}
     workerInst.setDomainMapAndPlugins(test_dom_plugin_map, allPluginObjs)
-    assert workerInst.domainToPluginMap == test_dom_plugin_map,\
+    assert workerInst.domainToPluginMap == test_dom_plugin_map, \
         'Worker object is unable to set domainToPluginMap correctly'
     assert workerInst.pluginNameToObjMap == allPluginObjs, \
         'Worker object is unable to set pluginNameToObjMap correctly'
@@ -111,7 +113,7 @@ def test_ProgressWatcher_init():
     import newslookout.session_hist
     import newslookout.queue_manager
     pluginInst = mod_en_in_inexp_business()
-    allPluginObjsMap = {'plugin2': b'objectbytes', 'plugin1':b'objectotherbytes'}
+    allPluginObjsMap = {'plugin2': b'objectbytes', 'plugin1': b'objectotherbytes'}
     dbAccessSem = threading.Semaphore()
     sessionHistoryDB = newslookout.session_hist.SessionHistory(':memory:', dbAccessSem)
     queue_status = newslookout.queue_manager.QueueStatus(app_inst.queue_manager)
@@ -145,6 +147,7 @@ def test_DataProcessor_processItem_skips_already_processed():
     app_inst.queue_manager.alreadyDataProcList = [exec_result.URL]
     # processItem should add to processed queue without calling plugin
     called = []
+
     class FakePlugin:
         pluginName = 'fake'
         def loadDocument(self, f): called.append(f); return None
@@ -156,6 +159,7 @@ def test_DataProcessor_processItem_skips_already_processed():
         'worker-1'
     )
     assert called == [], 'processItem must not call loadDocument for already-processed URLs'
+
 
 if __name__ == "__main__":
     test_worker_init()

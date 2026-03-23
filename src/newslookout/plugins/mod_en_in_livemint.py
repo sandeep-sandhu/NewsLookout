@@ -243,19 +243,19 @@ class mod_en_in_livemint(BasePlugin):
         """ Extract the industry of the articles from its URL or contents
         """
         industries = []
-        return(industries)
+        return (industries)
 
     def extractAuthors(self, htmlText):
         """ extract the author from the html content
         """
         authors = []
-        return(authors)
+        return (authors)
 
     def extractArticleBody(self, htmlContent):
         """ extract the text body of the article
         """
         body_text = ""
-        return(body_text)
+        return (body_text)
 
     def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
@@ -278,7 +278,7 @@ class mod_en_in_livemint(BasePlugin):
                 cleanedText = cleanedText.replace(stringToFilter, " ")
         except Exception as e:
             logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        return (cleanedText)
 
 
 # # end of file ##

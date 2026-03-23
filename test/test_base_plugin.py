@@ -164,6 +164,7 @@ def test_extractLinksFromURLList():
     result = plugin.extr_links_from_urls_list(run_date, urls_to_scan)
     assert isinstance(result, list), 'extr_links_from_urls_list must return a list'
 
+
 def test_downloadDataArchive():
     # TODO: implement this
     pass
@@ -184,8 +185,6 @@ def test_clearQueue():
     assert plugin.urlQueue.qsize() == 0, 'clearQueue should empty the queue'
 
 
-
-
 def test_plugin_subclass():
     """Test case Base Plugin Class
     """
@@ -203,7 +202,7 @@ def test_plugin_subclass():
 
     pluginClassInst = mod_en_in_ecotimes()
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
-    assert type(pluginClassInst).__name__ == "mod_en_in_ecotimes",\
+    assert type(pluginClassInst).__name__ == "mod_en_in_ecotimes", \
         "mod_en_in_ecotimes Plugin was not initialising correctly"
     pluginClassInst.config(app_inst.app_config)
     print(f'Base data directory configured as {pluginClassInst.baseDirName}')
@@ -213,7 +212,7 @@ def test_plugin_subclass():
     assert len(pluginClassInst.authorMatchPatterns) > 0, "mod_en_in_ecotimes not configured: authorMatchPatterns!"
     assert len(pluginClassInst.dateMatchPatterns) > 0, "mod_en_in_ecotimes Plugin not configured: dateMatchPatterns!"
     print(f'mod_en_in_ecotimes plugin {pluginClassInst.getStatusString()}')
-    assert pluginClassInst.getStatusString() == 'State = STATE_GET_URL_LIST',\
+    assert pluginClassInst.getStatusString() == 'State = STATE_GET_URL_LIST', \
         "mod_en_in_ecotimes Plugin status not set correctly!"
     pluginClassInst.initNetworkHelper()
     assert type(pluginClassInst.networkHelper) == newslookout.network.NetworkFetcher, "mod_en_in_ecotimes network fetcher not init!"
@@ -226,7 +225,7 @@ def test_plugin_subclass():
         dbAccessSemaphore)
     results = sessionHistoryDB.printDBStats()
     if type(results) == tuple:
-        (urlCount, SQLiteVersion) = sessionHistoryDB.printDBStats()
+        (urlCount, _, _, SQLiteVersion) = sessionHistoryDB.printDBStats()
         print(f'Completed URL count = {urlCount}, SQlite version = {SQLiteVersion}')
 
     urlList = [
@@ -251,12 +250,12 @@ def test_plugin_subclass():
     pluginClassInst.putQueueEndMarker()
     assert pluginClassInst.getNextItemFromFetchQueue() == urlList[1], "mod_en_in_ecotimes - Cannot retrieve item 2!"
     assert pluginClassInst.getNextItemFromFetchQueue() == None, "mod_en_in_ecotimes - Cannot retrieve queue sentinel!"
-    assert pluginClassInst.pluginState == newslookout.data_structs.PluginTypes.STATE_FETCH_CONTENT,\
+    assert pluginClassInst.pluginState == newslookout.data_structs.PluginTypes.STATE_FETCH_CONTENT, \
         "mod_en_in_ecotimes - Queue sentinel marker did not set the correct state"
     assert pluginClassInst.isQueueEmpty() is True, "mod_en_in_ecotimes - Queue is not empty!"
     datePath = pluginClassInst.identifyDataPathForRunDate(pluginClassInst.baseDirName, runDateString)
     print(f'Path for date {runDateString} calculated as: {datePath}')
-    assert datePath == os.path.join(pluginClassInst.baseDirName, runDateString),\
+    assert datePath == os.path.join(pluginClassInst.baseDirName, runDateString), \
         "mod_en_in_ecotimes - path for date not computed correctly!"
 
 
@@ -282,7 +281,7 @@ def test_filterNonContentURLs():
     print('Output list:\n', filteredURLList)
     assert longURL1 in filteredURLList, "filterNonContentURLs() is not filtering non content URL correctly."
     assert longURL2 in filteredURLList, "filterNonContentURLs() is not filtering non content URL correctly."
-    assert 'https://economictimes.indiatimes.com/etlatestnews.cms?track900=1234&abcd=defg' not in filteredURLList,\
+    assert 'https://economictimes.indiatimes.com/etlatestnews.cms?track900=1234&abcd=defg' not in filteredURLList, \
         "filterNonContentURLs() is not filtering non content URL correctly."
     assert 'https://economictimes.indiatimes.com/markets/stocks/stock-quotes?ticker=b' not in filteredURLList, \
         "filterNonContentURLs() is not filtering non content URL correctly."
@@ -293,7 +292,8 @@ def test_getArticlesListFromRSS():
     global pluginClassInst
     print(f'Instantiated plugin name: {pluginClassInst.pluginName}')
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
-    listofFiles = [i for i in list_all_files(testdataFolder) if i.find('mod_en_in_ecotimes') >= 0 and i.find('.xml')> 0]
+    listofFiles = [i for i in list_all_files(testdataFolder) if i.find(
+        'mod_en_in_ecotimes') >= 0 and i.find('.xml') > 0]
     rssFileName = listofFiles[0]
     # monkey patch to prevent network fetch!
     pluginClassInst.networkHelper.fetchRawDataFromURL = altfetchRawDataFromURL
@@ -318,7 +318,6 @@ def test_loadDocument():
     assert document.getFileName() == jsonFileName, "loadDocument() could not set the proper file name."
 
 
-
 def test_extractUniqueIDFromURL():
     global pluginClassInst
     print(f'Instantiated plugins name: {pluginClassInst.pluginName}')
@@ -326,7 +325,6 @@ def test_extractUniqueIDFromURL():
                  "fiscal-deficit-front-swaminathan-aiyar/articleshow/73837853.cms"
     uniqueID = pluginClassInst.extractUniqueIDFromURL(uRLtoFetch)
     assert uniqueID == '73837853', "extractUniqueIDFromURL() is not correctly identifying article unique ID"
-
 
 
 def test_fetchDataFromURL():
@@ -358,10 +356,11 @@ def test_fetchDataFromURL():
     assert type(resultVal) == newslookout.data_structs.ExecutionResult, 'fetchDataFromURL() not returning exec result correctly.'
     assert resultVal.wasSuccessful is True, 'fetchDataFromURL() did not complete successfully'
     assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.publishDate == datetime.strptime('2020-02-01','%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
+    assert resultVal.publishDate == datetime.strptime(
+        '2020-02-01', '%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.articleID == '73837853', 'fetchDataFromURL() not identifying unique ID correctly.'
     assert resultVal.textSize >= 2687, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.savedDataFileName == os.path.join(app_inst.app_config.data_dir, '2020-02-01', 'mod_en_in_ecotimes_73837853'),\
+    assert resultVal.savedDataFileName == os.path.join(app_inst.app_config.data_dir, '2020-02-01', 'mod_en_in_ecotimes_73837853'), \
         'fetchDataFromURL() not saving parsed data correctly.'
     assert len(resultVal.additionalLinks) == 42, 'fetchDataFromURL() not extracting additional links correctly.'
     if os.path.isfile(resultVal.savedDataFileName + ".json"):
@@ -370,6 +369,7 @@ def test_fetchDataFromURL():
     if os.path.isfile(resultVal.savedDataFileName + ".html.bz2"):
         os.remove(resultVal.savedDataFileName + ".html.bz2")
         print(f'Deleted temp raw-data file {resultVal.savedDataFileName + ".html.bz2"} successfully.')
+
 
 def test_extractPublishedDate_valid():
     import re
@@ -401,6 +401,7 @@ def test_makeUniqueFileName():
     from newslookout.base_plugin import BasePlugin
     name = BasePlugin.makeUniqueFileName('my_plugin', '/data/2021-06-10', '99887766')
     assert name == os.path.join('/data/2021-06-10', 'my_plugin_99887766')
+
 
 if __name__ == "__main__":
     test_plugin_subclass()

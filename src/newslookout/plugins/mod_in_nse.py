@@ -139,7 +139,7 @@ class mod_in_nse(BasePlugin):
         except Exception as e:
             logger.error("Error trying to retrieve URL list at recursion level %s: %s",
                          self.app_config.recursion_level, e)
-        return(listOfURLS)
+        return (listOfURLS)
 
     def fetchDataFromURL(self, uRLtoFetch, WorkerID):
         """Fetch data From given URL"""
@@ -230,7 +230,7 @@ class mod_in_nse(BasePlugin):
         else:
             logger.info("Ignoring data file '%s' since its size (%s bytes) is less than the minimum of %s bytes",
                         fullPathName, len(rawData), self.minArticleLengthInChars)
-        return(resultVal)
+        return (resultVal)
 
     def fetchPledgesData(self, dirPathName, publishDate):
         """ Fetch Pledges Data
@@ -313,7 +313,7 @@ class mod_in_nse(BasePlugin):
                 logger.info(f"Already downloaded the pledges data as of date {publishDateStr}, hence not repeating.")
         except Exception as e:
             logger.error("Error saving pledges data: %s", e)
-        return(nFileWriteBytesCount)
+        return (nFileWriteBytesCount)
 
     def fetchMasterData(self, uRLtoFetch, dirPathName, WorkerID, sizeOfDataDownloaded):
         """ fetch Master Data"""
@@ -331,7 +331,7 @@ class mod_in_nse(BasePlugin):
                         self.masterDataExtractedFlag = True
                 except Exception as e:
                     logger.error("Error saving master data: %s", e)
-        return(sizeOfDataDownloaded)
+        return (sizeOfDataDownloaded)
 
     def parseFetchedData2(self, publishDateStr, zipFileName, dataDirForDate, WorkerID, uRLtoFetch):
         """Parse zip file with proper error handling."""
@@ -372,7 +372,7 @@ class mod_in_nse(BasePlugin):
             os.remove(zipFileName)  # delete zip file as its no longer required
         except Exception as e:
             logger.error("Error expanding archive file: %s", e)
-        return(uncompressSize)
+        return (uncompressSize)
 
     def calculateFileNamePrefix(self, oldName, dataDirForDate, publishDateStr):
         """ calculate FileName Prefix """
@@ -394,7 +394,7 @@ class mod_in_nse(BasePlugin):
                                              "debt_nse_" + publishDateStr + file_extension)
         else:
             newFileNamePrefix = os.path.join(dataDirForDate, type(self).__name__ + "_" + oldName)
-        return(newFileNamePrefix)
+        return (newFileNamePrefix)
 
     def extractUniqueIDFromURL(self, URLToFetch):
         """ Get Unique ID From URL by extracting RegEx patterns matching any of urlMatchPatterns
@@ -415,7 +415,7 @@ class mod_in_nse(BasePlugin):
                                  e,
                                  URLToFetch.encode('ascii'),
                                  urlPattern)
-        return((date_obj, uniqueString))
+        return ((date_obj, uniqueString))
 
     def processAnnouncements(self, announceFileFullPath: str, archiveURL: str):
         """
@@ -477,7 +477,7 @@ class mod_in_nse(BasePlugin):
                                 URL=archiveURL)
                             logger.debug(f"Writing to unique file: {filename}")
                             thisArticle.writeFiles(
-                                os.path.join(self.app_config.data_dir,filename),
+                                os.path.join(self.app_config.data_dir, filename),
                                 announceContent,
                                 False)
                         else:

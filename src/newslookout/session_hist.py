@@ -431,7 +431,7 @@ class SessionHistory:
         sqlCon = None
         try:
             #  filter from list of tuples: self.pending_urls
-            URLsFromSQLite = [urlTuple[1] for urlTuple in self.pending_urls if urlTuple[0]==pluginName]
+            URLsFromSQLite = [urlTuple[1] for urlTuple in self.pending_urls if urlTuple[0] == pluginName]
 
         except Exception as e:
             logger.error(f"Error retrieving pending URLs for {pluginName}: {e}")

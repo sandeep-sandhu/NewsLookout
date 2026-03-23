@@ -184,7 +184,7 @@ class mod_eventclass(BasePlugin):
                                         }
         except Exception as e:
             print("Error getting sentence classification:", e)
-        return(classificationScores)
+        return (classificationScores)
 
     def classifySentences(self, sent):
         """ Classify one text sentence at a time.
@@ -205,7 +205,7 @@ class mod_eventclass(BasePlugin):
             outputs = self.model(input_ids, token_type_ids, attention_mask)
             outputs = F.softmax(outputs, dim=1)
             # print('\n FinBERT predicted sentiment: ', labels[torch.argmax(outputs).item()])
-            return([i.item() for i in outputs.data[0]])
+            return ([i.item() for i in outputs.data[0]])
 
 
 ######

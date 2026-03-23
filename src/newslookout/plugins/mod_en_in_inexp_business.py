@@ -124,7 +124,7 @@ class mod_en_in_inexp_business(BasePlugin):
             # section = article_html.find( "span", "ag")
         except Exception as e:
             logger.error("When extracting industries: %s", e)
-        return(industries)
+        return (industries)
 
     def extractAuthors(self, htmlText):
         """ Extract Authors/Agency/Source from html
@@ -149,7 +149,7 @@ class mod_en_in_inexp_business(BasePlugin):
                 raise Exception("Could not identify news agency/source.")
             else:
                 authors = authorStr.split(',')
-        return(authors)
+        return (authors)
 
     def extractArticleBody(self, htmlContent):
         """ Extract article's text using the Beautiful Soup library """
@@ -166,7 +166,7 @@ class mod_en_in_inexp_business(BasePlugin):
         except Exception as e:
             logger.error("Exception extracting article via tags: %s", e)
 
-        return(articleText)
+        return (articleText)
 
     def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
@@ -191,7 +191,7 @@ class mod_en_in_inexp_business(BasePlugin):
                 cleanedText = cleanedText.replace(stringToFilter, " ")
         except Exception as e:
             logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        return (cleanedText)
 
 
 # # end of file ##

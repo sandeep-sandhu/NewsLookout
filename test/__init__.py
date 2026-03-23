@@ -40,7 +40,7 @@ def getAppFolders():
     sys.path.append(os.path.join(sourceFolder, 'plugins_contrib'))
     testdataFolder = os.path.join(parentFolder, 'test-data')
     config_file = os.path.join(testdataFolder, 'newslookout_test.conf')
-    return((parentFolder, sourceFolder, testdataFolder, config_file))
+    return ((parentFolder, sourceFolder, testdataFolder, config_file))
 
 
 def getMockAppInstance(parentFolder: str, rundate: str, configfile: str):
@@ -60,7 +60,7 @@ def list_all_files(directoryName):
     if os.path.exists(directoryName) and os.path.isdir(directoryName):
         filesList = [os.path.join(directoryName, i) for i in os.listdir(directoryName)
                      if os.path.isfile(os.path.join(directoryName, i))]
-        return(filesList)
+        return (filesList)
     return None
 
 
@@ -68,7 +68,7 @@ def altfetchRawDataFromURL(feedFileName, pluginName):
     with open(feedFileName, 'rt', encoding='utf-8') as fp:
         file_contents = fp.read()
         fp.close()
-        return(file_contents)
+        return (file_contents)
 
 
 def read_bz2html_file(filename: str) -> str:
@@ -92,18 +92,25 @@ def read_bz2html_file(filename: str) -> str:
 
 
 def get_network_substitute_fun(plugin_name: str, testdata_dir: str, file_no: int = 0) -> object:
+    import pytest
     files_list = list_all_files(testdata_dir)
-    listofFiles = [i for i in files_list if i.find(plugin_name) >= 0 and i.find('.bz2')> 0]
+    listofFiles = [i for i in files_list if i.find(plugin_name) >= 0 and i.find('.bz2') > 0]
+    if not listofFiles:
+        pytest.skip(
+            f"No .bz2 test fixture found for plugin '{plugin_name}' in {testdata_dir}. "
+            f"Add a file named '{plugin_name}_<article_id>.html.bz2' to that directory."
+        )
     if file_no < len(listofFiles):
         htmlBz2FileName = listofFiles[file_no]
     else:
         htmlBz2FileName = listofFiles[0]
     print(f'Generating data supplying function to get data from file #{file_no}')
+
     def replacement_fun(uRLtoFetch, pluginName, getBytes=False, shutdown_event=None):
         html_content = read_bz2html_file(htmlBz2FileName)
         print(f'Read {len(html_content)} characters of HTML content from file: {htmlBz2FileName}')
         return (html_content, None)   # return (content, http_error=None) to match real signature
-    return(replacement_fun)
+    return (replacement_fun)
 
 
 (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()

@@ -89,6 +89,7 @@ from newslookout.config import ConfigManager
 from newslookout.scraper_utils import checkAndGetNLTKData
 from newslookout import scraper_utils
 
+
 class NewsLookoutApp:
     """
     Main application class for NewsLookout web scraping.
@@ -290,7 +291,6 @@ class NewsLookoutApp:
                 logging.error("Error deleting PID file %s: %s", self.app_config.pid_file, e)
         else:
             logging.info(f"PID file {self.app_config.pid_file} does not exist, so unable to delete it.")
-
 
     def run(self, run_date: Optional[str] = None, max_runtime: Optional[int] = None,
             blocking: bool = True) -> Dict[str, Any]:
@@ -559,7 +559,7 @@ def scrape(config_file: str, run_date: Optional[str] = None,
     if not os.path.isfile(config_file):
         config_file = default_cfg_path
 
-    run_stats = {'urls_discovered':0, 'urls_processed':0, 'data_processed':0, 'duration':0.0}
+    run_stats = {'urls_discovered': 0, 'urls_processed': 0, 'data_processed': 0, 'duration': 0.0}
     app_inst = NewsLookoutApp(config_file, run_date=run_date)
 
     try:

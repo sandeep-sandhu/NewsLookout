@@ -48,6 +48,7 @@ def test_PluginStatus_getStatusString():
     result = PluginStatus.getStatusString(PluginTypes.MODULE_NEWS_CONTENT, PluginTypes.STATE_GET_URL_LIST)
     assert 'STATE_GET_URL_LIST' in result
 
+
 def test_PluginStatus_set_states():
     from newslookout.data_structs import PluginStatus, PluginTypes
     ps = PluginStatus()
@@ -58,6 +59,7 @@ def test_PluginStatus_set_states():
     ps.set_URL_fetched_count(10)
     assert ps.total_url_fetched == 10
 
+
 def test_QueueStatus_getStatusChange():
     from newslookout.data_structs import QueueStatus
     prev = {'pluginA': 10, 'pluginB': 10}
@@ -66,9 +68,10 @@ def test_QueueStatus_getStatusChange():
     assert any('pluginA' in m for m in msgs), 'Changed plugin should appear in status messages'
     assert not any('pluginB' in m for m in msgs), 'Unchanged plugin should not appear'
 
+
 def test_decodeNameFromIntVal():
     from newslookout.data_structs import PluginTypes
-    assert PluginTypes.decodeNameFromIntVal(10) == 'STATE_GET_URL_LIST',\
+    assert PluginTypes.decodeNameFromIntVal(10) == 'STATE_GET_URL_LIST', \
         'test_decodeNameFromIntVal() is not decoding types into names correctly'
     assert PluginTypes.decodeNameFromIntVal(20) == 'STATE_FETCH_CONTENT', \
         'test_decodeNameFromIntVal() is not decoding types into names correctly'

@@ -83,10 +83,11 @@ def test_SessionHistory_init():
     cur.execute('SELECT count(*) from pending_urls')
     data = cur.fetchone()
     print(f'Count of records in table pending_urls = {data[0]}')
-    assert data[0]==0, 'SessionHistory object is not able to count pending URLs'
+    assert data[0] == 0, 'SessionHistory object is not able to count pending URLs'
     # check session history db has urls in pending queue:
     todoURLs = sessionHistoryDB.retrieveTodoURLList(pluginClassInst.pluginName)
     print(f'Pending URL listing from session history database = {todoURLs}')
+
 
 def test_url_was_attempted():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -168,13 +169,13 @@ def test_addURLsToPendingTable():
     # verify count using retrieveTodoURLList():
     pendingUrlList = sessionHistoryDB.retrieveTodoURLList('plugin555')
     print(f'URL list fetched back = {pendingUrlList},\n original test list = {testURLList}')
-    assert len(pendingUrlList) == len(testURLList),\
+    assert len(pendingUrlList) == len(testURLList), \
         'addURLsToPendingTable() is not able to correctly saving pending URLs.'
     assert 'https://plugin.site1/news1' in pendingUrlList, \
         'addURLsToPendingTable() is not able to correctly saving pending URLs.'
     assert 'https://plugin.site1/news2' in pendingUrlList, \
         'addURLsToPendingTable() is not able to correctly saving pending URLs.'
-    assert 'https://plugin.site3/news81' not in pendingUrlList,\
+    assert 'https://plugin.site3/news81' not in pendingUrlList, \
         'retrieveTodoURLList() is not correctly retrieving pending URLs'
 
     import sqlite3
@@ -208,7 +209,7 @@ def test_addURLToFailedTable():
                                         'plugin11', 'file11.json', 'file11.html.bz2', success=False)
     countWritten = sessionHistoryDB.addURLToFailedTable(res1,
                                                         'plugin11',
-                                                        datetime.datetime.strptime('2010-12-19','%Y-%m-%d'))
+                                                        datetime.datetime.strptime('2010-12-19', '%Y-%m-%d'))
     # verify counts:
     import sqlite3
     cur = sqlCon.cursor()
@@ -219,7 +220,7 @@ def test_addURLToFailedTable():
     testList = ['https://site1/failnews11', 'https://site1/news2', 'https://plugin.site1/news4']
     resultList = sessionHistoryDB.removeAlreadyFetchedURLs(testList, 'plugin11')
     print(f'result List after filtering = {resultList}')
-    assert 'https://site1/failnews11' not in resultList,\
+    assert 'https://site1/failnews11' not in resultList, \
         'removeAlreadyFetchedURLs() not checking failed URL list correctly'
     sqlCon.close()
     # before shutdown, clean-up:
@@ -256,7 +257,7 @@ def test_writeQueueToDB():
         assert urlCount == 2, 'printDBStats() is not able to correctly count completed URLs.'
     import sqlite3
     cur = sqlCon.cursor()
-    assert sessionHistoryDB.url_was_attempted('https://site1/news1', 'plugin1') == True,\
+    assert sessionHistoryDB.url_was_attempted('https://site1/news1', 'plugin1') == True, \
         'url_was_attempted() is not checking the history database correctly.'
     assert sessionHistoryDB.url_was_attempted('https://site1/news1', 'plugin33') == True, \
         'url_was_attempted() is not checking the history database correctly.'
@@ -272,20 +273,21 @@ def test_writeQueueToDB():
     print(f'SQL result count of URLs = {data[0]}')
     assert data[0] == 2, '2. openConnFromfile() is not able to initialise table: url_list.'
     # verify url is correct:
-    cur.execute('select url from url_list where plugin = ? and pubdate = ?', ('plugin1','2000-12-20'))
+    cur.execute('select url from url_list where plugin = ? and pubdate = ?', ('plugin1', '2000-12-20'))
     data = cur.fetchone()
     print(f'URL for plugin1 = {data[0]}')
     assert data[0] == 'https://site1/news1', 'writeQueueToDB() is not correctly saving URL.'
     # verify pubdate is correct:
-    cur.execute('select pubdate from url_list where url = ? and plugin = ?', ('https://site1/news2','plugin2'))
+    cur.execute('select pubdate from url_list where url = ? and plugin = ?', ('https://site1/news2', 'plugin2'))
     data = cur.fetchone()
     print(f'pubdate for url2 = {data[0]}')
-    assert data[0] == datetime.date(2000, 12, 30),\
+    assert data[0] == datetime.date(2000, 12, 30), \
         'writeQueueToDB() is not correctly saving published date of saved article.'
     sqlCon.close()
     # before shutdown, clean-up:
     if os.path.isfile(testdbFile):
         os.remove(testdbFile)
+
 
 def test_addDupURLToDeleteTbl():
     # TODO: implement this - addDupURLToDeleteTbl()

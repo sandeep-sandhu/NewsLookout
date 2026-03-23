@@ -42,7 +42,7 @@ import ssl
 import requests
 from requests.adapters import HTTPAdapter
 from urllib3.poolmanager import PoolManager
-from urllib3.util import ssl_ # For legacy SSL
+from urllib3.util import ssl_  # For legacy SSL
 from urllib3.exceptions import InsecureRequestWarning
 import newspaper
 
@@ -198,7 +198,6 @@ class NetworkFetcher:
                 return
             time.sleep(1)
 
-
     def fetchRawDataFromURL_with_error_handling(self, uRLtoFetch: str, pluginName: str,
                                                 getBytes: bool = False, shutdown_event=None):
         """
@@ -267,7 +266,8 @@ class NetworkFetcher:
                     break   # stop retrying on connection errors
 
             except requests.TooManyRedirects as httpExp:
-                logger.error(f"{pluginName}: Too Many Redirects (retry count = {retryCounter}) for URL {uRLtoFetch}: {httpExp}")
+                logger.error(
+                    f"{pluginName}: Too Many Redirects (retry count = {retryCounter}) for URL {uRLtoFetch}: {httpExp}")
                 if httpExp.response:
                     http_error = HTTPError(httpExp.response.status_code, uRLtoFetch, str(httpExp))
                     return None, http_error

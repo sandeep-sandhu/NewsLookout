@@ -174,7 +174,7 @@ class QueueManager:
         self.dbWorkerThread = threading.Thread(
             target=self._databaseWorkerLoop,
             name="DatabaseWorker",
-            daemon=False
+            daemon=True      # daemon=True: thread exits automatically when main process ends
         )
         self.dbWorkerThread.start()
         logger.info("Database worker thread started")
@@ -234,7 +234,8 @@ class QueueManager:
                             result_queue.put(result)
                         else:
                             # Log if write succeeded but no result queue
-                            logger.debug(f"Wrote {len(args) if isinstance(args, list) else 1} URLs to DB (no result queue)")
+                            logger.debug(
+                                f"Wrote {len(args) if isinstance(args, list) else 1} URLs to DB (no result queue)")
 
                     elif operation == 'add_pending':
                         url_list, plugin_name = args
@@ -428,7 +429,7 @@ class QueueManager:
                     self,
                     self.q_status,
                     name=self.dataProcPluginsMap[key].pluginName,
-                    daemon=False
+                    daemon=True
                 ))
 
         except Exception as e:

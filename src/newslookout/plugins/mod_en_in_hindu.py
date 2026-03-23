@@ -149,7 +149,7 @@ class mod_en_in_hindu(BasePlugin):
                 industries.append(matchRes.group(2))
         except Exception as e:
             logger.error("Error extracting industries: %s", e)
-        return(industries)
+        return (industries)
 
     def extractAuthors(self, htmlText):
         """ Extract Authors/Agency/Source of the article from its raw html code
@@ -170,7 +170,7 @@ class mod_en_in_hindu(BasePlugin):
                              e, authorStr, self.URLToFetch)
         if authorStr is None or authorStr == '':
             authors = []
-        return(authors)
+        return (authors)
 
     def extractArticleBody(self, htmlContent):
         """ Extract article's text from raw HTML content
@@ -189,7 +189,7 @@ class mod_en_in_hindu(BasePlugin):
             logger.warning("Warning when extracting text via BeautifulSoup: %s", w)
         except Exception as e:
             logger.error("Error extracting article text via tags: %s", e)
-        return(articleText)
+        return (articleText)
 
     def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
@@ -212,7 +212,7 @@ class mod_en_in_hindu(BasePlugin):
                 cleanedText = cleanedText.replace(stringToFilter, " ")
         except Exception as e:
             logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        return (cleanedText)
 
 
 # # end of file ##

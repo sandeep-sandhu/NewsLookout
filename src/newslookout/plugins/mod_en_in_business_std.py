@@ -167,7 +167,7 @@ class mod_en_in_business_std(BasePlugin):
         industries = []
         if type(htmlText) == bytes:
             htmlText = htmlText.decode('UTF-8')
-        return(industries)
+        return (industries)
 
     def extractAuthors(self, htmlText):
         """ extract the author from the html content
@@ -179,7 +179,7 @@ class mod_en_in_business_std(BasePlugin):
         matchRes = authorPattern.search(htmlText)
         if matchRes is not None:
             authors.append(matchRes.group(2))
-        return(authors)
+        return (authors)
 
     # https://www.business-standard.com/article/economy-policy/sporadic-lockdowns-to-cost-india-1-25-billion-per-week-barclays-121041200631_1.html
     def extractArticleBody(self, htmlContent):
@@ -188,7 +188,7 @@ class mod_en_in_business_std(BasePlugin):
         body_text = ""
         if type(htmlContent) == bytes:
             htmlContent = htmlContent.decode('UTF-8')
-        return(body_text)
+        return (body_text)
 
     def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
@@ -211,7 +211,7 @@ class mod_en_in_business_std(BasePlugin):
                 cleanedText = cleanedText.replace(stringToFilter, " ")
         except Exception as e:
             logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        return (cleanedText)
 
 
 # # end of file ##

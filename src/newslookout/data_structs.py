@@ -132,6 +132,7 @@ class ExecutionResult:
         return (self.URL, self.pluginName, self.publishDate,
                 self.rawDataSize, self.textSize)
 
+
 class PluginStatus:
     start_time: datetime
     list_complete_time: datetime
@@ -167,6 +168,7 @@ class PluginStatus:
             return 'State = ' + PluginTypes.decodeNameFromIntVal(pluginState)
         elif pluginType in [PluginTypes.MODULE_NEWS_AGGREGATOR]:
             return 'State = ' + PluginTypes.decodeNameFromIntVal(pluginState)
+
 
 class QueueStatus:
     """ This object gets the status of all the plugins and the queues of the application

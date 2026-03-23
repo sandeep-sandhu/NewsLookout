@@ -313,7 +313,6 @@ class NewsEvent(JSONEncoder):
                 logger.error(f"Error cleaning text encoding: {e}")
         return cleanText
 
-
     def writeFiles_deprecated(self, fileNameWithOutExt: str, htmlContent, saveHTMLFile: bool = False):
         """ Write news event data urlData to JSON file.
          Optionally, saves HTML data into a corresponding html file.

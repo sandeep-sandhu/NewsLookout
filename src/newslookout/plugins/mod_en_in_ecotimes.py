@@ -553,7 +553,7 @@ class mod_en_in_ecotimes(BasePlugin):
                 runDate = datetime.strptime(runDate, '%Y-%m-%d')
                 dateDiff = runDate - startDate
             else:
-                return([])
+                return ([])
             archiveDayNo = dateDiff.days + 1
             yearNo = runDate.strftime('%Y')
             monthNo = runDate.strftime('%m')
@@ -570,7 +570,7 @@ class mod_en_in_ecotimes(BasePlugin):
         except Exception as e:
             logger.error("%s: Error extracting archive URL links for given date %s: %s; URL = %s",
                          self.pluginName, runDate, e, searchResultsURLForDate)
-        return(resultSet)
+        return (resultSet)
 
     def extractIndustries(self, uRLtoFetch, htmlText):
         """  Extract Industries from text and URL
@@ -590,7 +590,7 @@ class mod_en_in_ecotimes(BasePlugin):
             logger.error("Error identifying industries for URL %s: %s",
                          uRLtoFetch.encode("ascii", "ignore"),
                          e)
-        return(industries)
+        return (industries)
 
     def extractAuthors(self, htmlText):
         """ Extract Authors/Agency/Source of the article from its raw html code
@@ -611,7 +611,7 @@ class mod_en_in_ecotimes(BasePlugin):
                              e, authorStr, self.URLToFetch)
         if authorStr is None:
             authors = self.extractAuthorsFromTags(htmlText)
-        return(authors)
+        return (authors)
 
     def extractAuthorsFromTags(self, htmlText):
         """ Extract Authors/Agency/Source of the article from its raw html code
@@ -632,7 +632,7 @@ class mod_en_in_ecotimes(BasePlugin):
         except Exception as e:
             logger.error("Error on re-attempting identifying authors from tags: %s, URL: %s",
                          e, self.URLToFetch)
-        return(authors)
+        return (authors)
 
     def extractArticleBody(self, htmlContent):
         """ Extract Article Text content using Beautiful Soup library
@@ -658,7 +658,7 @@ class mod_en_in_ecotimes(BasePlugin):
             #    logger.warn("Warning when extracting text via BeautifulSoup: %s", w)
         except Exception as e:
             logger.error("Exception extracting article content via tags: %s", e)
-        return(body_text)
+        return (body_text)
 
     def extractArticleBodyFormat1(self, docRoot):
         """ Extract Article Text content in format 1
@@ -682,7 +682,7 @@ class mod_en_in_ecotimes(BasePlugin):
 
         except Exception as e:
             logger.error("Extracting article content in format 1: %s", e)
-        return(body_text)
+        return (body_text)
 
     def extractArticleBodyFormat2(self, docRoot):
         """ Extract Article Text content in format 2
@@ -703,7 +703,7 @@ class mod_en_in_ecotimes(BasePlugin):
         except Exception as e:
             logger.error("Extracting article content in format 2: %s", e)
 
-        return(body_text)
+        return (body_text)
 
     def extractArticleBodyFormat3(self, docRoot):
         """ Extract Article Text content in format 3
@@ -724,7 +724,7 @@ class mod_en_in_ecotimes(BasePlugin):
         except Exception as e:
             logger.error("Extracting article content in format 3: %s", e)
 
-        return(body_text)
+        return (body_text)
 
     def extractArticleBodyFormat4(self, docRoot):
         """ Extract Article Text content in format 4
@@ -741,7 +741,7 @@ class mod_en_in_ecotimes(BasePlugin):
 
         except Exception as e:
             logger.error("When extracting article content in format 4: %s", e)
-        return(body_text)
+        return (body_text)
 
     def extractArticleBodyFormat5(self, docRoot):
         """ Extract Article Text content in format 5
@@ -759,7 +759,7 @@ class mod_en_in_ecotimes(BasePlugin):
 
         except Exception as e:
             logger.error("When extracting article content in format 5: %s", e)
-        return(body_text)
+        return (body_text)
 
     def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
@@ -782,7 +782,7 @@ class mod_en_in_ecotimes(BasePlugin):
                 cleanedText = cleanedText.replace(stringToFilter, " ")
         except Exception as e:
             logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        return (cleanedText)
 
 
 # # end of file ##

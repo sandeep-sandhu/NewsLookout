@@ -95,6 +95,7 @@ def test_processDataObj():
     except Exception as e:
         pytest.fail(f'processDataObj raised an unexpected exception: {e}')
 
+
 if __name__ == "__main__":
     test_plugin_subclass()
 

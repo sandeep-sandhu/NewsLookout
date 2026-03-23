@@ -143,7 +143,7 @@ class mod_in_gdelt(BasePlugin):
             logger.error("%s: When Extracting URL list from main URL, error was: %s",
                          self.pluginName, e)
         self.pluginState = PluginTypes.STATE_STOPPED
-        return(urlList)
+        return (urlList)
 
     def prepare_url_datadir_for_date(self, rundate_obj: datetime) -> tuple:
         """ Prepare URL from given Date.
@@ -158,7 +158,7 @@ class mod_in_gdelt(BasePlugin):
             url_prepared_for_date = prevToPrevDay.strftime(self.mainURLDateFormatted)
         dataDirForDate = BasePlugin.identifyDataPathForRunDate(self.app_config.data_dir,
                                                                prevToPrevDay)
-        return(url_prepared_for_date, dataDirForDate)
+        return (url_prepared_for_date, dataDirForDate)
 
     @staticmethod
     def extract_csvlist_from_archive(archive_bytes: bytes, dataDirForDate: str) -> list:
@@ -178,7 +178,7 @@ class mod_in_gdelt(BasePlugin):
             logger.debug(f"Expanded the Zip archive to file: {csv_filename}")
             list_of_files.append(csv_filename)
         zipDatafile.close()
-        return(list_of_files)
+        return (list_of_files)
 
     @staticmethod
     def extract_urls_from_csv(csv_filename: str, country_code='IN') -> list:
@@ -199,7 +199,7 @@ class mod_in_gdelt(BasePlugin):
             urlList.append(item.strip())
         # delete csv file:
         os.remove(csv_filename)
-        return(deDupeList(urlList))
+        return (deDupeList(urlList))
 
 
 # # end of file ##

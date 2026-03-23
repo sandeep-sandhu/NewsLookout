@@ -51,6 +51,7 @@ global app_inst
 
 logger = logging.getLogger(__name__)
 
+
 def test_plugin_subclass():
     """Test case Base Plugin Class
     """
@@ -74,16 +75,16 @@ def test_plugin_subclass():
     print(f'Base data directory configured as {pluginClassInst.baseDirName}')
     assert len(pluginClassInst.baseDirName) > 0, "mod_en_in_inexp_business Plugin not configured: baseDirName!"
     assert pluginClassInst.configReader is not None, "mod_en_in_inexp_business Plugin not configured: configReader!"
-    assert len(pluginClassInst.urlMatchPatterns) > 0,\
+    assert len(pluginClassInst.urlMatchPatterns) > 0, \
         "mod_en_in_inexp_business Plugin not configured: urlMatchPatterns!"
     assert len(pluginClassInst.authorMatchPatterns) > 0, "mod_en_in_inexp_business not configured: authorMatchPatterns!"
-    assert len(pluginClassInst.dateMatchPatterns) > 0,\
+    assert len(pluginClassInst.dateMatchPatterns) > 0, \
         "mod_en_in_inexp_business Plugin not configured: dateMatchPatterns!"
     print(f'mod_en_in_inexp_business plugin {pluginClassInst.getStatusString()}')
     assert pluginClassInst.getStatusString() == 'State = STATE_GET_URL_LIST', \
         "mod_en_in_inexp_business Plugin status not set correctly!"
     pluginClassInst.initNetworkHelper()
-    assert type(pluginClassInst.networkHelper) == newslookout.network.NetworkFetcher,\
+    assert type(pluginClassInst.networkHelper) == newslookout.network.NetworkFetcher, \
         "mod_en_in_inexp_business network fetcher not init!"
     pluginClassInst.setURLQueue(queue.Queue())
     assert type(pluginClassInst.urlQueue) == queue.Queue, "mod_en_in_inexp_business queue not set!"
@@ -116,7 +117,8 @@ def test_fetchDataFromURL():
     assert type(resultVal) == newslookout.data_structs.ExecutionResult, 'fetchDataFromURL() not returning exec result correctly.'
     assert resultVal.wasSuccessful is True, 'fetchDataFromURL() did not complete successfully'
     assert resultVal.pluginName == pluginClassInst.pluginName, 'fetchDataFromURL() not parsing text body correctly.'
-    assert resultVal.publishDate == datetime.strptime('2021-02-01','%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
+    assert resultVal.publishDate == datetime.strptime(
+        '2021-02-01', '%Y-%m-%d'), 'fetchDataFromURL() not parsing published date correctly.'
     assert resultVal.articleID == '2258178', 'fetchDataFromURL() not identifying unique ID correctly.'
     assert resultVal.textSize > 5000, 'fetchDataFromURL() not parsing text body correctly.'
     assert resultVal.savedDataFileName == os.path.join(app_inst.app_config.data_dir,

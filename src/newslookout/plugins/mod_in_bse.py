@@ -114,7 +114,7 @@ class mod_in_bse(BasePlugin):
         except Exception as e:
             logger.error("Error trying to retrieve URL list at recursion level %s: %s",
                          self.app_config.recursion_level, e)
-        return(listOfURLS)
+        return (listOfURLS)
 
     def fetchDataFromURL(self, uRLtoFetch: str, WorkerID: int):
         """ Fetch data From given URL
@@ -174,7 +174,7 @@ class mod_in_bse(BasePlugin):
                                         self.pluginName)
         except Exception as e:
             logger.error("While fetching data, Exception was: %s", e)
-        return(resultVal)
+        return (resultVal)
 
     def parseFetchedData2(self, zipFileName: str, dataDirForDate: str, WorkerID: int, publishDateStr: str) -> int:
         """Parse the fetched Data
@@ -208,7 +208,7 @@ class mod_in_bse(BasePlugin):
                     logger.error("Error extracting the fetched zip archive: %s", e)
         zipDatafile.close()
         os.remove(zipFileName)  # delete zip file since its no longer required
-        return(expandedSize)
+        return (expandedSize)
 
     def extractUniqueIDFromURL(self, URLToFetch: str):
         """ Get Unique ID From URL by extracting RegEx patterns matching any of urlMatchPatterns
@@ -229,7 +229,7 @@ class mod_in_bse(BasePlugin):
                                  e,
                                  URLToFetch.encode('ascii'),
                                  urlPattern)
-        return((date_obj, uniqueString))
+        return ((date_obj, uniqueString))
 
     def fetchPledgesData(self, dirPathName: str, publishDate) -> bytes:
         """ fetch Pledges Data"""
@@ -242,7 +242,7 @@ class mod_in_bse(BasePlugin):
                 # write: resp.content
         except Exception as e:
             logger.error('Error getting pledges data: %s', e)
-        return(resp.content)
+        return (resp.content)
 
 
 # # end of file ##

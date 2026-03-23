@@ -144,7 +144,7 @@ class mod_en_in_forbes(BasePlugin):
             docRoot.find("span", "ag")
         except Exception as e:
             logger.error("Error identifying the industries for URL %s: %s", uRLtoFetch, e)
-        return(industries)
+        return (industries)
 
     def extractAuthors(self, htmlText):
         """ extract Authors/Agency/Source from html"""
@@ -159,7 +159,7 @@ class mod_en_in_forbes(BasePlugin):
                 authors = [strNewsAgent]
         except Exception as e:
             logger.error("Error extracting news agent from text: %s", e)
-        return(authors)
+        return (authors)
 
     def extractArticleBody(self, htmlContent):
         """ Extract article's text using the Beautiful Soup library """
@@ -173,7 +173,7 @@ class mod_en_in_forbes(BasePlugin):
                 articleText = body_root[0].getText()
         except Exception as e:
             logger.error("Exception extracting article via tags: %s", e)
-        return(articleText)
+        return (articleText)
 
     def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
@@ -196,7 +196,7 @@ class mod_en_in_forbes(BasePlugin):
                 cleanedText = cleanedText.replace(stringToFilter, " ")
         except Exception as e:
             logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        return (cleanedText)
 
 
 # # end of file ##

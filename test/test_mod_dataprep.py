@@ -52,6 +52,7 @@ global app_inst
 
 logger = logging.getLogger(__name__)
 
+
 def test_plugin_subclass():
     """Test instantiation of this Plugin object
     """
@@ -93,6 +94,7 @@ def test_processDataObj():
         pluginClassInst.processDataObj(doc)
     except Exception as e:
         pytest.fail(f'processDataObj raised an unexpected exception: {e}')
+
 
 if __name__ == "__main__":
     test_plugin_subclass()

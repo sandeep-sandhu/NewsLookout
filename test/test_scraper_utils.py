@@ -209,6 +209,7 @@ def test_sameURLWithoutQueryParams_false():
     compareResult = newslookout.scraper_utils.sameURLWithoutQueryParams(url1, url3)
     assert compareResult is False, '2. sameURLWithoutQueryParams() is not identifying same URLs correctly'
 
+
 def test_retainValidArticles():
     # check filtering out of valid urls based on valid string pattern
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -220,12 +221,13 @@ def test_retainValidArticles():
                    'https://auto.economictimes.indiatimes.com/xyz']
     validURLStringsToCheck = ['economictimes.indiatimes.com/']
     resultList = newslookout.scraper_utils.retainValidArticles(articleList, validURLStringsToCheck)
-    assert 'https://economictimes.indiatimes.com/news/latest-news/most-commented' in resultList,\
+    assert 'https://economictimes.indiatimes.com/news/latest-news/most-commented' in resultList, \
         '3. retainValidArticles() is excluding valid URLs!'
     assert 'https://auto.economictimes.indiatimes.com/xyz' in resultList, \
         '3. retainValidArticles() is excluding valid URLs!'
     assert 'https://www.twitter.com' not in resultList, \
         '3. retainValidArticles() is not filtering out invalid URLs!'
+
 
 def test_removeInValidArticles():
     """ Test removal of invalid article URLs from url list
@@ -265,15 +267,17 @@ def test_removeInValidArticles():
     assert 'https://www.facebook.com/abcd' not in resultList, \
         '4. removeInValidArticles() is not filtering out invalid URLs!'
 
+
 def test_removeStartTrailQuotes():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     sys.path.append(sourceFolder)
     import newslookout.scraper_utils
 
-    assert newslookout.scraper_utils.removeStartTrailQuotes('"some text"') == 'some text',\
+    assert newslookout.scraper_utils.removeStartTrailQuotes('"some text"') == 'some text', \
         "5. removeStartTrailQuotes() is not removing quotes around text correctly"
     assert newslookout.scraper_utils.removeStartTrailQuotes('"another " text') == 'another " text', \
         "5. removeStartTrailQuotes() is not removing quotes around text correctly"
+
 
 def test_saveObjToJSON():
     # TODO: implement this
@@ -282,7 +286,7 @@ def test_saveObjToJSON():
     import newslookout.scraper_utils
 
     jsonFileName = 'test_saveObjToJSON.json'
-    objToSave = {'key1': 1, 'key2':'second value'}
+    objToSave = {'key1': 1, 'key2': 'second value'}
     newslookout.scraper_utils.saveObjToJSON(jsonFileName, objToSave)
     import json
     with open(jsonFileName, 'r', encoding='utf-8') as fp:
@@ -291,9 +295,9 @@ def test_saveObjToJSON():
     # clean up afterwards
     os.remove(jsonFileName)
     assert 'key1' in objToTest, "6. saveObjToJSON() is not saving data structure to JSON file correctly"
-    assert objToTest['key1']== objToSave['key1'],\
+    assert objToTest['key1'] == objToSave['key1'], \
         "6. saveObjToJSON() is not saving data structure to JSON file correctly"
-    assert objToTest['key2']== objToSave['key2'],\
+    assert objToTest['key2'] == objToSave['key2'], \
         "6. saveObjToJSON() is not saving data structure to JSON file correctly"
     assert 'key2' in objToTest, "6. saveObjToJSON() is not saving data structure to JSON file correctly"
 
@@ -307,7 +311,7 @@ def test_deDupeList():
     listWithDuplicates = ['one', 'two', 'two', 'three']
     resultList = newslookout.scraper_utils.deDupeList(listWithDuplicates)
     print('Resultng list after de-duplicating:', resultList)
-    assert len(resultList)==3 and 'two' in resultList, "8. deDupeList() is not de-duplicating lists correctly."
+    assert len(resultList) == 3 and 'two' in resultList, "8. deDupeList() is not de-duplicating lists correctly."
 
 
 def test_filterRepeatedchars():
@@ -320,7 +324,7 @@ def test_filterRepeatedchars():
     charList = [' ', '\t', '\n', '-']
     resultText = newslookout.scraper_utils.filterRepeatedchars(baseText, charList)
     print('Result after filtering repeated characters:\n', resultText)
-    assert resultText == "A good sentence with repeated spaces and tabs \t and\n newlines and hyphens- dots....",\
+    assert resultText == "A good sentence with repeated spaces and tabs \t and\n newlines and hyphens- dots....", \
         "10. filterRepeatedchars() is not filtering repeated characters correctly."
 
 

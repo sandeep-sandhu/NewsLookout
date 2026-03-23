@@ -49,6 +49,7 @@ def test_appInitRunDate():
     print('Initialised application config =', app_inst.app_config)
     assert app_inst.app_config.rundate == datetime.strptime('2021-06-10', '%Y-%m-%d'), 'The rundate not set correctly'
 
+
 def test_appInitConfigFile():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     app_inst = getMockAppInstance(parentFolder,
@@ -56,6 +57,7 @@ def test_appInitConfigFile():
                                   config_file)
     print('Initialised application config file =', app_inst.app_config.config_file)
     assert app_inst.app_config.config_file.endswith('newslookout_test.conf'), 'The config file was not setup correctly'
+
 
 def test_isqueuemanager_initialised():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -65,6 +67,7 @@ def test_isqueuemanager_initialised():
     from newslookout.queue_manager import QueueManager
     assert isinstance(app_inst.queue_manager, QueueManager), 'The queue manager was not initialised correctly'
 
+
 def test_isqueuemanager_config():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
     app_inst = getMockAppInstance(parentFolder,
@@ -72,8 +75,9 @@ def test_isqueuemanager_config():
                                   config_file)
     app_inst.queue_manager.config(app_inst.app_config)
     from newslookout.session_hist import SessionHistory
-    assert isinstance(app_inst.queue_manager.sessionHistoryDB, SessionHistory),\
+    assert isinstance(app_inst.queue_manager.sessionHistoryDB, SessionHistory), \
         'The session history was not initialised correctly'
+
 
 def test_fetchCycleTime_config():
     (parentFolder, sourceFolder, testdataFolder, config_file) = getAppFolders()
@@ -91,9 +95,9 @@ def test_pidfile_add():
                                   config_file)
     app_inst.remove_pid_file()
     app_inst.set_pid_file(app_inst.app_config.pid_file)
-    assert os.path.isfile(app_inst.app_config.pid_file)==True, 'The PID file was not created.'
+    assert os.path.isfile(app_inst.app_config.pid_file) == True, 'The PID file was not created.'
     app_inst.remove_pid_file()
-    assert os.path.isfile(app_inst.app_config.pid_file)==False, 'The PID file was not removed.'
+    assert os.path.isfile(app_inst.app_config.pid_file) == False, 'The PID file was not removed.'
 
 
 if __name__ == "__main__":

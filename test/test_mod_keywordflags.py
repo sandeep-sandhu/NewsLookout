@@ -49,6 +49,7 @@ global app_inst
 
 logger = logging.getLogger(__name__)
 
+
 def test_plugin_subclass():
     """Test instantiation of this Plugin object
     """

@@ -210,8 +210,8 @@ class ConfigManager:
         self.save_html = 'true'
         self.enabledPluginNames = dict()
         self.rest_api_enabled = False
-        self.rest_api_host=False
-        self.rest_api_port=8080
+        self.rest_api_host = False
+        self.rest_api_port = 8080
         self.rest_api_ssl_key = 'rest_svc.key'
         self.rest_api_ssl_cert = 'rest_svc.cer'
 
@@ -335,8 +335,10 @@ class ConfigManager:
                 default='INFO'
             )
             self.archive_base_path = self.checkAndSanitizeConfigString('storage', 'archive_base_path', default='data')
-            use_archive_storage_str = self.checkAndSanitizeConfigString('storage','use_archive_storage', default='True')
-            self.use_archive_storage = True if (use_archive_storage_str == 'True' or use_archive_storage_str == 'true') else False
+            use_archive_storage_str = self.checkAndSanitizeConfigString(
+                'storage', 'use_archive_storage', default='True')
+            self.use_archive_storage = True if (use_archive_storage_str ==
+                                                'True' or use_archive_storage_str == 'true') else False
             self.logfile_backup_count = self.checkAndSanitizeConfigInt(
                 'logging',
                 'logfile_backup_count',

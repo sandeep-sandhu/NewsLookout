@@ -40,7 +40,7 @@ from unittest.mock import patch
 
 import pytest
 
-from . import getAppFolders, getMockAppInstance #, list_all_files, read_bz2html_file
+from . import getAppFolders, getMockAppInstance  # , list_all_files, read_bz2html_file
 import requests
 
 from unittest.mock import patch, MagicMock
@@ -110,6 +110,7 @@ def test_sleepBeforeNextFetch():
     print(f'Time difference 2: {time_diff_sec}')
     assert time_diff_sec >= 3, 'Network sleepBeforeNextFetch() is not correctly waiting upto minimum time delay.'
     assert time_diff_sec <= 5, 'Network sleepBeforeNextFetch() is not correctly waiting till maximum time delay.'
+
 
 class TestNetworkFetcher:
     def setup_method(self):

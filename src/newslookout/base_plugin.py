@@ -193,7 +193,6 @@ class BasePlugin:
          "%Y-%m-%d"
          }
 
-
     def __init__(self):
         """ Initializes the class object.
         Verifies whether the required attributes and methods have been overridden in the plugin classes.
@@ -647,7 +646,8 @@ class BasePlugin:
                 if isinstance(fetch_result, tuple):
                     category_html, http_error = fetch_result
                     if http_error or category_html is None:
-                        logger.error(f"{self.pluginName}: Failed to fetch category URL: {category.url}, TODO: add to failed urls")
+                        logger.error(
+                            f"{self.pluginName}: Failed to fetch category URL: {category.url}, TODO: add to failed urls")
                         # add this url to failed_urls table
                         # Queue database operation to save failed URL
                         if hasattr(self, 'queue_manager') and self.queue_manager:
@@ -1146,7 +1146,6 @@ class BasePlugin:
                 fp.write(htmlContent if isinstance(htmlContent, bytes) else htmlContent.encode('utf-8'))
         return json_file, None
 
-
     def fetchDataFromURL(self, uRLtoFetch: str, WorkerID: int) -> ExecutionResult:
         """
         Fetches and cleans data from a given URL. It takes in two inputs - the URL to fetch (uRLtoFetch), and an identifier for the worker thread executing the plugin (WorkerID).
@@ -1208,7 +1207,8 @@ class BasePlugin:
                         return resultVal
 
                     if http_error and http_error.is_permanent:
-                        logger.warning(f'{self.pluginName}: Skipping URL due to HTTP {http_error.status_code}: {uRLtoFetch}')
+                        logger.warning(
+                            f'{self.pluginName}: Skipping URL due to HTTP {http_error.status_code}: {uRLtoFetch}')
                         resultVal.http_error = http_error
                         # Queue database operation to save failed URL
                         if hasattr(self, 'queue_manager') and self.queue_manager:
@@ -1219,7 +1219,8 @@ class BasePlugin:
                             )
                         return resultVal
                     elif http_error:
-                        logger.warning(f'{self.pluginName}: Temporary HTTP error {http_error.status_code} for URL: {uRLtoFetch}')
+                        logger.warning(
+                            f'{self.pluginName}: Temporary HTTP error {http_error.status_code} for URL: {uRLtoFetch}')
                         # Queue database operation to save failed URL
                         if hasattr(self, 'queue_manager') and self.queue_manager:
                             self.queue_manager.queueDBOperation(
@@ -1320,6 +1321,7 @@ class BasePlugin:
         newpArticleObj.text = self.checkAndCleanText(newpArticleObj.text, newpArticleObj.html, newpArticleObj.url)
         logger.debug("Published date: %s", newpArticleObj.publish_date)
         # check date validity:
+
         def _is_future_date(dt):
             """Compare dates safely regardless of timezone awareness."""
             try:

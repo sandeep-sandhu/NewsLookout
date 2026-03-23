@@ -181,7 +181,7 @@ class mod_en_in_trak(BasePlugin):
                         self.pluginName,
                         uniqueString)
             raise ScrapeError("Invalid article since it does not have a unique identifier.")
-        return(uniqueString)
+        return (uniqueString)
 
     def extractIndustries(self, uRLtoFetch, htmlText):
         """ Extract the industry of the articles from its URL or contents
@@ -200,7 +200,7 @@ class mod_en_in_trak(BasePlugin):
                          self.pluginName,
                          e,
                          industryPattern)
-        return(industries)
+        return (industries)
 
     def extractAuthors(self, htmlText) -> list:
         """ Extract the author from the html content
@@ -221,7 +221,7 @@ class mod_en_in_trak(BasePlugin):
             except Exception as e:
                 logger.debug("Unable to identify the article authors: %s; string to parse: %s, URL: %s",
                              e, authorStr, self.URLToFetch)
-        return(authors)
+        return (authors)
 
     def extractArticleBody(self, htmlContent) -> str:
         """ extract the text body of the article
@@ -229,7 +229,7 @@ class mod_en_in_trak(BasePlugin):
         body_text = ""
         if type(htmlContent) == bytes:
             htmlContent = htmlContent.decode('UTF-8')
-        return(body_text)
+        return (body_text)
 
     def checkAndCleanText(self, inputText: str, htmlContent: str, url: str) -> str:
         """ Check and clean article text
@@ -252,7 +252,7 @@ class mod_en_in_trak(BasePlugin):
                 cleanedText = cleanedText.replace(stringToFilter, " ")
         except Exception as e:
             logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        return (cleanedText)
 
 
 # # end of file ##

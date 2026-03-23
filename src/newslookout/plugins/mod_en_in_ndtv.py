@@ -281,7 +281,7 @@ class mod_en_in_ndtv(BasePlugin):
                     body_text = body_text + str(item.get_text())
         except Exception as e:
             logger.error("Exception extracting article via tags: %s", e)
-        return(body_text)
+        return (body_text)
 
     def extractArticleTitle(self, htmlContent):
         """ Extract article's text using the Beautiful Soup library
@@ -296,19 +296,19 @@ class mod_en_in_ndtv(BasePlugin):
                     title_text = title_text + str(item.get_text())
         except Exception as e:
             logger.error("Exception extracting article via tags: %s", e)
-        return(title_text)
+        return (title_text)
 
     def extractIndustries(self, uRLtoFetch, htmlText):
         """ Extract the industry of the articles from its URL or contents
         """
         industries = []
-        return(industries)
+        return (industries)
 
     def extractAuthors(self, htmlText):
         """ extract the author from the html content
         """
         authors = []
-        return(authors)
+        return (authors)
 
     def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
@@ -331,7 +331,7 @@ class mod_en_in_ndtv(BasePlugin):
                 cleanedText = cleanedText.replace(stringToFilter, " ")
         except Exception as e:
             logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        return (cleanedText)
 
 
 # # end of file ##

@@ -395,7 +395,7 @@ class mod_en_in_moneycontrol(BasePlugin):
                 industries.append(matchRes.group(2))
         except Exception as e:
             logger.error("Error extracting industries: %s", e)
-        return(industries)
+        return (industries)
 
     def extractAuthors(self, htmlText):
         """ Extract Authors/Agency/Source from html
@@ -410,7 +410,7 @@ class mod_en_in_moneycontrol(BasePlugin):
                 authors.append(matchRes.group(2))
         except Exception as e:
             logger.error("Error extracting news agent from text: %s", e)
-        return(authors)
+        return (authors)
 
     def extractArticleBody(self, htmlContent):
         """ Extract article's text
@@ -433,7 +433,7 @@ class mod_en_in_moneycontrol(BasePlugin):
                 logger.error("Error extracting article content: %s", e)
         except Exception as e:
             logger.error("Exception extracting article body: %s", e)
-        return(articleText)
+        return (articleText)
 
     def checkAndCleanText(self, inputText, rawData, url):
         """ Check and clean article text
@@ -456,7 +456,7 @@ class mod_en_in_moneycontrol(BasePlugin):
                 cleanedText = cleanedText.replace(stringToFilter, " ")
         except Exception as e:
             logger.error("Error cleaning text: %s", e)
-        return(cleanedText)
+        return (cleanedText)
 
 
 # # end of file ##
