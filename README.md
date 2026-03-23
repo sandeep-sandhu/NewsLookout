@@ -250,6 +250,16 @@ for plugin_name, state in plugin_status.items():
     print(f"{plugin_name}: {state}")
 ```
 
+### Monitoring Dashboard
+
+The application status is also visible from
+the monitoring dashboard which uses the REST API to publish
+the status of scraping activity and progress.
+It is accessible at http://localhost:8080/dashboard.html
+
+![Monitoring Dashboard](monitoring_dashboard.png)
+
+
 ## Architecture
 
 ### Component Overview
