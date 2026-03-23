@@ -44,8 +44,6 @@ __status__ = "Production"
 
 ##########
 
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 NewsLookout Library Interface
