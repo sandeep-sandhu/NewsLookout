@@ -15,60 +15,59 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Set up Python 3.10.7
-      uses: actions/setup-python@v4
-      with:
-        python-version: "3.10.7"
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install flake8 pytest pytest-cov coveralls
-        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-        # Install the package itself so 'import newslookout' works in tests
-        pip install -e .
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.10.7
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10.7"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest pytest-cov coveralls
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          # Install the package itself so 'import newslookout' works in tests
+          pip install -e .
 
-    - name: Download NLTK data
-      run: |
-        # Download all NLTK resources the app needs, bypassing any broken proxy
-        # env vars that GitHub Actions sets. Using -d writes to a known directory
-        # that NLTK will find at runtime.
-        unset https_proxy http_proxy HTTP_PROXY HTTPS_PROXY
-        python -m nltk.downloader -d /usr/share/nltk_data \
-          punkt \
-          punkt_tab \
-          averaged_perceptron_tagger \
-          maxent_treebank_pos_tagger \
-          universal_treebanks_v20 \
-          reuters
-          
-    - name: Lint with flake8
-      run: |
-        # Stop build on syntax errors, undefined names, and import errors only
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+      - name: Download NLTK data
+        run: |
+          # Download all NLTK resources the app needs, bypassing any broken proxy
+          # env vars that GitHub Actions sets. Using -d writes to a known directory
+          # that NLTK will find at runtime.
+          unset https_proxy http_proxy HTTP_PROXY HTTPS_PROXY
+          python -m nltk.downloader -d /usr/share/nltk_data \
+            punkt \
+            punkt_tab \
+            averaged_perceptron_tagger \
+            maxent_treebank_pos_tagger \
+            universal_treebanks_v20 \
+            reuters
 
-    - name: Lint with flake8 (style warnings)
-      run: |
-        flake8 . \
-          --count \
-          --exit-zero \
-          --max-complexity=10 \
-          --max-line-length=127 \
-          --extend-ignore=C901,E721,W503 \
-          --per-file-ignores="test/*.py:F401,F811,F841,F824,E302,E303,E501" \
-          --statistics
+      - name: Lint with flake8
+        run: |
+          # Stop build on syntax errors, undefined names, and import errors only
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
 
-    - name: Test with pytest
-      run: |
-        pytest test/ -v
-    - name: Coverage
-      run: |
-        coverage run --source=src/ --branch -m pytest test/
-        coverage report -m
-    - name: Coveralls
-      uses: AndreMiras/coveralls-python-action@develop
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        parallel: false
-        flag-name: Unit Test
+      - name: Lint with flake8 (style warnings)
+        run: |
+          flake8 . \
+            --count \
+            --exit-zero \
+            --max-complexity=10 \
+            --max-line-length=127 \
+            --extend-ignore=C901,E721,W503 \
+            --per-file-ignores="test/*.py:F401,F811,F841,F824,E302,E303,E501" \
+            --statistics
 
+      - name: Test with pytest
+        run: |
+          pytest test/ -v
+      - name: Coverage
+        run: |
+          coverage run --source=src/ --branch -m pytest test/
+          coverage report -m
+      - name: Coveralls
+        uses: AndreMiras/coveralls-python-action@develop
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          parallel: false
+          flag-name: Unit Test
