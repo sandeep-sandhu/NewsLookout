@@ -27,6 +27,21 @@ jobs:
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
         # Install the package itself so 'import newslookout' works in tests
         pip install -e .
+
+    - name: Download NLTK data
+      run: |
+        # Download all NLTK resources the app needs, bypassing any broken proxy
+        # env vars that GitHub Actions sets. Using -d writes to a known directory
+        # that NLTK will find at runtime.
+        unset https_proxy http_proxy HTTP_PROXY HTTPS_PROXY
+        python -m nltk.downloader -d /usr/share/nltk_data \
+          punkt \
+          punkt_tab \
+          averaged_perceptron_tagger \
+          maxent_treebank_pos_tagger \
+          universal_treebanks_v20 \
+          reuters
+          
     - name: Lint with flake8
       run: |
         # Stop build on syntax errors, undefined names, and import errors only
@@ -45,7 +60,7 @@ jobs:
 
     - name: Test with pytest
       run: |
-        pytest test
+        pytest test/ -v
     - name: Coverage
       run: |
         coverage run --source=src/ --branch -m pytest test/
