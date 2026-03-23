@@ -16,6 +16,7 @@
 8. [API Reference](#api-reference)
 9. [Troubleshooting](#troubleshooting)
 
+
 ## Overview
 
 NewsLookout is a comprehensive, multi-threaded web scraping framework designed for extracting news articles and data from various online sources. It features a plugin-based architecture for extensibility and supports concurrent processing across multiple news sources.
