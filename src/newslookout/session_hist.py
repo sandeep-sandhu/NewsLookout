@@ -190,7 +190,10 @@ class SessionHistory:
                 logger.info("Database initialized with HTTP error tracking tables and indexes")
         except Exception as e:
             logger.error(f"Failed to initialize database: {e}")
-            raise
+            # Do not raise or sys.exit here — the constructor must complete so
+            # callers can still call openConnFromfile(), which will raise
+            # sqlite3.DatabaseError itself when it probes the corrupt file.
+            return
 
     @staticmethod
     def openConnFromfile(dataFileName: str) -> lite.Connection:
